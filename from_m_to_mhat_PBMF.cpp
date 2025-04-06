@@ -192,7 +192,7 @@ void read_mess(Tedge *edges, long M, char *filemess){
         for (int i = 0; i < 2; i++){
             fmess >> trash;
             fmess >> trash2;
-            for (long l = 0; l < edges[e].mess_hat[i].size(); l++){
+            for (long l = 0; l < edges[e].mess[i].size(); l++){
                 fmess >> edges[e].mess[i][l];
             }
         }
