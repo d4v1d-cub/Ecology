@@ -175,81 +175,91 @@ void read_mess_hat(Tedge *edges, long M, char *filemhat){
 }
 
 
-double distribution(double ni, double nj, double mhat_ij, double mhat_ji, 
-                    double aij, double aji, double beta){
-    return exp(-0.5 * beta * pow(ni - 1 + aji * nj + mhat_ij, 2)) * 
-           exp(-0.5 * beta * pow(nj - 1 + aij * ni + mhat_ji, 2));
+double derivative_dis(double ni, double nj, double mhat_ij, double mhat_ji,
+                      double mhat_ij_der, 
+                      double aij, double aji, double beta, double lambda){
+    return (beta * lambda - 1) / ni - beta * (ni - 1 + aji * nj + mhat_ij) * (1 + mhat_ij_der) - 
+           beta * aij * (nj - 1 + aij * ni + mhat_ji);
 }
 
 
-double distribution_isolated(double ni, double beta){
-    return exp(-0.5 * beta * pow(ni - 1, 2));
+double second_derivative_dis(double ni, double nj, double mhat_ij, double mhat_ji,
+                             double mhat_ij_der, double mhat_ij_der_2, 
+                             double aij, double aji, double beta, double lambda){
+    return pow(derivative_dis(ni, nj, mhat_ij, mhat_ji, mhat_ij_der, aij, aji, beta, lambda), 2) - 
+           (beta * lambda - 1) / ni / ni - beta * pow(1 + mhat_ij_der, 2) - 
+           beta * (ni - 1 + aji * nj + mhat_ij) * mhat_ij_der_2 - beta * aij * aij;
 }
 
 
-void get_psingle(long N, Tnode *nodes, Tedge *edges, double beta, 
-                 double dn, double error, long npoints, char *fileout, double nmin){
-    double integral, ni, nj, val, val_prev;
-    long e;
-    int pos_there;
-    vector <double> psingle = vector <double> (npoints, 0);
-    ofstream fout(fileout);
-    for (long i = 0; i < N; i++){
-        if (nodes[i].edges_in.size() > 0){
-            e = nodes[i].edges_in[0];
-            pos_there = nodes[i].pos_there[0];
-            ni = nmin;
-            for (long l = 0; l < npoints; l++){
-                val_prev = distribution(ni, nmin, edges[e].mess_hat[pos_there][l],
-                                        edges[e].mess_hat[1 - pos_there][0], 
-                                        edges[e].links[1 - pos_there], edges[e].links[pos_there], 
-                                        beta);
-                psingle[l] = 0;
-                nj = nmin + dn;
-                for (long k = 1; k < npoints; k++){
-                    val = distribution(ni, nj, edges[e].mess_hat[pos_there][l],
-                                        edges[e].mess_hat[1 - pos_there][k], 
-                                        edges[e].links[1 - pos_there], edges[e].links[pos_there], 
-                                        beta);
-                    psingle[l] += 0.5 * (val_prev + val) * dn;
-                    nj += dn; 
-                    val_prev = val;
-                }
-                ni += dn;
-            }
-            integral = 0;
-            for (long l = 1; l < npoints; l++){
-                integral += 0.5 * (psingle[l - 1] + psingle[l]) * dn;
-            }
-            for (long l = 0; l < npoints; l++){
-                psingle[l] /= integral;
-            }
-            fout << i;
-            for (long l = 0; l < npoints; l++){
-                fout << "\t" << psingle[l];
-            }
-            fout << endl;
 
-        }else{
-            val_prev = distribution_isolated(nmin, beta);
-            ni = nmin + dn;
-            for (long k = 1; k < npoints; k++){
-                val = distribution_isolated(ni, beta);
-                psingle[k] = 0.5 * (val_prev + val) * dn;
-                ni += dn; 
-                val_prev = val;
-            }
-            for (long k = 0; k < npoints; k++){
-                psingle[k] /= integral;
-            }
-            fout << i;
-            for (long l = 0; l < npoints; l++){
-                fout << "\t" << psingle[l];
-            }
-            fout << endl;
-        }
+
+double derivative_pref(double ni, double nj, double mhat_ij, double mhat_ij_der, double aji){
+    return 1 - 2 * ni - aji * nj - mhat_ij - ni * mhat_ij_der;
+}
+
+
+
+
+double comp_der_one(double ni, double nj, double mhat_ij, double mhat_ji, 
+                    double mhat_ij_der, double mhat_ij_der_2, double aij, double aji,
+                    double beta, double lambda){
+    double der_ni = -derivative_pref(ni, nj, mhat_ij, mhat_ij_der, aji) -
+                    (ni * (1 - ni - aji * nj - mhat_ij) + lambda) * 
+                    derivative_dis(ni, nj, mhat_ij, mhat_ji, mhat_ij_der, aij, aji, beta, lambda);
+    double der_ni_2 = 2 * derivative_dis(ni, nj, mhat_ij, mhat_ji, mhat_ij_der, aij, aji, beta, lambda) / beta + 
+                      ni * second_derivative_dis(ni, nj, mhat_ij, mhat_ji, mhat_ij_der, mhat_ij_der_2, aij, aji, beta, lambda) / beta;
+    return der_ni + der_ni_2;
+}
+
+double der_full(double ni, double nj, double mhat_ij, double mhat_ji, 
+                double mhat_ij_der, double mhat_ji_der, double mhat_ij_der_2, 
+                double mhat_ji_der_2, double aij, double aji, double beta, 
+                double lambda){
+    return comp_der_one(ni, nj, mhat_ij, mhat_ji, mhat_ij_der, mhat_ij_der_2, aij, aji, beta, lambda) +
+           comp_der_one(nj, ni, mhat_ji, mhat_ij, mhat_ji_der, mhat_ji_der_2, aji, aij, beta, lambda);
+}
+
+
+vector <double> der_mhat(vector <double> mhat, double dn){
+    vector <double> mhat_der(mhat.size(), 0);
+    for (long l = 0; l < mhat.size() - 1; l++){
+        mhat_der[l] = (mhat[l + 1] - mhat[l]) / dn;
     }
-    fout.close();
+    mhat_der[mhat.size() - 1] = mhat_der[mhat.size() - 2];
+    return mhat_der;
+}
+
+
+double check_all_ders(vector <double> mhat_ij, vector <double> mhat_ji, double aij, double aji,
+                      double dn, double nmin, double beta, double lambda){
+    double ni = nmin;
+    double nj;
+    double cumul = 0;
+    vector <double> mhat_ij_der = der_mhat(mhat_ij, dn);
+    vector <double> mhat_ji_der = der_mhat(mhat_ji, dn);
+    vector <double> mhat_ij_der_2 = der_mhat(mhat_ij_der, dn);
+    vector <double> mhat_ji_der_2 = der_mhat(mhat_ji_der, dn); 
+    for (long li = 0; li < mhat_ij.size(); li++){
+        nj = nmin;
+        for (long lj = 0; lj < mhat_ji.size(); lj++){
+            cumul += fabs(der_full(ni, nj, mhat_ij[li], mhat_ji[lj], 
+                                   mhat_ij_der[li], mhat_ji_der[lj], 
+                                   mhat_ij_der_2[li], mhat_ji_der_2[lj], 
+                                   aij, aji, beta, lambda));
+            nj += dn;
+        }
+        ni += dn;
+    }
+    return cumul / mhat_ji.size() / mhat_ji.size();
+}
+
+
+void print_abs_ders(Tedge *edges, long M, double dn, double nmin, double beta, double lambda){
+    for (long e = 0; e < M; e++){
+        cout << check_all_ders(edges[e].mess_hat[0], edges[e].mess_hat[1], 
+                               edges[e].links[1], edges[e].links[0], dn, nmin, beta, lambda) << endl;
+    }
 }
 
 
@@ -299,15 +309,11 @@ int main(int argc, char *argv[]) {
     sprintf(filemhat, "PBMF_Lotka_Volterra_steady_state_messhat_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
                       gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
 
-    char filepsingle[200];
-    sprintf(filepsingle, "PBMF_Lotka_Volterra_steady_state_psingle_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
-                         gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
-
     double dn = (nmax - nmin) / npoints;
 
     init_messages(M, avn_0, npoints, edges);
 
-    get_psingle(N, nodes, edges, beta, dn, tol_integrals, npoints, filepsingle, nmin);
+    print_abs_ders(edges, M, dn, nmin, beta, lambda);
     
     return 0;
 }
