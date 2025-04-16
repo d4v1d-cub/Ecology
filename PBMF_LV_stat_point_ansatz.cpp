@@ -21,7 +21,7 @@ void init_ran(gsl_rng * &r, unsigned long s){
 typedef struct{
     vector <long> edges_in; // edges that contain the node
     vector <int> pos_there; // position occupied by the node in those edges
-    double avn; // average value of n in that node
+    double field; // average value of n in that node
 }Tnode;
 
 
@@ -307,152 +307,104 @@ double update_all_mhat_ij(Tedge *edges, long M){
 }
 
 
-int convergence(Tedge *edges, long M, double beta, double lambda, double dn, double tol, 
-                 int max_iter, double tol_integrals, char *filehist, double nmin){
-    double var_mhat = tol + 1;
-    int iter = 0;
-    ofstream fh(filehist);
-    fh << "iter\tmax(dmhat)" << endl;
-    while (var_mhat > tol && iter < max_iter){
-        update_all_m(M, beta, lambda, dn, tol_integrals, edges, nmin);
-        var_mhat = update_all_mhat_ij(edges, M);
-        iter++;
-        fh << iter << "\t" << var_mhat << endl;
+double distribution(double ni, double nj, double mhat_ij, double mhat_ji, 
+                    double aij, double aji, double beta){
+    return exp(-0.5 * beta * pow(ni - 1 + aji * nj + mhat_ij, 2)) * 
+           exp(-0.5 * beta * pow(nj - 1 + aij * ni + mhat_ji, 2));
+}
+
+
+
+double get_av(vector <double> mhat_ij, vector <double> mhat_ji, double aij, double aji, 
+              double beta, double lambda, double dn, double error, double nmin){
+    double integral_num = 0, last_integrand_num, last_integrand_den;
+    double integral_den = 0;
+    double integral_in, integral_in_prev;
+    double dist_prev, dist;
+    
+    dist_prev = distribution(nmin, nmin, mhat_ij[0], mhat_ji[0], aij, aji, beta);
+    double nj = nmin + dn;
+    integral_in_prev = 0;
+    for (long lj = 1; lj < mhat_ji.size(); lj++){
+        dist = distribution(nmin, nj, mhat_ij[0], mhat_ji[lj], aij, aji, beta);
+        integral_in_prev += 0.5 * (dist_prev + dist) * dn;
+        nj += dn;
+        dist_prev = dist;
     }
-    fh.close();
-    return iter;
-}
 
-
-double Apair(double ni, double mhat_ij, double aij, double beta){
-    return pow(ni - 1 + mhat_ij, 2) + pow(aij * ni, 2) - 2 * aij * ni; 
-}
-
-
-double integrand_Rpair(double ni, double mhat_ij, double z_mess_ji, double aij, double beta, double lambda){
-    return z_mess_ji * pow(ni, beta * lambda) * exp(-0.5 * beta * Apair(ni, mhat_ij, aij, beta));
-}
-
-
-double Rpair(vector <double> mhat_ij, vector <double> z_mess_ji, 
-             double aij, double beta, double lambda, double dn, vector <double> &saved_integrands, 
-             double error, double nmin){
-    saved_integrands[0] = integrand_Rpair(nmin, mhat_ij[0], z_mess_ji[0], aij, beta, lambda);
-    double integral = saved_integrands[0] * nmin / (beta * lambda + 1);
     double ni = nmin + dn;
-    for (long l = 1; l < mhat_ij.size(); l++){
-        saved_integrands[l] = integrand_Rpair(ni, mhat_ij[l], z_mess_ji[l], aij, beta, lambda);
-        integral += 0.5 * (saved_integrands[l - 1] + saved_integrands[l]) * dn;
+    for (long li = 1; li < mhat_ij.size(); li++){
+        dist_prev = distribution(ni, nmin, mhat_ij[li], mhat_ji[0], aij, aji, beta);
+        nj = nmin + dn;
+        integral_in = 0;
+        for (long lj = 1; lj < mhat_ji.size(); lj++){
+            dist = distribution(ni, nj, mhat_ij[li], mhat_ji[lj], aij, aji, beta);
+            integral_in += 0.5 * (dist_prev + dist) * dn;
+            nj += dn;
+            dist_prev = dist;
+        }
+        last_integrand_num = 0.5 * (integral_in_prev * (ni - dn) + integral_in * ni) * dn;
+        last_integrand_den = 0.5 * (integral_in_prev + integral_in) * dn;
+        integral_num += last_integrand_num;
+        integral_den += last_integrand_den;
+        integral_in_prev = integral_in;
         ni += dn;
     }
 
-    if (saved_integrands[saved_integrands.size() - 1] * dn > error){
-        double mhat_ij_out = mhat_ij[mhat_ij.size() - 1];
-        double mhat_ij_der_ext = (mhat_ij[mhat_ij.size() - 1] - mhat_ij[mhat_ij.size() - 2]) / dn;
-        double z_mess_ji_out = z_mess_ji[z_mess_ji.size() - 1];
-        double z_mess_ji_der_ext = (z_mess_ji[z_mess_ji.size() - 1] - z_mess_ji[z_mess_ji.size() - 2]) / dn;
-        double integrand_prev = saved_integrands[saved_integrands.size() - 1];
-        double integrand;
-        while (integrand_prev * dn > error){
-            mhat_ij_out = mhat_ij_out + mhat_ij_der_ext * dn;
-            if (mhat_ij_out < 0){
-                mhat_ij_out = 0;
-                mhat_ij_der_ext = 0;
-            }
-            z_mess_ji_out = z_mess_ji_out + z_mess_ji_der_ext * dn;
-            if (z_mess_ji_out < 0){
-                z_mess_ji_out = 0;
-                z_mess_ji_der_ext = 0;
-            }
-            integrand = integrand_Rpair(ni, mhat_ij_out, z_mess_ji_out, aij, beta, lambda);
-            integral += 0.5 * (integrand_prev + integrand) * dn;
-            integrand_prev = integrand;
-            ni += dn;
-            // cout << "Integral Rpair did not converge in the selected interval" << endl;
-        }
-    }
-
-    return integral;
-}
-
-
-double Zpair(vector <double> mhat_ij, vector <double> z_mess_ji, double aij, double beta, 
-             double lambda, double dn, vector <double> saved_integrands, double val_Rpair, 
-             double error, double nmin){
-    double integral = saved_integrands[0] / (beta * lambda);
-    double ni = nmin;
-    for (long l = 1; l < mhat_ij.size(); l++){
-        integral += 0.5 * (saved_integrands[l - 1] / ni + saved_integrands[l] / (ni + dn)) * dn;
-        ni += dn;
-    }
-
-    if (saved_integrands[mhat_ij.size() - 1] * dn > error){
-        double mhat_ij_out = mhat_ij[mhat_ij.size() - 1];
-        double z_mess_ji_out = z_mess_ji[z_mess_ji.size() - 1];
-        double mhat_ij_der_ext = (mhat_ij[mhat_ij.size() - 1] - mhat_ij[mhat_ij.size() - 2]) / dn;
-        double z_mess_ji_der_ext = (z_mess_ji[z_mess_ji.size() - 1] - z_mess_ji[z_mess_ji.size() - 2]) / dn;
-        double integrand_prev = saved_integrands[mhat_ij.size() - 1];
-        double integrand;
-        while (integrand_prev / ni * dn > error){
-            mhat_ij_out = mhat_ij_out + mhat_ij_der_ext * dn;
-            if (mhat_ij_out < 0){
-                mhat_ij_out = 0;
-                mhat_ij_der_ext = 0;
-            }
-            z_mess_ji_out = z_mess_ji_out + z_mess_ji_der_ext * dn;
-            if (z_mess_ji_out < 0){
-                z_mess_ji_out = 0;
-                z_mess_ji_der_ext = 0;
-            }
-            integrand = integrand_Rpair(ni + dn, mhat_ij_out, z_mess_ji_out, aij, beta, lambda);
-            integral += 0.5 * (integrand_prev / ni + integrand / (ni + dn)) * dn;
-            ni += dn;
-            integrand_prev = integrand;
-        }
-    }  
-
-    return integral;
-}
-
-
-double R_ind(double beta, double lambda){
-    return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta / 2) +
-    sqrt(2 * beta) * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta / 2);
-}
-
-
-double Z_ind(double beta, double lambda){
-    return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta / 2) + 
-    beta * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta / 2);
+    
+    return integral_num / integral_den;
 }
 
 
 void comp_averages(long N, Tnode *nodes, Tedge *edges, double beta, double lambda, double dn,
                    double error, double nmin){
-    double val_Rpair, val_Zpair;
-    vector <double> saved_integrands = vector <double> (edges[0].mess[0].size(), 0);
-    double val_ind = R_ind(beta, lambda) / Z_ind(beta, lambda);
     for (long i = 0; i < N; i++){
         if (nodes[i].edges_in.size() > 0){
-            val_Rpair = Rpair(edges[nodes[i].edges_in[0]].mess_hat[nodes[i].pos_there[0]], 
-                              edges[nodes[i].edges_in[0]].z_mess[nodes[i].pos_there[0]], 
-                              edges[nodes[i].edges_in[0]].links[1 - nodes[i].pos_there[0]], 
-                              beta, lambda, dn, saved_integrands, error, nmin);
-            val_Zpair = Zpair(edges[nodes[i].edges_in[0]].mess_hat[nodes[i].pos_there[0]],
-                              edges[nodes[i].edges_in[0]].z_mess[nodes[i].pos_there[0]], 
-                              edges[nodes[i].edges_in[0]].links[1 - nodes[i].pos_there[0]], 
-                              beta, lambda, dn, saved_integrands, val_Rpair, error, nmin);
-            nodes[i].avn = val_Rpair / val_Zpair;
+            nodes[i].field = get_av(edges[nodes[i].edges_in[0]].mess_hat[nodes[i].pos_there[0]], 
+                                  edges[nodes[i].edges_in[0]].mess_hat[1 - nodes[i].pos_there[0]], 
+                                  edges[nodes[i].edges_in[0]].links[1 - nodes[i].pos_there[0]], 
+                                  edges[nodes[i].edges_in[0]].links[nodes[i].pos_there[0]], 
+                                  beta, lambda, dn, error, nmin);
         }else{
-            nodes[i].avn = val_ind;
+            nodes[i].field = 1;
         }
     }
 }
 
+
+int convergence(Tnode *nodes, Tedge *edges, int N, long M, double beta, double lambda, double dn, double tol, 
+                 int max_iter, double tol_integrals, char *filehist, char *filefield_hist, double nmin, int print_every){
+    double var_mhat = tol + 1;
+    int iter = 0;
+    ofstream fh(filehist);
+    ofstream ffieldh(filefield_hist);
+    fh << "#iter\tmax(dmhat)" << endl;
+    ffieldh << "#iter\tavn_vec..." << endl;
+    while (var_mhat > tol && iter < max_iter){
+        update_all_m(M, beta, lambda, dn, tol_integrals, edges, nmin);
+        var_mhat = update_all_mhat_ij(edges, M);
+        iter++;
+        if (iter % print_every == 0){
+            fh << iter << "\t" << var_mhat << endl;
+            comp_averages(N, nodes, edges, beta, lambda, dn, tol_integrals, nmin);
+            ffieldh << iter;
+            for (long i  = 0; i < N; i++){
+                ffieldh << "\t" << nodes[i].field;
+            }
+            ffieldh << endl;
+        }
+    }
+    fh.close();
+    ffieldh.close();
+    return iter;
+}
+
+
+
 double average(long N, Tnode *nodes){
     double av = 0;
     for (long i = 0; i < N; i++){
-        av += nodes[i].avn;
+        av += nodes[i].field;
     }
     return av / N;
 }
@@ -460,7 +412,7 @@ double average(long N, Tnode *nodes){
 double average_sqr(long N, Tnode *nodes){
     double av_sqr = 0;
     for (long i = 0; i < N; i++){
-        av_sqr += nodes[i].avn * nodes[i].avn;
+        av_sqr += nodes[i].field * nodes[i].field;
     }
     return av_sqr / N;
 }
@@ -468,7 +420,7 @@ double average_sqr(long N, Tnode *nodes){
 
 
 void print_results(int iter, Tnode *nodes, Tedge *edges, long N, long M, double beta, double lambda, 
-                   double dn, long seed, int max_iter, char *fileavn, char *filemess, 
+                   double dn, long seed, int max_iter, char *filefield, char *filemess, 
                    double tol_integrals, double nmin){
     comp_averages(N, nodes, edges, beta, lambda, dn, tol_integrals, nmin);
     double av = average(N, nodes);
@@ -476,11 +428,11 @@ void print_results(int iter, Tnode *nodes, Tedge *edges, long N, long M, double 
     bool conv = iter < max_iter;
     cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << seed << endl;
 
-    ofstream favn(fileavn);
+    ofstream ffield(filefield);
     for (long i = 0; i < N; i++){
-        favn << i << "\t" << nodes[i].avn << endl;
+        ffield << i << "\t" << nodes[i].field << endl;
     }
-    favn.close();
+    ffield.close();
 
     ofstream fmess(filemess);
     for (long e = 0; e < M; e++){
@@ -510,7 +462,8 @@ int main(int argc, char *argv[]) {
     double nmax = atof(argv[11]);
     int npoints = atoi(argv[12]);
     double tol_integrals = atof(argv[13]);
-    bool gr_inside = atoi(argv[14]);
+    int print_every = atoi(argv[14]);
+    bool gr_inside = atoi(argv[15]);
 
 
     Tnode *nodes;
@@ -523,8 +476,8 @@ int main(int argc, char *argv[]) {
 
     if (gr_inside){
         sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[15]);
-        c = atoi(argv[16]);
+        N = atol(argv[16]);
+        c = atoi(argv[17]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -538,13 +491,16 @@ int main(int argc, char *argv[]) {
     }
 
 
-    char filehist[200];
-    sprintf(filehist, "PBMF_Lotka_Volterra_steady_state_convergence_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
+    char filehist[300];
+    sprintf(filehist, "PBMF_Lotka_Volterra_steady_state_convergence_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li_print_every_%d.txt", 
+                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed, print_every);
+    char filefield[300];
+    sprintf(filefield, "PBMF_Lotka_Volterra_steady_state_field_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
                       gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
-    char fileavn[200];
-    sprintf(fileavn, "PBMF_Lotka_Volterra_steady_state_avn_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
-    char filemess[200];
+    char filefield_hist[300];
+    sprintf(filefield_hist, "PBMF_Lotka_Volterra_field_hist_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li_print_every_%d.txt", 
+                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed, print_every);
+    char filemess[300];
     sprintf(filemess, "PBMF_Lotka_Volterra_steady_state_mess_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
                       gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
 
@@ -552,9 +508,9 @@ int main(int argc, char *argv[]) {
 
     init_messages(M, avn_0, npoints, edges);
 
-    int iter = convergence(edges, M, beta, lambda, dn, tol, max_iter, tol_integrals, filehist, nmin);
+    int iter = convergence(nodes, edges, N, M, beta, lambda, dn, tol, max_iter, tol_integrals, filehist, filefield_hist, nmin, print_every);
 
-    print_results(iter, nodes, edges, N, M, beta, lambda, dn, seed, max_iter, fileavn, filemess, tol_integrals, nmin);
+    print_results(iter, nodes, edges, N, M, beta, lambda, dn, seed, max_iter, filefield, filemess, tol_integrals, nmin);
     
     return 0;
 }

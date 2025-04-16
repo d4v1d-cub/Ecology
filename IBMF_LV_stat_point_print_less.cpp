@@ -132,7 +132,6 @@ void comp_fields(long N, double *avgs, Tnode *nodes){
     }
 }
 
-
 double average(long N, Tnode *nodes){
     double av = 0;
     for (long i = 0; i < N; i++){
@@ -149,21 +148,15 @@ double average_sqr(long N, Tnode *nodes){
     return av_sqr / N;
 }
 
+
 int convergence(long N, double *avgs, double beta, double lambda, Tnode *nodes, double tol, 
-                 int max_iter, char *filehist, char *filefield_hist, int print_every){
+                 int max_iter){
     double *avgs_new;
     avgs_new = new double[N];
     double var = tol + 1;
     int iter = 0;
 
-    ofstream fh(filehist);
-    ofstream ffieldh(filefield_hist);
-
-    fh << "# iter\tmax(dn)\tav(n)" << endl;
-    ffieldh << "# iter\tav(n)..." << endl;
-
     comp_fields(N, avgs, nodes);
-
     while (var > tol && iter < max_iter){
         var = new_averages(N, avgs, avgs_new, beta, lambda, nodes);
         for (long i = 0; i < N; i++){
@@ -171,36 +164,19 @@ int convergence(long N, double *avgs, double beta, double lambda, Tnode *nodes, 
         }
         iter++;
         comp_fields(N, avgs, nodes);
-        if (iter % print_every == 0){
-            fh << iter << "\t" << var << "\t" << average(N, nodes) << endl;
-            ffieldh << iter;
-            for (long i  = 0; i < N; i++){
-                ffieldh << "\t" << nodes[i].field;
-            }
-            ffieldh << endl;
-        }
     }
-
-    fh.close();
-    ffieldh.close();
 
     return iter;
 }
 
 
-void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, char *filefield){
+
+void print_results_short(int iter, Tnode *nodes, long N, long seed, int max_iter){
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
     bool conv = iter < max_iter;
     cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << seed << endl;
-
-    ofstream ffield(filefield);
-    for (long i = 0; i < N; i++){
-        ffield << i << "\t" << nodes[i].field << endl;
-    }
-    ffield.close();
 }
-
 
 
 int main(int argc, char *argv[]) {
@@ -213,8 +189,7 @@ int main(int argc, char *argv[]) {
     double eps = atof(argv[7]);
     double mu = atof(argv[8]);
     double sigma = atof(argv[9]);
-    int print_every = atoi(argv[10]);
-    bool gr_inside = atoi(argv[11]);
+    bool gr_inside = atoi(argv[10]);
 
 
     Tnode *nodes;
@@ -225,8 +200,8 @@ int main(int argc, char *argv[]) {
 
     if (gr_inside){
         sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[12]);
-        int c = atoi(argv[13]);
+        N = atol(argv[11]);
+        int c = atoi(argv[12]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -238,25 +213,11 @@ int main(int argc, char *argv[]) {
     }
 
 
-    char filehist[200];
-    sprintf(filehist, "IBMF_Lotka_Volterra_steady_state_convergence_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every);
-
-
-    char filefield_hist[200];
-    sprintf(filefield_hist, "IBMF_Lotka_Volterra_avn_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d.txt", 
-                          gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every);
-
-    char filefield[200];
-    sprintf(filefield, "IBMF_Lotka_Volterra_steady_state_avn_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma);
-
-
     init_avgs(N, avgs, avn_0);
 
-    int iter = convergence(N, avgs, beta, lambda, nodes, tol, max_iter, filehist, filefield_hist, print_every);
+    int iter = convergence(N, avgs, beta, lambda, nodes, tol, max_iter);
 
-    print_results(iter, nodes, N, seed, max_iter, filefield);
+    print_results_short(iter, nodes, N, seed, max_iter);
     
     return 0;
 }

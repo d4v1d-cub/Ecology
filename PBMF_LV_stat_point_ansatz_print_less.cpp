@@ -21,7 +21,7 @@ void init_ran(gsl_rng * &r, unsigned long s){
 typedef struct{
     vector <long> edges_in; // edges that contain the node
     vector <int> pos_there; // position occupied by the node in those edges
-    double avn; // average value of n in that node
+    double field; // average value of n in that node
 }Tnode;
 
 
@@ -308,18 +308,14 @@ double update_all_mhat_ij(Tedge *edges, long M){
 
 
 int convergence(Tedge *edges, long M, double beta, double lambda, double dn, double tol, 
-                 int max_iter, double tol_integrals, char *filehist, double nmin){
+                 int max_iter, double tol_integrals, double nmin){
     double var_mhat = tol + 1;
     int iter = 0;
-    ofstream fh(filehist);
-    fh << "iter\tmax(dmhat)" << endl;
     while (var_mhat > tol && iter < max_iter){
         update_all_m(M, beta, lambda, dn, tol_integrals, edges, nmin);
         var_mhat = update_all_mhat_ij(edges, M);
         iter++;
-        fh << iter << "\t" << var_mhat << endl;
     }
-    fh.close();
     return iter;
 }
 
@@ -368,63 +364,23 @@ double get_av(vector <double> mhat_ij, vector <double> mhat_ji, double aij, doub
         ni += dn;
     }
 
-    if (last_integrand_num > error){
-        double mhat_ij_out = mhat_ij[mhat_ij.size() - 1];
-        double mhat_ij_der_ext = (mhat_ij[mhat_ij.size() - 1] - mhat_ij[mhat_ij.size() - 2]) / dn;
-        double integral_in_prev = integral;
-        double integrand;
-        while (integrand_prev / ni * dn > error){
-            mhat_ij_out = mhat_ij_out + mhat_ij_der_ext * dn;
-            if (mhat_ij_out < 0){
-                mhat_ij_out = 0;
-                mhat_ij_der_ext = 0;
-            }
-            z_mess_ji_out = z_mess_ji_out + z_mess_ji_der_ext * dn;
-            if (z_mess_ji_out < 0){
-                z_mess_ji_out = 0;
-                z_mess_ji_der_ext = 0;
-            }
-            integrand = integrand_Rpair(ni + dn, mhat_ij_out, z_mess_ji_out, aij, beta, lambda);
-            integral += 0.5 * (integrand_prev / ni + integrand / (ni + dn)) * dn;
-            ni += dn;
-            integrand_prev = integrand;
-        }
-    }  
-
-    return integral;
+    
+    return integral_num / integral_den;
 }
 
-
-double R_ind(double beta, double lambda){
-    return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta / 2) +
-    sqrt(2 * beta) * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta / 2);
-}
-
-
-double Z_ind(double beta, double lambda){
-    return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta / 2) + 
-    beta * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta / 2);
-}
 
 
 void comp_averages(long N, Tnode *nodes, Tedge *edges, double beta, double lambda, double dn,
                    double error, double nmin){
-    double val_Rpair, val_Zpair;
-    vector <double> saved_integrands = vector <double> (edges[0].mess[0].size(), 0);
-    double val_ind = R_ind(beta, lambda) / Z_ind(beta, lambda);
     for (long i = 0; i < N; i++){
         if (nodes[i].edges_in.size() > 0){
-            val_Rpair = Rpair(edges[nodes[i].edges_in[0]].mess_hat[nodes[i].pos_there[0]], 
-                              edges[nodes[i].edges_in[0]].z_mess[nodes[i].pos_there[0]], 
-                              edges[nodes[i].edges_in[0]].links[1 - nodes[i].pos_there[0]], 
-                              beta, lambda, dn, saved_integrands, error, nmin);
-            val_Zpair = Zpair(edges[nodes[i].edges_in[0]].mess_hat[nodes[i].pos_there[0]],
-                              edges[nodes[i].edges_in[0]].z_mess[nodes[i].pos_there[0]], 
-                              edges[nodes[i].edges_in[0]].links[1 - nodes[i].pos_there[0]], 
-                              beta, lambda, dn, saved_integrands, val_Rpair, error, nmin);
-            nodes[i].avn = val_Rpair / val_Zpair;
+            nodes[i].field = get_av(edges[nodes[i].edges_in[0]].mess_hat[nodes[i].pos_there[0]], 
+                                  edges[nodes[i].edges_in[0]].mess_hat[1 - nodes[i].pos_there[0]], 
+                                  edges[nodes[i].edges_in[0]].links[1 - nodes[i].pos_there[0]], 
+                                  edges[nodes[i].edges_in[0]].links[nodes[i].pos_there[0]], 
+                                  beta, lambda, dn, error, nmin);
         }else{
-            nodes[i].avn = val_ind;
+            nodes[i].field = 1;
         }
     }
 }
@@ -432,7 +388,7 @@ void comp_averages(long N, Tnode *nodes, Tedge *edges, double beta, double lambd
 double average(long N, Tnode *nodes){
     double av = 0;
     for (long i = 0; i < N; i++){
-        av += nodes[i].avn;
+        av += nodes[i].field;
     }
     return av / N;
 }
@@ -440,7 +396,7 @@ double average(long N, Tnode *nodes){
 double average_sqr(long N, Tnode *nodes){
     double av_sqr = 0;
     for (long i = 0; i < N; i++){
-        av_sqr += nodes[i].avn * nodes[i].avn;
+        av_sqr += nodes[i].field * nodes[i].field;
     }
     return av_sqr / N;
 }
@@ -448,32 +404,12 @@ double average_sqr(long N, Tnode *nodes){
 
 
 void print_results(int iter, Tnode *nodes, Tedge *edges, long N, long M, double beta, double lambda, 
-                   double dn, long seed, int max_iter, char *fileavn, char *filemess, 
-                   double tol_integrals, double nmin){
+                   double dn, long seed, int max_iter, double tol_integrals, double nmin){
     comp_averages(N, nodes, edges, beta, lambda, dn, tol_integrals, nmin);
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
     bool conv = iter < max_iter;
     cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << seed << endl;
-
-    ofstream favn(fileavn);
-    for (long i = 0; i < N; i++){
-        favn << i << "\t" << nodes[i].avn << endl;
-    }
-    favn.close();
-
-    ofstream fmess(filemess);
-    for (long e = 0; e < M; e++){
-        for (int i = 0; i < 2; i++){
-            fmess << e << "\t" << "m_" << edges[e].nodes_in[1 - i] << "to" << edges[e].nodes_in[i];
-            for (long l = 0; l < edges[e].mess[i].size(); l++){
-                fmess << "\t" << edges[e].mess[i][l];
-            }
-            fmess << endl;  
-        }
-    }
-
-    fmess.close();
 }
 
 int main(int argc, char *argv[]) {
@@ -517,24 +453,13 @@ int main(int argc, char *argv[]) {
         c = 2 * M / N;
     }
 
-
-    char filehist[200];
-    sprintf(filehist, "PBMF_Lotka_Volterra_steady_state_convergence_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
-    char fileavn[200];
-    sprintf(fileavn, "PBMF_Lotka_Volterra_steady_state_avn_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
-    char filemess[200];
-    sprintf(filemess, "PBMF_Lotka_Volterra_steady_state_mess_%s_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_eps_%.2lf_mu_%.2lf_sigma_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_N_%li_c_%d_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, nmin, nmax, npoints, N, c, seed);
-
     double dn = (nmax - nmin) / npoints;
 
     init_messages(M, avn_0, npoints, edges);
 
-    int iter = convergence(edges, M, beta, lambda, dn, tol, max_iter, tol_integrals, filehist, nmin);
+    int iter = convergence(edges, M, beta, lambda, dn, tol, max_iter, tol_integrals, nmin);
 
-    print_results(iter, nodes, edges, N, M, beta, lambda, dn, seed, max_iter, fileavn, filemess, tol_integrals, nmin);
+    print_results(iter, nodes, edges, N, M, beta, lambda, dn, seed, max_iter, tol_integrals, nmin);
     
     return 0;
 }

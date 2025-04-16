@@ -7,6 +7,9 @@
         "string_view": "cpp",
         "initializer_list": "cpp",
         "utility": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "fstream": "cpp",
+        "*.tcc": "cpp",
+        "iosfwd": "cpp"
     }
 }
