@@ -239,17 +239,17 @@ int main(int argc, char *argv[]) {
 
 
     char filehist[200];
-    sprintf(filehist, "IBMF_Lotka_Volterra_steady_state_convergence_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every);
+    sprintf(filehist, "IBMF_Lotka_Volterra_steady_state_convergence_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
+                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
 
 
     char filefield_hist[200];
-    sprintf(filefield_hist, "IBMF_Lotka_Volterra_avn_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d.txt", 
-                          gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every);
+    sprintf(filefield_hist, "IBMF_Lotka_Volterra_avn_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
+                          gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
 
     char filefield[200];
-    sprintf(filefield, "IBMF_Lotka_Volterra_steady_state_avn_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma);
+    sprintf(filefield, "IBMF_Lotka_Volterra_steady_state_avn_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
+                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, seed);
 
 
     init_avgs(N, avgs, avn_0);
