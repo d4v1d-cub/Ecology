@@ -49,35 +49,29 @@ int convergence(double &avg, double beta, double lambda, double mu, int c, doubl
 }
 
 
-
-void print_results(int iter, long seed, int max_iter, double avg, double mu){
-    bool conv = iter < max_iter;
-    cout << mu << "\t" << iter << "\t" << conv << "\t" << avg << "\t" << seed << endl;
-}
-
-
 int main(int argc, char *argv[]) {
-    unsigned long seed = atoi(argv[1]);
-    double avn_0 = atof(argv[2]);
-    double T = atof(argv[3]);
-    double lambda = atof(argv[4]);
-    double tol = atof(argv[5]);
-    int max_iter = atoi(argv[6]);
-    double mu0 = atof(argv[7]);
-    double dmu = atof(argv[8]);
-    double muf = atoi(argv[9]);
+    double avn_0 = atof(argv[1]);
+    double T = atof(argv[2]);
+    double lambda = atof(argv[3]);
+    double tol = atof(argv[4]);
+    int max_iter = atoi(argv[5]);
+    double mu0 = atof(argv[6]);
+    double dmu = atof(argv[7]);
+    double muf = atof(argv[8]);
 
-    int c = atoi(argv[10]);
+    int c = atoi(argv[9]);
 
-    double avg = avn_0;
+    double avg, field;
 
     double beta = 1.0 / T;
     int iter;
     bool conv;
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
-        iter = convergence(avn_0, beta, lambda, mu, c, tol, max_iter);
+        avg = avn_0;
+        iter = convergence(avg, beta, lambda, mu, c, tol, max_iter);
         conv = iter < max_iter;
-        cout << mu << "\t" << iter << "\t" << conv << "\t" << avg << "\t" << seed << endl;
+        field = field_in(avg, c, mu);
+        cout << mu << "\t" << iter << "\t" << conv << "\t" << avg << "\t" << field << "\t" << endl;
     }
     
     return 0;
