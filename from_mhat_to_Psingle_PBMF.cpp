@@ -192,7 +192,7 @@ void get_psingle(long N, Tnode *nodes, Tedge *edges, double beta,
     double integral, ni, nj, val, val_prev;
     long e;
     int pos_there;
-    vector <double> psingle = vector <double> (npoints, 0);
+    vector < vector <double> > psingle = vector < vector <double> > (N, vector <double> (npoints, 0) );
     ofstream fout(fileout);
     for (long i = 0; i < N; i++){
         if (nodes[i].edges_in.size() > 0){
@@ -204,14 +204,14 @@ void get_psingle(long N, Tnode *nodes, Tedge *edges, double beta,
                                         edges[e].mess_hat[1 - pos_there][0], 
                                         edges[e].links[1 - pos_there], edges[e].links[pos_there], 
                                         beta);
-                psingle[l] = 0;
+                psingle[i][l] = 0;
                 nj = nmin + dn;
                 for (long k = 1; k < npoints; k++){
                     val = distribution(ni, nj, edges[e].mess_hat[pos_there][l],
                                         edges[e].mess_hat[1 - pos_there][k], 
                                         edges[e].links[1 - pos_there], edges[e].links[pos_there], 
                                         beta);
-                    psingle[l] += 0.5 * (val_prev + val) * dn;
+                    psingle[i][l] += 0.5 * (val_prev + val) * dn;
                     nj += dn; 
                     val_prev = val;
                 }
@@ -219,36 +219,36 @@ void get_psingle(long N, Tnode *nodes, Tedge *edges, double beta,
             }
             integral = 0;
             for (long l = 1; l < npoints; l++){
-                integral += 0.5 * (psingle[l - 1] + psingle[l]) * dn;
+                integral += 0.5 * (psingle[i][l - 1] + psingle[i][l]) * dn;
             }
             for (long l = 0; l < npoints; l++){
-                psingle[l] /= integral;
+                psingle[i][l] /= integral;
             }
-            fout << i;
-            for (long l = 0; l < npoints; l++){
-                fout << "\t" << psingle[l];
-            }
-            fout << endl;
+            
 
         }else{
             val_prev = distribution_isolated(nmin, beta);
             ni = nmin + dn;
             for (long k = 1; k < npoints; k++){
                 val = distribution_isolated(ni, beta);
-                psingle[k] = 0.5 * (val_prev + val) * dn;
+                psingle[i][k] = 0.5 * (val_prev + val) * dn;
                 ni += dn; 
                 val_prev = val;
             }
             for (long k = 0; k < npoints; k++){
-                psingle[k] /= integral;
+                psingle[i][k] /= integral;
             }
-            fout << i;
-            for (long l = 0; l < npoints; l++){
-                fout << "\t" << psingle[l];
-            }
-            fout << endl;
         }
     }
+
+    for (long i = 0; i < N; i++){
+        fout << i;
+        for (long l = 0; l < npoints; l++){
+            fout << "\t" << psingle[i][l];
+        }
+        fout << endl;
+    }
+
     fout.close();
 }
 
