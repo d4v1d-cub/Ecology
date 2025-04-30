@@ -207,6 +207,32 @@
             ],
             "preLaunchTask": "C/C++: g++-11 IBMF sigma0",
             "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: g++-11 PBMF sigma0",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz_sigma_0.out",
+            "args": ["0.01", "0.5", "0.01", "1e-4", "1000", "0.3", "0.01", "0.4", "0.001", "10.0", "1000", "1e-3", "3"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++-11 PBMF sigma0",
+            "miDebuggerPath": "/usr/bin/gdb"
         }
     ],
     "version": "2.0.0"

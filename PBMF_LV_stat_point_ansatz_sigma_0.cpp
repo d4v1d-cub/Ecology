@@ -26,13 +26,11 @@ Tedge init_edge(double avn_0, long npoints0){
 }
 
 
-vector <double> derivative(vector <double> vals, double dx){
-    vector <double> der = vector <double> (vals.size(), 0);
-    for (long i = 0; i < vals.size() - 1; i++){
-        der[i] = (vals[i + 1] - vals[i]) / dx;
+void reset_edge(double avn_0, Tedge &edge){
+    for (long l = 0; l < edge.mess.size(); l++){
+        edge.mess[l] = avn_0;
+        edge.mess_hat[l] = avn_0;
     }
-    der[vals.size() - 1] = der[vals.size() - 2];
-    return der;
 }
 
 
@@ -152,6 +150,7 @@ double update_mhat(Tedge &edge, long size_mess, double mu, int c){
         }
         edge.mess_hat[l] = mhat_ij_new;
     }
+    return var_mhat;
 }
 
 
@@ -203,8 +202,8 @@ double get_av(vector <double> mhat, double mu, double beta, double lambda, doubl
 }
 
 
-double comp_averages(Tedge edges, double beta, double lambda, double dn, double error, double nmin, double mu){
-    return get_av(edges.mess_hat, mu, beta, lambda, dn, error, nmin);
+double comp_averages(Tedge edge, double beta, double lambda, double dn, double error, double nmin, double mu){
+    return get_av(edge.mess_hat, mu, beta, lambda, dn, error, nmin);
 }
 
 
@@ -244,27 +243,48 @@ int main(int argc, char *argv[]) {
     double lambda = atof(argv[3]);
     double tol = atof(argv[4]);
     int max_iter = atoi(argv[5]);
-    double mu = atof(argv[6]);
-    double nmin = atof(argv[7]);
-    double nmax = atof(argv[8]);
-    int npoints = atoi(argv[9]);
-    double tol_integrals = atof(argv[10]);
-
-    int c = atoi(argv[11]);
+    double mu0 = atof(argv[6]);
+    double dmu = atof(argv[7]);
+    double muf = atof(argv[8]);
+    double nmin = atof(argv[9]);
+    double nmax = atof(argv[10]);
+    int npoints = atoi(argv[11]);
+    double tol_integrals = atof(argv[12]);
+    int c = atoi(argv[13]);
 
     double beta = 1.0 / T;
 
     char filemess[300];
-    sprintf(filemess, "PBMF_Lotka_Volterra_nonoise_steady_state_mess_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_mu_%.2lf_nmin_%.1e_nmax_%.2lf_npoints_%d_c_%d.txt", 
-                      T, lambda, avn_0, tol, max_iter, mu, nmin, nmax, npoints, c);
+    sprintf(filemess, "PBMF_Lotka_Volterra_nonoise_steady_state_mess_T_%.2lf_lambda_%.2lf_av0_%.2lf_tol_%.1e_maxiter_%d_mu0_%.4lf_dmu_%.4lf_muf_%.4lf_nmin_%.1e_nmax_%.2lf_npoints_%d_c_%d.txt", 
+                      T, lambda, avn_0, tol, max_iter, mu0, dmu, muf, nmin, nmax, npoints, c);
 
     double dn = (nmax - nmin) / npoints;
 
     Tedge edge = init_edge(avn_0, npoints);
 
-    int iter = convergence(edge, beta, lambda, dn, tol, max_iter, tol_integrals, nmin, mu, c);
+    int iter;
+    double field;
+    bool conv;
 
-    print_results(iter, edge, beta, lambda, dn, max_iter, filemess, tol_integrals, nmin, mu);
+    ofstream fmess(filemess);
+
+    for (double mu = mu0; mu < muf + dmu / 2; mu += dmu){
+        iter = convergence(edge, beta, lambda, dn, tol, max_iter, tol_integrals, nmin, mu, c);
+
+        field = comp_averages(edge, beta, lambda, dn, tol_integrals, nmin, mu);
+        conv = iter < max_iter;
+        cout << mu << "\t" << iter << "\t" << conv << "\t" << field << endl;
+
+        fmess << "\t" << "mess";
+        for (long l = 0; l < edge.mess.size(); l++){
+            fmess << "\t" << edge.mess[l];
+        }
+        fmess << endl;
+
+        reset_edge(avn_0, edge);
+    }
+
+    fmess.close();
     
     return 0;
 }
