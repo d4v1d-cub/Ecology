@@ -42,17 +42,17 @@ def find_transition(path, str_file_1, sigma0, dsigma, sigmaf, ngraphs):
     trans = []
     sigma_prev = sigma0
     while sigma <= sigmaf and len(trans) < 2:
-        filein = path + "/AllData/nsamples_" + str(ngraphs) + "/" + str_file_1 + \
+        filein = path + "/AllData/PhaseDiagram/nsamples_" + str(ngraphs) + "/" + str_file_1 + \
                  str("{0:.2f}".format(sigma)) + '.txt'
         count_list, found = get_counts(filein, ngraphs)
         if found:
             ind_max = count_list.index(max(count_list))
             if ind_max == 1 and ind_max_prev == 0 or ind_max == 2 and ind_max_prev == 1:
-                trans.append((sigma + sigma_prev) / 2)
+                trans.append([sigma_prev, sigma])
                 ind_max_prev += 1
             elif ind_max == 2 and ind_max_prev == 0:
-                trans.append((sigma + sigma_prev) / 2)
-                trans.append((sigma + sigma_prev) / 2)
+                trans.append([sigma_prev, sigma])
+                trans.append([sigma_prev, sigma])
                 ind_max_prev += 2
             sigma_prev = sigma
         sigma += dsigma
@@ -62,7 +62,7 @@ def find_transition(path, str_file_1, sigma0, dsigma, sigmaf, ngraphs):
 def find_all_trans(lda, av0, tol, maxiter, path, pars_list, sigma0, dsigma, sigmaf, ngraphs,
                    str_graph):
     fileout = path + "/" + "IBMF_Lotka_Volterra_ss_transitions_" + str_graph + "_lambda_" + str(lda) + \
-              "_av0_" + str(av0) + "_tol_" + tol + "_maxiter_" + str(maxiter) + "txt"
+              "_av0_" + str(av0) + "_tol_" + tol + "_maxiter_" + str(maxiter) + ".txt"
     fo = open(fileout, 'w')
     fo.write("#T\teps\tmu\ttrans_1\ttrans_2\n")
     for T, eps, mu in pars_list:
@@ -71,15 +71,15 @@ def find_all_trans(lda, av0, tol, maxiter, path, pars_list, sigma0, dsigma, sigm
                      "_maxiter_" + str(maxiter) + "_eps_" + str("{0:.2f}".format(eps)) + \
                      "_mu_" + str("{0:.2f}".format(mu)) + "_sigma_"
         trans = find_transition(path, str_file_1, sigma0, dsigma, sigmaf, ngraphs)
-        if len(trans) == 1:
-            fo.write(str(int(T * 100)) + "\t" + str(int(eps * 100)) + "\t" \
-                     + str(int(mu * 100)) + "\t" + str(trans[0]) + "\n")
-        elif len(trans) == 2:
-            fo.write(str(int(T * 100)) + "\t" + str(int(eps * 100)) + "\t" \
-                     + str(int(mu * 100)) + "\t" + str(trans[0]) + "\t" \
-                     + str(trans[1]) + "\n")
-        else:
+        fo.write(str(int(T * 100)) + "\t" + str(int(eps * 100)) + "\t" \
+                     + str(int(mu * 100)))
+        for i in range(len(trans)):
+            smin, smax = trans[i]
+            fo.write("\t" + str(smin) + "\t" + str(smax))
+        if len(trans) == 0:
             print("No transitions found for T = " + str(T) + ", eps = " + str(eps) + ", mu = " + str(mu))
+        else:
+            fo.write("\n")
     fo.close()
 
 
@@ -127,7 +127,7 @@ def main():
     dsigma = 0.01
     sigma_f = 0.80
 
-    path = "../Results/IBMF"
+    path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF"
     
     pars_list = create_pars_list([sched_eps, sched_mu, sched_T])
 

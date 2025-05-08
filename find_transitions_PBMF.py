@@ -105,9 +105,10 @@ def find_all_trans(lda, av0, tol, maxiter, path, pars_list, sigma0, dsigma, sigm
                                              ngraphs_attempt)
         fo.write(str(int(T * 100)) + "\t" + str(int(eps * 100)) + "\t" \
                      + str(int(mu * 100)))
-        for smin, smax in trans:
+        for i in range(len(trans)):
+            smin, smax = trans[i]
+            ngrmin, ngrmax = ngraph_trans[i]
             fo.write("\t" + str(smin) + "\t" + str(smax))
-        for ngrmin, ngrmax in ngraph_trans:
             fo.write("\t" + str(ngrmin) + "\t" + str(ngrmax))
         if len(trans) == 0:
             print("No transitions found for T = " + str(T) + ", eps = " + str(eps) + ", mu = " + str(mu))
