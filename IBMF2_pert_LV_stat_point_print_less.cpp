@@ -208,18 +208,9 @@ double average_var_sqr(long N, Tnode *nodes){
 }
 
 int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
-                int max_iter, char *filehist, char *filefield_hist, 
-                char *filevar_hist, int print_every){
+                int max_iter){
     double delta = tol + 1;
     int iter = 0;
-
-    ofstream fh(filehist);
-    ofstream ffieldh(filefield_hist);
-    ofstream fvarh(filevar_hist);
-
-    fh << "# iter\tmax(dn)\tav(n)\tav(n2)" << endl;
-    ffieldh << "# iter\tav(n)..." << endl;
-    fvarh << "# iter\tav(n2)..." << endl;
 
     comp_fields(N, nodes);
     comp_vars(N, nodes, beta);
@@ -229,31 +220,12 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol,
         iter++;
         comp_fields(N, nodes);
         comp_vars(N, nodes, beta);
-        if (iter % print_every == 0){
-            fh << iter << "\t" << delta << "\t" << average_field(N, nodes) << "\t" << average_var(N, nodes) << endl;
-            ffieldh << iter;
-            for (long i  = 0; i < N; i++){
-                ffieldh << "\t" << nodes[i].field;
-            }
-            ffieldh << endl;
-            fvarh << iter;
-            for (long i  = 0; i < N; i++){
-                fvarh << "\t" << nodes[i].var;
-            }
-            fvarh << endl;
-        }
     }
-
-    fh.close();
-    ffieldh.close();
-    fvarh.close();
-
     return iter;
 }
 
 
-void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, 
-                   char *filefield, char *filevar){
+void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter){
     double av_field = average_field(N, nodes);
     double av_field_sqr = average_field_sqr(N, nodes);
     double av_var = average_var(N, nodes);
@@ -263,18 +235,6 @@ void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter,
             av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
             av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
             seed << endl;
-
-    ofstream ffield(filefield);
-    for (long i = 0; i < N; i++){
-        ffield << i << "\t" << nodes[i].field << endl;
-    }
-    ffield.close();
-
-    ofstream fvar(filevar);
-    for (long i = 0; i < N; i++){
-        fvar << i << "\t" << nodes[i].var << endl;
-    }
-    fvar.close();
 
 }
 
@@ -290,8 +250,7 @@ int main(int argc, char *argv[]) {
     double eps = atof(argv[7]);
     double mu = atof(argv[8]);
     double sigma = atof(argv[9]);
-    int print_every = atoi(argv[10]);
-    bool gr_inside = atoi(argv[11]);
+    bool gr_inside = atoi(argv[10]);
 
 
     Tnode *nodes;
@@ -301,8 +260,8 @@ int main(int argc, char *argv[]) {
 
     if (gr_inside){
         sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[12]);
-        int c = atoi(argv[13]);
+        N = atol(argv[11]);
+        int c = atoi(argv[12]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -313,35 +272,11 @@ int main(int argc, char *argv[]) {
         init_graph_from_input(nodes, N);
     }
 
-
-    char filehist[200];
-    sprintf(filehist, "IBMF2_pert_Lotka_Volterra_steady_state_convergence_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
-
-
-    char filefield_hist[200];
-    sprintf(filefield_hist, "IBMF2_pert_Lotka_Volterra_field_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
-                          gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
-
-    char filefield[200];
-    sprintf(filefield, "IBMF2_pert_Lotka_Volterra_steady_state_field_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, seed);
-
-
-    char filevar_hist[200];
-    sprintf(filevar_hist, "IBMF2_pert_Lotka_Volterra_variance_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
-                          gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
-
-    char filevar[200];
-    sprintf(filevar, "IBMF2_pert_Lotka_Volterra_steady_state_variance_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, seed);
-
-
     init_avgs(N, nodes, avn_0);
 
-    int iter = convergence(N, beta, lambda, nodes, tol, max_iter, filehist, filefield_hist, filevar_hist, print_every);
+    int iter = convergence(N, beta, lambda, nodes, tol, max_iter);
 
-    print_results(iter, nodes, N, seed, max_iter, filefield, filevar);
+    print_results(iter, nodes, N, seed, max_iter);
     
     return 0;
 }
