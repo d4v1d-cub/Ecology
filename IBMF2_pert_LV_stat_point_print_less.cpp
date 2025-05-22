@@ -113,28 +113,21 @@ double var_in(long i, Tnode *nodes, vector <long> neighs, vector <double> links_
     return 1.0 / (1 - beta * sum);
 }
 
-double numerator_av(double beta, double lambda, double field, double var){
-    double s = sqrt(var);
-    double hi = s * field;
-    double hi2 = var * field * field;
-    return s * (2 * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2 / 2) + 
-                sqrt(2 * beta) * hi * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2 / 2));
+double numerator_av(double beta, double lambda, double hi, double hi2){
+    return 2 * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2 / 2) + 
+           sqrt(2 * beta) * hi * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2 / 2);
 }
 
 
-double numerator_q_sqr(double beta, double lambda, double field, double var){
-    double hi = sqrt(var) * field;
-    double hi2 = var * field * field;
-    return var * (4 * hi * gsl_sf_gamma((3 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2 / 2) + 
-                  sqrt(2 * beta) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2 / 2));
+double numerator_q_sqr(double beta, double lambda, double hi, double hi2){
+    return 4 * hi * gsl_sf_gamma((3 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2 / 2) + 
+           sqrt(2 * beta) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2 / 2);
 }
 
 
-double denominator(double beta, double lambda, double field, double var){
-    double hi = sqrt(var) * field;
-    double hi2 = var * field * field;
+double denominator(double beta, double lambda, double hi, double hi2){
     return sqrt(2 * beta) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2 / 2) + 
-    2 * beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2 / 2);
+           2 * beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2 / 2);
 }
 
 
@@ -151,12 +144,33 @@ void comp_vars(long N, Tnode *nodes, double beta){
 }
 
 
-double new_averages(long N, double beta, double lambda, Tnode *nodes){
-    double delta = 0, delta_av, delta_q_sqr;
-    double av_new, q_sqr_new;
+double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol_asymp){
+    double delta = 0, delta_av, delta_q_sqr, s, hi, hi2, den, av_new, q_sqr_new;
+    
     for (long i = 0; i < N; i++){
-        av_new = numerator_av(beta, lambda, nodes[i].field, nodes[i].var) / denominator(beta, lambda, nodes[i].field, nodes[i].var);
-        q_sqr_new = numerator_q_sqr(beta, lambda, nodes[i].field, nodes[i].var) / denominator(beta, lambda, nodes[i].field, nodes[i].var);
+        if (nodes[i].var > 0){
+            hi2 = nodes[i].var * nodes[i].field * nodes[i].field;
+            if (exp(-beta * hi2 / 2) / pow(hi2, beta * lambda / 2) < tol_asymp){
+                hi = nodes[i].field;
+                hi2 = hi * hi;
+                den = denominator(beta, lambda, hi, hi2);
+                av_new = numerator_av(beta, lambda, hi, hi2) / den;
+                q_sqr_new = av_new * av_new;
+            }else{
+                s = sqrt(nodes[i].var);
+                hi = s * nodes[i].field;
+                den = denominator(beta, lambda, hi, hi2);
+                av_new = s * numerator_av(beta, lambda, hi, hi2) / den; 
+                q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, hi, hi2) / den;
+            }
+        }else{
+            hi = nodes[i].field;
+            hi2 = hi * hi;
+            den = denominator(beta, lambda, hi, hi2);
+            av_new = numerator_av(beta, lambda, hi, hi2) / den;
+            q_sqr_new = av_new * av_new;
+        }
+        
         delta_av = fabs(av_new - nodes[i].av);
         delta_q_sqr = fabs(q_sqr_new - nodes[i].q_sqr);
         if (delta_av > delta){
@@ -167,6 +181,7 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes){
         }
         nodes[i].av = av_new;
         nodes[i].q_sqr = q_sqr_new;
+
     }
     return delta;
 }
@@ -207,7 +222,7 @@ double average_var_sqr(long N, Tnode *nodes){
     return av_sqr / N;
 }
 
-int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
+int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, double tol_asymp, 
                 int max_iter){
     double delta = tol + 1;
     int iter = 0;
@@ -216,7 +231,7 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol,
     comp_vars(N, nodes, beta);
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(N, beta, lambda, nodes);
+        delta = new_averages(N, beta, lambda, nodes, tol_asymp);
         iter++;
         comp_fields(N, nodes);
         comp_vars(N, nodes, beta);
@@ -246,11 +261,12 @@ int main(int argc, char *argv[]) {
     double T = atof(argv[3]);
     double lambda = atof(argv[4]);
     double tol = atof(argv[5]);
-    int max_iter = atoi(argv[6]);
-    double eps = atof(argv[7]);
-    double mu = atof(argv[8]);
-    double sigma = atof(argv[9]);
-    bool gr_inside = atoi(argv[10]);
+    double tol_asymp = atof(argv[6]);
+    int max_iter = atoi(argv[7]);
+    double eps = atof(argv[8]);
+    double mu = atof(argv[9]);
+    double sigma = atof(argv[10]);
+    bool gr_inside = atoi(argv[11]);
 
 
     Tnode *nodes;
@@ -260,8 +276,8 @@ int main(int argc, char *argv[]) {
 
     if (gr_inside){
         sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[11]);
-        int c = atoi(argv[12]);
+        N = atol(argv[12]);
+        int c = atoi(argv[13]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -274,7 +290,7 @@ int main(int argc, char *argv[]) {
 
     init_avgs(N, nodes, avn_0);
 
-    int iter = convergence(N, beta, lambda, nodes, tol, max_iter);
+    int iter = convergence(N, beta, lambda, nodes, tol, tol_asymp, max_iter);
 
     print_results(iter, nodes, N, seed, max_iter);
     

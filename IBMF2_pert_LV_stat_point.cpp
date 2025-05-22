@@ -113,28 +113,21 @@ double var_in(long i, Tnode *nodes, vector <long> neighs, vector <double> links_
     return 1.0 / (1 - beta * sum);
 }
 
-double numerator_av(double beta, double lambda, double field, double var){
-    double s = sqrt(var);
-    double hi = s * field;
-    double hi2 = var * field * field;
-    return s * (2 * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2 / 2) + 
-                sqrt(2 * beta) * hi * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2 / 2));
+double numerator_av(double beta, double lambda, double hi, double hi2){
+    return 2 * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2 / 2) + 
+           sqrt(2 * beta) * hi * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2 / 2);
 }
 
 
-double numerator_q_sqr(double beta, double lambda, double field, double var){
-    double hi = sqrt(var) * field;
-    double hi2 = var * field * field;
-    return var * (4 * hi * gsl_sf_gamma((3 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2 / 2) + 
-                  sqrt(2 * beta) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2 / 2));
+double numerator_q_sqr(double beta, double lambda, double hi, double hi2){
+    return 4 * hi * gsl_sf_gamma((3 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2 / 2) + 
+           sqrt(2 * beta) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2 / 2);
 }
 
 
-double denominator(double beta, double lambda, double field, double var){
-    double hi = sqrt(var) * field;
-    double hi2 = var * field * field;
+double denominator(double beta, double lambda, double hi, double hi2){
     return sqrt(2 * beta) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2 / 2) + 
-    2 * beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2 / 2);
+           2 * beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2 / 2);
 }
 
 
@@ -151,12 +144,34 @@ void comp_vars(long N, Tnode *nodes, double beta){
 }
 
 
-double new_averages(long N, double beta, double lambda, Tnode *nodes){
-    double delta = 0, delta_av, delta_q_sqr;
-    double av_new, q_sqr_new;
+
+double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol_asymp){
+    double delta = 0, delta_av, delta_q_sqr, s, hi, hi2, den, av_new, q_sqr_new;
+    
     for (long i = 0; i < N; i++){
-        av_new = numerator_av(beta, lambda, nodes[i].field, nodes[i].var) / denominator(beta, lambda, nodes[i].field, nodes[i].var);
-        q_sqr_new = numerator_q_sqr(beta, lambda, nodes[i].field, nodes[i].var) / denominator(beta, lambda, nodes[i].field, nodes[i].var);
+        if (nodes[i].var > 0){
+            hi2 = nodes[i].var * nodes[i].field * nodes[i].field;
+            if (exp(-beta * hi2 / 2) / pow(hi2, beta * lambda / 2) < tol_asymp){
+                hi = nodes[i].field;
+                hi2 = hi * hi;
+                den = denominator(beta, lambda, hi, hi2);
+                av_new = numerator_av(beta, lambda, hi, hi2) / den;
+                q_sqr_new = av_new * av_new;
+            }else{
+                s = sqrt(nodes[i].var);
+                hi = s * nodes[i].field;
+                den = denominator(beta, lambda, hi, hi2);
+                av_new = s * numerator_av(beta, lambda, hi, hi2) / den; 
+                q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, hi, hi2) / den;
+            }
+        }else{
+            hi = nodes[i].field;
+            hi2 = hi * hi;
+            den = denominator(beta, lambda, hi, hi2);
+            av_new = numerator_av(beta, lambda, hi, hi2) / den;
+            q_sqr_new = av_new * av_new;
+        }
+        
         delta_av = fabs(av_new - nodes[i].av);
         delta_q_sqr = fabs(q_sqr_new - nodes[i].q_sqr);
         if (delta_av > delta){
@@ -167,6 +182,7 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes){
         }
         nodes[i].av = av_new;
         nodes[i].q_sqr = q_sqr_new;
+
     }
     return delta;
 }
@@ -207,7 +223,7 @@ double average_var_sqr(long N, Tnode *nodes){
     return av_sqr / N;
 }
 
-int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
+int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, double tol_asymp, 
                 int max_iter, char *filehist, char *filefield_hist, 
                 char *filevar_hist, int print_every){
     double delta = tol + 1;
@@ -225,7 +241,7 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol,
     comp_vars(N, nodes, beta);
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(N, beta, lambda, nodes);
+        delta = new_averages(N, beta, lambda, nodes, tol_asymp);
         iter++;
         comp_fields(N, nodes);
         comp_vars(N, nodes, beta);
@@ -286,12 +302,13 @@ int main(int argc, char *argv[]) {
     double T = atof(argv[3]);
     double lambda = atof(argv[4]);
     double tol = atof(argv[5]);
-    int max_iter = atoi(argv[6]);
-    double eps = atof(argv[7]);
-    double mu = atof(argv[8]);
-    double sigma = atof(argv[9]);
-    int print_every = atoi(argv[10]);
-    bool gr_inside = atoi(argv[11]);
+    double tol_asymp = atof(argv[6]);
+    int max_iter = atoi(argv[7]);
+    double eps = atof(argv[8]);
+    double mu = atof(argv[9]);
+    double sigma = atof(argv[10]);
+    int print_every = atoi(argv[11]);
+    bool gr_inside = atoi(argv[12]);
 
 
     Tnode *nodes;
@@ -301,8 +318,8 @@ int main(int argc, char *argv[]) {
 
     if (gr_inside){
         sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[12]);
-        int c = atoi(argv[13]);
+        N = atol(argv[13]);
+        int c = atoi(argv[14]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -315,31 +332,31 @@ int main(int argc, char *argv[]) {
 
 
     char filehist[200];
-    sprintf(filehist, "IBMF2_pert_Lotka_Volterra_steady_state_convergence_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
+    sprintf(filehist, "IBMF2_pert_Lotka_Volterra_steady_state_convergence_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_tolasymp_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
+                      gr_str, T, lambda, avn_0, tol, tol_asymp, max_iter, eps, mu, sigma, print_every, seed);
 
 
     char filefield_hist[200];
-    sprintf(filefield_hist, "IBMF2_pert_Lotka_Volterra_field_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
-                          gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
+    sprintf(filefield_hist, "IBMF2_pert_Lotka_Volterra_field_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_tolasymp_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
+                          gr_str, T, lambda, avn_0, tol, tol_asymp, max_iter, eps, mu, sigma, print_every, seed);
 
     char filefield[200];
-    sprintf(filefield, "IBMF2_pert_Lotka_Volterra_steady_state_field_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, seed);
+    sprintf(filefield, "IBMF2_pert_Lotka_Volterra_steady_state_field_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_tolasymp_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
+                      gr_str, T, lambda, avn_0, tol, tol_asymp, max_iter, eps, mu, sigma, seed);
 
 
     char filevar_hist[200];
-    sprintf(filevar_hist, "IBMF2_pert_Lotka_Volterra_variance_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
-                          gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
+    sprintf(filevar_hist, "IBMF2_pert_Lotka_Volterra_variance_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_tolasymp_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
+                          gr_str, T, lambda, avn_0, tol, tol_asymp, max_iter, eps, mu, sigma, print_every, seed);
 
     char filevar[200];
-    sprintf(filevar, "IBMF2_pert_Lotka_Volterra_steady_state_variance_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
-                      gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, seed);
+    sprintf(filevar, "IBMF2_pert_Lotka_Volterra_steady_state_variance_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_tolasymp_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
+                      gr_str, T, lambda, avn_0, tol, tol_asymp, max_iter, eps, mu, sigma, seed);
 
 
     init_avgs(N, nodes, avn_0);
 
-    int iter = convergence(N, beta, lambda, nodes, tol, max_iter, filehist, filefield_hist, filevar_hist, print_every);
+    int iter = convergence(N, beta, lambda, nodes, tol, tol_asymp, max_iter, filehist, filefield_hist, filevar_hist, print_every);
 
     print_results(iter, nodes, N, seed, max_iter, filefield, filevar);
     
