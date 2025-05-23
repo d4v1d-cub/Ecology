@@ -6,6 +6,7 @@
 #include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_sf_gamma.h>
 #include "math.h"
+#include <cmath>
 
 using namespace std;
 
@@ -150,7 +151,7 @@ double average_sqr(long N, Tnode *nodes){
 
 
 int convergence(long N, double *avgs, double beta, double lambda, Tnode *nodes, double tol, 
-                 int max_iter){
+                 int max_iter, bool &divergence){
     double *avgs_new;
     avgs_new = new double[N];
     double var = tol + 1;
@@ -164,18 +165,28 @@ int convergence(long N, double *avgs, double beta, double lambda, Tnode *nodes, 
         }
         iter++;
         comp_fields(N, avgs, nodes);
+        if (isinf(var)){
+            divergence = true;
+            return iter;
+        }
     }
 
+    divergence = false;
     return iter;
 }
 
 
 
-void print_results_short(int iter, Tnode *nodes, long N, long seed, int max_iter){
+void print_results_short(int iter, Tnode *nodes, long N, long seed, int max_iter, 
+                         bool divergence){
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
-    bool conv = iter < max_iter;
-    cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << seed << endl;
+    if (divergence){
+        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << seed << endl;;
+    }else{
+        bool conv = iter < max_iter;
+        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << seed << endl;
+    }
 }
 
 
@@ -215,9 +226,11 @@ int main(int argc, char *argv[]) {
 
     init_avgs(N, avgs, avn_0);
 
-    int iter = convergence(N, avgs, beta, lambda, nodes, tol, max_iter);
+    bool divergence = false;
 
-    print_results_short(iter, nodes, N, seed, max_iter);
+    int iter = convergence(N, avgs, beta, lambda, nodes, tol, max_iter, divergence);
+
+    print_results_short(iter, nodes, N, seed, max_iter, divergence);
     
     return 0;
 }

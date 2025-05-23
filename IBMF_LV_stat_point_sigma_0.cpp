@@ -6,6 +6,7 @@
 #include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_sf_gamma.h>
 #include "math.h"
+#include <cmath>
 
 using namespace std;
 
@@ -33,7 +34,8 @@ double new_average(double avg, double beta, double lambda, double mu, int c){
 }
 
 
-int convergence(double &avg, double beta, double lambda, double mu, int c, double tol, int max_iter){
+int convergence(double &avg, double beta, double lambda, double mu, int c, double tol, 
+                int max_iter, bool &divergence){
     double avg_new;
     double var = tol + 1;
     int iter = 0;
@@ -43,8 +45,13 @@ int convergence(double &avg, double beta, double lambda, double mu, int c, doubl
         var = fabs(avg_new - avg);
         iter++;
         avg = avg_new;
+        if (isinf(var)){
+            divergence = true;
+            return iter;
+        }
     }
 
+    divergence = false;
     return iter;
 }
 
@@ -66,12 +73,17 @@ int main(int argc, char *argv[]) {
     double beta = 1.0 / T;
     int iter;
     bool conv;
+    bool divergence;
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
         avg = avn_0;
-        iter = convergence(avg, beta, lambda, mu, c, tol, max_iter);
-        conv = iter < max_iter;
+        iter = convergence(avg, beta, lambda, mu, c, tol, max_iter, divergence);
         field = field_in(avg, c, mu);
-        cout << mu << "\t" << iter << "\t" << conv << "\t" << avg << "\t" << field << "\t" << endl;
+        if (divergence){
+            cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << avg << "\t" << field << "\t" << endl;
+        }else{
+            conv = iter < max_iter;
+            cout << mu << "\t" << iter << "\t" << conv << "\t" << avg << "\t" << field << "\t" << endl;
+        }
     }
     
     return 0;

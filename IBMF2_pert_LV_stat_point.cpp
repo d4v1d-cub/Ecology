@@ -6,6 +6,7 @@
 #include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_sf_gamma.h>
 #include "math.h"
+#include <cmath>
 
 using namespace std;
 
@@ -225,7 +226,7 @@ double average_var_sqr(long N, Tnode *nodes){
 
 int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, double tol_asymp, 
                 int max_iter, char *filehist, char *filefield_hist, 
-                char *filevar_hist, int print_every){
+                char *filevar_hist, int print_every, bool &divergence){
     double delta = tol + 1;
     int iter = 0;
 
@@ -245,6 +246,10 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, do
         iter++;
         comp_fields(N, nodes);
         comp_vars(N, nodes, beta);
+        if (isinf(delta)){
+            divergence = true;
+            return iter;
+        }
         if (iter % print_every == 0){
             fh << iter << "\t" << delta << "\t" << average_field(N, nodes) << "\t" << average_var(N, nodes) << endl;
             ffieldh << iter;
@@ -264,33 +269,41 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, do
     ffieldh.close();
     fvarh.close();
 
+    divergence = false;
     return iter;
 }
 
 
 void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, 
-                   char *filefield, char *filevar){
+                   char *filefield, char *filevar, bool divergence){
     double av_field = average_field(N, nodes);
     double av_field_sqr = average_field_sqr(N, nodes);
     double av_var = average_var(N, nodes);
     double av_var_sqr = average_var_sqr(N, nodes);
-    bool conv = iter < max_iter;
-    cout << iter << "\t" << conv << "\t" << 
+    if (divergence){
+        cout << iter << "\t" << "diverges" << "\t" << 
+            av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
+            av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
+            seed << endl;
+    }else{
+        bool conv = iter < max_iter;
+        cout << iter << "\t" << conv << "\t" << 
             av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
             av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
             seed << endl;
 
-    ofstream ffield(filefield);
-    for (long i = 0; i < N; i++){
-        ffield << i << "\t" << nodes[i].field << endl;
-    }
-    ffield.close();
+        ofstream ffield(filefield);
+        for (long i = 0; i < N; i++){
+            ffield << i << "\t" << nodes[i].field << endl;
+        }
+        ffield.close();
 
-    ofstream fvar(filevar);
-    for (long i = 0; i < N; i++){
-        fvar << i << "\t" << nodes[i].var << endl;
+        ofstream fvar(filevar);
+        for (long i = 0; i < N; i++){
+            fvar << i << "\t" << nodes[i].var << endl;
+        }
+        fvar.close();
     }
-    fvar.close();
 
 }
 
@@ -356,9 +369,11 @@ int main(int argc, char *argv[]) {
 
     init_avgs(N, nodes, avn_0);
 
-    int iter = convergence(N, beta, lambda, nodes, tol, tol_asymp, max_iter, filehist, filefield_hist, filevar_hist, print_every);
+    bool divergence;
 
-    print_results(iter, nodes, N, seed, max_iter, filefield, filevar);
+    int iter = convergence(N, beta, lambda, nodes, tol, tol_asymp, max_iter, filehist, filefield_hist, filevar_hist, print_every, divergence);
+
+    print_results(iter, nodes, N, seed, max_iter, filefield, filevar, divergence);
     
     return 0;
 }

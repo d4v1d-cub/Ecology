@@ -6,6 +6,7 @@
 #include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_sf_gamma.h>
 #include "math.h"
+#include <cmath>
 
 using namespace std;
 
@@ -223,7 +224,7 @@ double average_var_sqr(long N, Tnode *nodes){
 }
 
 int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, double tol_asymp, 
-                int max_iter){
+                int max_iter, bool &divergence){
     double delta = tol + 1;
     int iter = 0;
 
@@ -235,21 +236,33 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, do
         iter++;
         comp_fields(N, nodes);
         comp_vars(N, nodes, beta);
+        if (isinf(delta)){
+            divergence = true;
+            return iter;
+        }
     }
+    divergence = false;
     return iter;
 }
 
 
-void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter){
+void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, bool divergence){
     double av_field = average_field(N, nodes);
     double av_field_sqr = average_field_sqr(N, nodes);
     double av_var = average_var(N, nodes);
     double av_var_sqr = average_var_sqr(N, nodes);
-    bool conv = iter < max_iter;
-    cout << iter << "\t" << conv << "\t" << 
-            av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
-            av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
-            seed << endl;
+    if (divergence){
+        cout << iter << "\t" << "diverges" << "\t" << 
+                av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
+                av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
+                seed << endl;
+    }else{
+        bool conv = iter < max_iter;
+        cout << iter << "\t" << conv << "\t" << 
+                av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
+                av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
+                seed << endl;
+    }
 
 }
 
@@ -290,9 +303,11 @@ int main(int argc, char *argv[]) {
 
     init_avgs(N, nodes, avn_0);
 
-    int iter = convergence(N, beta, lambda, nodes, tol, tol_asymp, max_iter);
+    bool divergence;
 
-    print_results(iter, nodes, N, seed, max_iter);
+    int iter = convergence(N, beta, lambda, nodes, tol, tol_asymp, max_iter, divergence);
+
+    print_results(iter, nodes, N, seed, max_iter, divergence);
     
     return 0;
 }
