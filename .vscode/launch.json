@@ -31,7 +31,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_print_less.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "1000", "1.0", "0.0", "0.5", "1", "1000", "3"],
+            "args": ["1264", "2.0", "0.5", "0.01", "1e-4", "1000", "1.0", "0.0", "0.45", "1", "1000", "3"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],

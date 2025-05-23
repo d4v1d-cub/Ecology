@@ -89,6 +89,13 @@ void init_graph_from_input(Tnode *&nodes, Tedge *&edges, long &N, long &M){
 }
 
 
+void init_nodes(Tnode *nodes, long N){
+    for (long i = 0; i < N; i++){
+        nodes[i].edges_in = vector <long> ();
+        nodes[i].pos_there = vector <int> ();
+    }
+}
+
 void init_graph_inside_RRG(Tnode *&nodes, Tedge *&edges, long N, int c, double eps,
                            double mu, double sigma, gsl_rng * r){
     // eps is the degree of symmetry of the graph
@@ -97,49 +104,87 @@ void init_graph_inside_RRG(Tnode *&nodes, Tedge *&edges, long N, int c, double e
         exit(1);
     }else{
         long M = N * c / 2;
-        nodes = new Tnode [N];
-        edges = new Tedge [M];
         long pos_i, pos_j, i, j;
         double aij, aji;
-        vector < long > copies = vector < long > (c * N);
-        for (long i = 0; i < N; i++){
-            for (int k = 0; k < c; k++){
-                copies[i * c + k] = i;
-            }
-        }
+        nodes = new Tnode[N];
+        edges = new Tedge[M];
 
         for (long e = 0; e < M; e++){
-            pos_i = gsl_rng_uniform_int(r, copies.size());
-            i = copies[pos_i];
-            copies.erase(copies.begin() + pos_i);
-            pos_j = gsl_rng_uniform_int(r, copies.size());
-            j = copies[pos_j];
-            while (j == i){
+            edges[e].nodes_in = vector <long> (2);
+            edges[e].links = vector <double> (2);
+            edges[e].edge_index = vector <int> (2);
+        }
+
+        bool success = false;
+        while (!success){
+            init_nodes(nodes, N);
+
+            vector < long > copies = vector < long > (c * N);
+            for (long i = 0; i < N; i++){
+                for (int k = 0; k < c; k++){
+                    copies[i * c + k] = i;
+                }
+            }
+
+            for (long e = 0; e < M - 1; e++){
+                pos_i = gsl_rng_uniform_int(r, copies.size());
+                i = copies[pos_i];
+                copies.erase(copies.begin() + pos_i);
                 pos_j = gsl_rng_uniform_int(r, copies.size());
                 j = copies[pos_j];
-            }
-            copies.erase(copies.begin() + pos_j);
+                while (j == i){
+                    pos_j = gsl_rng_uniform_int(r, copies.size());
+                    j = copies[pos_j];
+                }
+                copies.erase(copies.begin() + pos_j);
 
-            edges[e].nodes_in.push_back(i);
-            edges[e].nodes_in.push_back(j);
+                edges[e].nodes_in.push_back(i);
+                edges[e].nodes_in.push_back(j);
+                
+                edges[e].edge_index[0] = nodes[i].edges_in.size();
+                edges[e].edge_index[1] = nodes[j].edges_in.size();
+
+                aij = mu + gsl_ran_gaussian(r, sigma);
+                if (gsl_rng_uniform_pos(r) < eps){
+                    aji = aij;
+                }else{
+                    aji = mu + gsl_ran_gaussian(r, sigma);
+                }
+                edges[e].links.push_back(aji);
+                edges[e].links.push_back(aij);
+
+                nodes[i].edges_in.push_back(e);
+                nodes[j].edges_in.push_back(e);
+                nodes[i].pos_there.push_back(0);
+                nodes[j].pos_there.push_back(1);
+            }
             
-            edges[e].edge_index = vector <int> (2);
-            edges[e].edge_index[0] = nodes[i].edges_in.size();
-            edges[e].edge_index[1] = nodes[j].edges_in.size();
+            pos_i = 0;
+            i = copies[pos_i];
+            pos_j = 1;
+            j = copies[pos_j];
+            if (i != j){
+                success = true;
+                edges[M - 1].nodes_in.push_back(i);
+                edges[M - 1].nodes_in.push_back(j);
+                
+                edges[M - 1].edge_index[0] = nodes[i].edges_in.size();
+                edges[M - 1].edge_index[1] = nodes[j].edges_in.size();
 
-            aij = mu + gsl_ran_gaussian(r, sigma);
-            if (gsl_rng_uniform_pos(r) < eps){
-                aji = aij;
-            }else{
-                aji = mu + gsl_ran_gaussian(r, sigma);
+                aij = mu + gsl_ran_gaussian(r, sigma);
+                if (gsl_rng_uniform_pos(r) < eps){
+                    aji = aij;
+                }else{
+                    aji = mu + gsl_ran_gaussian(r, sigma);
+                }
+                edges[M - 1].links.push_back(aji);
+                edges[M - 1].links.push_back(aij);
+
+                nodes[i].edges_in.push_back(M - 1);
+                nodes[j].edges_in.push_back(M - 1);
+                nodes[i].pos_there.push_back(0);
+                nodes[j].pos_there.push_back(1);
             }
-            edges[e].links.push_back(aji);
-            edges[e].links.push_back(aij);
-
-            nodes[i].edges_in.push_back(e);
-            nodes[j].edges_in.push_back(e);
-            nodes[i].pos_there.push_back(0);
-            nodes[j].pos_there.push_back(1);
         }
         fill_except(nodes, edges, M);
     }

@@ -45,6 +45,13 @@ void init_graph_from_input(Tnode *&nodes, long &N){
 }
 
 
+void init_nodes(Tnode *nodes, long N){
+    for (long i = 0; i < N; i++){
+        nodes[i].links_in = vector <double> ();
+        nodes[i].neighs = vector <long> ();
+    }
+}
+
 void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
                            double mu, double sigma, gsl_rng * r){
     // eps is the degree of symmetry of the graph
@@ -52,40 +59,66 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
         cout << "N*c must be even to create a random regular graph" << endl;
         exit(1);
     }else{
-        nodes = new Tnode [N];
+        bool success = false;
         long M = N * c / 2;
         long pos_i, pos_j, i, j;
         double aij, aji;
-        vector < long > copies = vector < long > (c * N);
-        for (long i = 0; i < N; i++){
-            for (int k = 0; k < c; k++){
-                copies[i * c + k] = i;
-            }
-        }
+        nodes = new Tnode[N];
 
-        for (long e = 0; e < M; e++){
-            pos_i = gsl_rng_uniform_int(r, copies.size());
-            i = copies[pos_i];
-            copies.erase(copies.begin() + pos_i);
-            pos_j = gsl_rng_uniform_int(r, copies.size());
-            j = copies[pos_j];
-            while (j == i){
+        while (!success)
+        {
+            init_nodes(nodes, N);
+
+            vector < long > copies = vector < long > (c * N);
+
+            for (long i = 0; i < N; i++){
+                for (int k = 0; k < c; k++){
+                    copies[i * c + k] = i;
+                }
+            }
+
+            for (long e = 0; e < M - 1; e++){
+                pos_i = gsl_rng_uniform_int(r, copies.size());
+                i = copies[pos_i];
+                copies.erase(copies.begin() + pos_i);
                 pos_j = gsl_rng_uniform_int(r, copies.size());
                 j = copies[pos_j];
+                while (j == i){
+                    pos_j = gsl_rng_uniform_int(r, copies.size());
+                    j = copies[pos_j];
+                }
+                copies.erase(copies.begin() + pos_j);
+                nodes[i].neighs.push_back(j);
+                nodes[j].neighs.push_back(i);
+                aij = mu + gsl_ran_gaussian(r, sigma);
+                if (gsl_rng_uniform_pos(r) < eps){
+                    aji = aij;
+                }else{
+                    aji = mu + gsl_ran_gaussian(r, sigma);
+                }
+                nodes[i].links_in.push_back(aji);
+                nodes[j].links_in.push_back(aij);
             }
-            copies.erase(copies.begin() + pos_j);
-            nodes[i].neighs.push_back(j);
-            nodes[j].neighs.push_back(i);
-            aij = mu + gsl_ran_gaussian(r, sigma);
-            if (gsl_rng_uniform_pos(r) < eps){
-                aji = aij;
-            }else{
-                aji = mu + gsl_ran_gaussian(r, sigma);
+
+            pos_i = 0;
+            pos_j = 1;
+            i = copies[pos_i];
+            j = copies[pos_j];
+            if (i != j){
+                success = true;
+                nodes[i].neighs.push_back(j);
+                nodes[j].neighs.push_back(i);
+                aij = mu + gsl_ran_gaussian(r, sigma);
+                if (gsl_rng_uniform_pos(r) < eps){
+                    aji = aij;
+                }else{
+                    aji = mu + gsl_ran_gaussian(r, sigma);
+                }
+                nodes[i].links_in.push_back(aji);
+                nodes[j].links_in.push_back(aij);
             }
-            nodes[i].links_in.push_back(aji);
-            nodes[j].links_in.push_back(aij);
         }
-    }
+    }    
 }
 
 
