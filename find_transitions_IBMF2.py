@@ -41,7 +41,7 @@ def get_counts(filein, id_list):
                 break
             elif j[0] != '#':
                 line = j.split()
-                if int(line[4]) in id_list:
+                if int(line[6]) in id_list:
                     if line[1] == 'diverges':
                         count_div_catched += 1
                     elif is_number(line[2]):
@@ -86,20 +86,20 @@ def find_transition(path, str_file_1, str_file_2, str_donefile_1, str_donefile_2
     return trans
 
 
-def find_all_trans(lda, av0, tol, maxiter, path, pars_list, sigma0, dsigma, sigmaf,
+def find_all_trans(lda, av0, tol, tol_asymp, maxiter, path, pars_list, sigma0, dsigma, sigmaf,
                    str_graph, ngraphs_total, N, c):
-    fileout = path + "/" + "IBMF_Lotka_Volterra_transitions_" + str_graph + "_lambda_" + str(lda) + \
-              "_av0_" + str(av0) + "_tol_" + tol + "_maxiter_" + str(maxiter) + "_nsamples_" + str(ngraphs_total) \
+    fileout = path + "/" + "IBMF2_Lotka_Volterra_transitions_" + str_graph + "_lambda_" + str(lda) + \
+              "_av0_" + str(av0) + "_tol_" + tol + "_tolasymp_" + tol_asymp + "_maxiter_" + str(maxiter) + "_nsamples_" + str(ngraphs_total) \
               + "_N_" + str(N) + "_c_" + str(c) + ".txt"
     fo = open(fileout, 'w')
     fo.write("#T\teps\tmu\ttrans_1\ttrans_2\n")
     for T, eps, mu in pars_list:
-        str_file_1 = "IBMF_PD_Lotka_Volterra_final_T_" + str("{0:.2f}".format(T)) + \
-                     "_lambda_" + str(lda) + "_av0_" + str(av0) + "_tol_" + tol + \
+        str_file_1 = "IBMF2_PD_Lotka_Volterra_final_T_" + str("{0:.2f}".format(T)) + \
+                     "_lambda_" + str(lda) + "_av0_" + str(av0) + "_tol_" + tol + "_tolasymp_" + tol_asymp + \
                      "_maxiter_" + str(maxiter) + "_eps_" + str("{0:.2f}".format(eps)) + \
                      "_mu_" + str("{0:.2f}".format(mu)) + "_sigma_"
         str_file_2 = "_N_" + str(N) + "_c_" + str(c)
-        str_donefile_1 = "Done_IBMF_PD_T_" + str("{0:.2f}".format(T)) + "_eps_" + str("{0:.2f}".format(eps)) + \
+        str_donefile_1 = "Done_IBMF2_PD_T_" + str("{0:.2f}".format(T)) + "_eps_" + str("{0:.2f}".format(eps)) + \
                          "_mu_" + str("{0:.2f}".format(mu)) + "_sigma_"
         str_donefile_2 = "_avn0_" + str(av0)
         trans = find_transition(path, str_file_1, str_file_2, str_donefile_1, str_donefile_2, sigma0, dsigma, sigmaf, ngraphs_total)
@@ -152,6 +152,7 @@ def main():
     lda = 0.01
     av0_list = [2.0, 0.08]
     tol = "1e-4"
+    tol_asymp = "1e-6"
     maxiter = 10000
     ngraphs_total = 10000
     str_graph = "gr_inside_RRG"
@@ -163,13 +164,13 @@ def main():
     dsigma = 0.01
     sigma_f = 0.90
 
-    path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF"
+    path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF2"
     
     # pars_list = create_pars_list([sched_eps, sched_mu, sched_T])
     pars_list = create_pars_list([sched_eps])
 
     for av0 in av0_list:
-        find_all_trans(lda, av0, tol, maxiter, path, pars_list,
+        find_all_trans(lda, av0, tol, tol_asymp, maxiter, path, pars_list,
                        sigma_0, dsigma, sigma_f, str_graph, ngraphs_total, N, c)
 
     return 0
