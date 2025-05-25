@@ -56,8 +56,7 @@ void comp_var(Tnode &node, double beta, int c, double mu){
 }
 
 
-double new_averages(double beta, double lambda, int c, double mu, Tnode &node, 
-                    double tol_asymp){
+double new_averages(double beta, double lambda, Tnode &node, double tol_asymp){
     double delta = 0, delta_av, delta_q_sqr, s, hi, hi2, den, av_new, q_sqr_new;
 
     if (node.var > 0){
@@ -107,7 +106,7 @@ int convergence(double beta, double lambda, int c, double mu, Tnode &node, doubl
     comp_var(node, beta, c, mu);
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(beta, lambda, c, mu, node, tol_asymp);
+        delta = new_averages(beta, lambda, node, tol_asymp);
         iter++;
         comp_field(node, c, mu);
         comp_var(node, beta, c, mu);
