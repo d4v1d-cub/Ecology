@@ -247,9 +247,9 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "IBMF2_pert_LV_stat_point_print_less.cpp",
+                "IBMF2_LV_stat_point_print_less.cpp",
                 "-o",
-                "${fileDirname}/Debug/IBMF2_pert_LV_stat_point_print_less.out",
+                "${fileDirname}/Debug/IBMF2_LV_stat_point_print_less.out",
                 "-lgsl",
                 "-lgslcblas",
                 "-lm",
@@ -271,9 +271,9 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "IBMF2_pert_LV_stat_point_sigma_0.cpp",
+                "IBMF2_LV_stat_point_sigma_0.cpp",
                 "-o",
-                "${fileDirname}/Debug/IBMF2_pert_LV_stat_point_sigma_0.out",
+                "${fileDirname}/Debug/IBMF2_LV_stat_point_sigma_0.out",
                 "-lgsl",
                 "-lgslcblas",
                 "-lm",
