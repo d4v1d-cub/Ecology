@@ -11,7 +11,7 @@ def find_transition(path, T, lda, av0, tol, tol_asymp, max_iter, c, mu0, dmu, mu
     ind_prev = 0
     trans = []
     mu_prev = mu0
-    filein = f'{path}/AllData/PhaseDiagram/sigma0/IBMF2_LV_sigma_0_T_{"{0:.2f}".format(T)}_lambda_{lda}_av0_{av0}_tol_{tol}_tolasymp_{tol_asymp}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
+    filein = f'{path}/AllData/PhaseDiagram/sigma0/IBMF2_around_m_LV_sigma_0_T_{"{0:.2f}".format(T)}_lambda_{lda}_av0_{av0}_tol_{tol}_tolasymp_{tol_asymp}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
     fin = open(filein, 'r')
     fin.readline()
     while mu <= muf and len(trans) < 2:
@@ -38,7 +38,7 @@ def find_transition(path, T, lda, av0, tol, tol_asymp, max_iter, c, mu0, dmu, mu
 
 
 def find_all_trans(path, T0, dT, Tf, lda, av0, tol, tol_asymp, max_iter, c, mu0, dmu, muf):
-    fileout = f'{path}/IBMF2_LV_sigma_0_transitions_T0_{T0}_dT_{dT}_Tf_{Tf}_lambda_{lda}_av0_{av0}_tol_{tol}_tolasymp_{tol_asymp}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
+    fileout = f'{path}/IBMF2_around_m_LV_sigma_0_transitions_T0_{T0}_dT_{dT}_Tf_{Tf}_lambda_{lda}_av0_{av0}_tol_{tol}_tolasymp_{tol_asymp}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
     fo = open(fileout, 'w')
     fo.write("#T\ttrans_1\ttrans_2\n")
     for T in np.arange(T0, Tf + dT / 2, dT):
@@ -68,7 +68,7 @@ def main():
     dT = 0.01
     Tf = 1.0
 
-    mu0 = 0.15
+    mu0 = 0.11
     dmu = 0.002
     muf = 2.0
 
