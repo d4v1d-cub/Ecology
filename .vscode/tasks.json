@@ -295,9 +295,9 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "IBMF3_pert_LV_stat_point_print_less.cpp",
+                "IBMF3_LV_stat_point_print_less.cpp",
                 "-o",
-                "${fileDirname}/Debug/IBMF3_pert_LV_stat_point_print_less.out",
+                "${fileDirname}/Debug/IBMF3_LV_stat_point_print_less.out",
                 "-lgsl",
                 "-lgslcblas",
                 "-lm",
@@ -319,9 +319,9 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "IBMF3_pert_LV_stat_point_sigma_0.cpp",
+                "IBMF3_LV_stat_point_sigma_0.cpp",
                 "-o",
-                "${fileDirname}/Debug/IBMF3_pert_LV_stat_point_sigma_0.out",
+                "${fileDirname}/Debug/IBMF3_LV_stat_point_sigma_0.out",
                 "-lgsl",
                 "-lgslcblas",
                 "-lm",
