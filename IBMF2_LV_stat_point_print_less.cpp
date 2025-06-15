@@ -122,6 +122,33 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
 }
 
 
+void init_graph_inside_RGER_full_asym(Tnode *&nodes, long N, double c,
+                                      double mu, double sigma, gsl_rng * r){
+    // eps is the degree of symmetry of the graph
+    double aji;
+    nodes = new Tnode[N];
+
+    init_nodes(nodes, N);
+
+    for (long i = 0; i < N; i++){
+        for (long j = 0; j < i; j++){
+            if (gsl_rng_uniform(r) < c / N){
+                nodes[i].neighs.push_back(j);
+                aji = mu + gsl_ran_gaussian(r, sigma);
+                nodes[i].links_in.push_back(aji);
+            }
+        }
+        for (long j = i + 1; j < N; j++){
+            if (gsl_rng_uniform(r) < c / N){
+                nodes[i].neighs.push_back(j);
+                aji = mu + gsl_ran_gaussian(r, sigma);
+                nodes[i].links_in.push_back(aji);
+            }
+        }
+    }
+}
+
+
 void init_avgs(long N, Tnode *nodes, double avn_0){
     for (long i = 0; i < N; i++){
         nodes[i].av = avn_0;
@@ -178,7 +205,7 @@ void comp_vars(long N, Tnode *nodes, double beta){
 }
 
 
-double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol_asymp){
+double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol_asymp, double normfactor = 1e-10){
     double delta = 0, delta_av, delta_q_sqr, s, hi_div_s, hi2_div_s, den, av_new, q_sqr_new;
     
     for (long i = 0; i < N; i++){
@@ -190,18 +217,18 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol
                 hi_div_s = nodes[i].field;
                 hi2_div_s = hi_div_s * hi_div_s;
                 den = denominator(beta, lambda, hi_div_s, hi2_div_s);
-                av_new = numerator_av(beta, lambda, hi_div_s, hi2_div_s) / den;
+                av_new = fabs(numerator_av(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor);
                 q_sqr_new = av_new * av_new;
             }else{
                 den = denominator(beta, lambda, hi_div_s, hi2_div_s);
-                av_new = s * numerator_av(beta, lambda, hi_div_s, hi2_div_s) / den; 
-                q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, hi_div_s, hi2_div_s) / den;
+                av_new = s * fabs(numerator_av(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor); 
+                q_sqr_new = nodes[i].var * fabs(numerator_q_sqr(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor);
             }
         }else{
             hi_div_s = nodes[i].field;
             hi2_div_s = hi_div_s * hi_div_s;
             den = denominator(beta, lambda, hi_div_s, hi2_div_s);
-            av_new = numerator_av(beta, lambda, hi_div_s, hi2_div_s) / den;
+            av_new = fabs(numerator_av(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor);
             q_sqr_new = av_new * av_new;
         }
         
@@ -318,19 +345,39 @@ int main(int argc, char *argv[]) {
     Tnode *nodes;
     double beta = 1.0 / T;
     long N;
-    char gr_str[20];
 
     if (gr_inside){
-        sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[12]);
-        int c = atoi(argv[13]);
-        gsl_rng * r;
+        if (argc > 14){
+            if (atoi(argv[14]) == 1){
+                N = atol(argv[12]);
+                int c = atoi(argv[13]);
+                gsl_rng * r;
 
-        init_ran(r, seed);
+                init_ran(r, seed);
 
-        init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+                init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+            }else if (atoi(argv[14]) == 2)
+            {
+                N = atol(argv[12]);
+                double c = atof(argv[13]);
+                gsl_rng * r;
+                init_ran(r, seed);
+                init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
+            }else{
+                cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
+                exit(1);
+            }
+            
+        }else{
+            N = atol(argv[12]);
+            int c = atoi(argv[13]);
+            gsl_rng * r;
+
+            init_ran(r, seed);
+
+            init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+        }
     }else{
-        sprintf(gr_str, "gr_from_input");
         init_graph_from_input(nodes, N);
     }
 

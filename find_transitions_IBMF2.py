@@ -65,9 +65,9 @@ def find_transition(path, str_file_1, str_file_2, str_donefile_1, str_donefile_2
     trans = []
     sigma_prev = sigma0
     while sigma <= sigmaf and len(trans) < 2:
-        filein = path + "/AllData/PhaseDiagram/nsamples_" + str(ngraphs_total) + "/" + str_file_1 + \
+        filein = path + "/AllData/PhaseDiagram/nsamples_" + str(ngraphs_total) + "/around_m/" + str_file_1 + \
                  str("{0:.2f}".format(sigma)) + str_file_2 + '.txt'
-        donefile = path + "/AllData/PhaseDiagram/nsamples_" + str(ngraphs_total) + "/done/" + str_donefile_1 + \
+        donefile = path + "/AllData/PhaseDiagram/nsamples_" + str(ngraphs_total) + "/around_m/done/" + str_donefile_1 + \
                    str("{0:.2f}".format(sigma)) + str_donefile_2 + '.txt'
         id_list, found_done = get_id_list(donefile)
         if found_done:
@@ -88,18 +88,18 @@ def find_transition(path, str_file_1, str_file_2, str_donefile_1, str_donefile_2
 
 def find_all_trans(lda, av0, tol, tol_asymp, maxiter, path, pars_list, sigma0, dsigma, sigmaf,
                    str_graph, ngraphs_total, N, c):
-    fileout = path + "/" + "IBMF2_Lotka_Volterra_transitions_" + str_graph + "_lambda_" + str(lda) + \
+    fileout = path + "/" + "IBMF2_around_m_Lotka_Volterra_transitions_" + str_graph + "_lambda_" + str(lda) + \
               "_av0_" + str(av0) + "_tol_" + tol + "_tolasymp_" + tol_asymp + "_maxiter_" + str(maxiter) + "_nsamples_" + str(ngraphs_total) \
               + "_N_" + str(N) + "_c_" + str(c) + ".txt"
     fo = open(fileout, 'w')
     fo.write("#T\teps\tmu\ttrans_1\ttrans_2\n")
     for T, eps, mu in pars_list:
-        str_file_1 = "IBMF2_PD_Lotka_Volterra_final_T_" + str("{0:.2f}".format(T)) + \
+        str_file_1 = "IBMF2_around_m_PD_Lotka_Volterra_final_T_" + str("{0:.2f}".format(T)) + \
                      "_lambda_" + str(lda) + "_av0_" + str(av0) + "_tol_" + tol + "_tolasymp_" + tol_asymp + \
                      "_maxiter_" + str(maxiter) + "_eps_" + str("{0:.2f}".format(eps)) + \
                      "_mu_" + str("{0:.2f}".format(mu)) + "_sigma_"
         str_file_2 = "_N_" + str(N) + "_c_" + str(c)
-        str_donefile_1 = "Done_IBMF2_PD_T_" + str("{0:.2f}".format(T)) + "_eps_" + str("{0:.2f}".format(eps)) + \
+        str_donefile_1 = "Done_IBMF2_around_m_PD_T_" + str("{0:.2f}".format(T)) + "_eps_" + str("{0:.2f}".format(eps)) + \
                          "_mu_" + str("{0:.2f}".format(mu)) + "_sigma_"
         str_donefile_2 = "_avn0_" + str(av0)
         trans = find_transition(path, str_file_1, str_file_2, str_donefile_1, str_donefile_2, sigma0, dsigma, sigmaf, ngraphs_total)

@@ -119,6 +119,33 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
 }
 
 
+void init_graph_inside_RGER_full_asym(Tnode *&nodes, long N, double c,
+                                      double mu, double sigma, gsl_rng * r){
+    // eps is the degree of symmetry of the graph
+    double aji;
+    nodes = new Tnode[N];
+
+    init_nodes(nodes, N);
+
+    for (long i = 0; i < N; i++){
+        for (long j = 0; j < i; j++){
+            if (gsl_rng_uniform(r) < c / N){
+                nodes[i].neighs.push_back(j);
+                aji = mu + gsl_ran_gaussian(r, sigma);
+                nodes[i].links_in.push_back(aji);
+            }
+        }
+        for (long j = i + 1; j < N; j++){
+            if (gsl_rng_uniform(r) < c / N){
+                nodes[i].neighs.push_back(j);
+                aji = mu + gsl_ran_gaussian(r, sigma);
+                nodes[i].links_in.push_back(aji);
+            }
+        }
+    }
+}
+
+
 void init_avgs(long N, double *&avgs, double avn_0){
     avgs = new double[N];
     for (long i = 0; i < N; i++){
@@ -148,10 +175,10 @@ double denominator(double beta, double lambda, double hi){
 }
 
 
-double new_averages(long N, double *avgs, double *avgs_new, double beta, double lambda, Tnode *nodes){
+double new_averages(long N, double *avgs, double *avgs_new, double beta, double lambda, Tnode *nodes, double normfactor = 1e-10){
     double var = 0, var_i;
     for (long i = 0; i < N; i++){
-        avgs_new[i] = numerator(beta, lambda, nodes[i].field) / denominator(beta, lambda, nodes[i].field);
+        avgs_new[i] = fabs(numerator(beta, lambda, nodes[i].field)) / (denominator(beta, lambda, nodes[i].field) + normfactor) ;
         var_i = fabs(avgs_new[i] - avgs[i]);
         if (var_i > var){
             var = var_i;
@@ -243,16 +270,37 @@ int main(int argc, char *argv[]) {
     char gr_str[20];
 
     if (gr_inside){
-        sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[11]);
-        int c = atoi(argv[12]);
-        gsl_rng * r;
+        if (argc > 13){
+            if (atoi(argv[13]) == 1){
+                N = atol(argv[11]);
+                int c = atoi(argv[12]);
+                gsl_rng * r;
 
-        init_ran(r, seed);
+                init_ran(r, seed);
 
-        init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+                init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+            }else if (atoi(argv[13]) == 2)
+            {
+                N = atol(argv[11]);
+                double c = atof(argv[12]);
+                gsl_rng * r;
+                init_ran(r, seed);
+                init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
+            }else{
+                cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
+                exit(1);
+            }
+            
+        }else{
+            N = atol(argv[11]);
+            int c = atoi(argv[12]);
+            gsl_rng * r;
+
+            init_ran(r, seed);
+
+            init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+        }
     }else{
-        sprintf(gr_str, "gr_from_input");
         init_graph_from_input(nodes, N);
     }
 
