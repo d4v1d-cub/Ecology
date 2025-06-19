@@ -164,21 +164,47 @@ double field_in(long i, double *avgs, vector <long> neighs, vector <double> link
 
 
 double numerator(double beta, double lambda, double hi){
-        return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
-     sqrt(2 * beta) * hi * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
+    return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
+            sqrt(2 * beta) * hi * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
 }
 
 
-double denominator(double beta, double lambda, double hi){
+double denominator(double beta, double lambda, double hi, double normfactor = 1e-10){
     return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
-    beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2);
+            beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)
+            + normfactor;
 }
 
 
-double new_averages(long N, double *avgs, double *avgs_new, double beta, double lambda, Tnode *nodes, double normfactor = 1e-10){
+double numerator_assymp(double beta, double lambda, double hi){
+    return sqrt(lambda) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
+           beta * lambda * hi * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
+}
+
+
+double denominator_assymp(double beta, double lambda, double hi, double normfactor = 1e-10){
+    return gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
+           beta * sqrt(lambda) * hi * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2) + 
+           normfactor;
+}
+
+
+
+double new_averages(long N, double *avgs, double *avgs_new, double beta, double lambda, Tnode *nodes, double normfactor = 1e-14, 
+                    double asympthres_1 = 1e-7, double asympthres_2 = 1e-3){
     double var = 0, var_i;
     for (long i = 0; i < N; i++){
-        avgs_new[i] = fabs(numerator(beta, lambda, nodes[i].field)) / (denominator(beta, lambda, nodes[i].field) + normfactor) ;
+        if (exp(-beta * nodes[i].field * nodes[i].field / 2) < asympthres_1){
+            if (nodes[i].field < lambda){
+                avgs_new[i] = lambda;
+            }else{
+                avgs_new[i] = nodes[i].field;
+            }
+        }else if(1.0 / lambda / beta < asympthres_2){
+            avgs_new[i] = numerator_assymp(beta, lambda, nodes[i].field) / denominator_assymp(beta, lambda, nodes[i].field, normfactor);
+        }else{
+            avgs_new[i] = numerator(beta, lambda, nodes[i].field) / denominator(beta, lambda, nodes[i].field, normfactor);
+        }
         var_i = fabs(avgs_new[i] - avgs[i]);
         if (var_i > var){
             var = var_i;
@@ -262,6 +288,7 @@ int main(int argc, char *argv[]) {
     double sigma = atof(argv[9]);
     bool gr_inside = atoi(argv[10]);
 
+    gsl_set_error_handler_off();
 
     Tnode *nodes;
     double *avgs;
