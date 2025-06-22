@@ -119,6 +119,33 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
 }
 
 
+void init_graph_inside_RGER_full_asym(Tnode *&nodes, long N, double c,
+                                      double mu, double sigma, gsl_rng * r){
+    // eps is the degree of symmetry of the graph
+    double aji;
+    nodes = new Tnode[N];
+
+    init_nodes(nodes, N);
+
+    for (long i = 0; i < N; i++){
+        for (long j = 0; j < i; j++){
+            if (gsl_rng_uniform(r) < c / N){
+                nodes[i].neighs.push_back(j);
+                aji = mu + gsl_ran_gaussian(r, sigma);
+                nodes[i].links_in.push_back(aji);
+            }
+        }
+        for (long j = i + 1; j < N; j++){
+            if (gsl_rng_uniform(r) < c / N){
+                nodes[i].neighs.push_back(j);
+                aji = mu + gsl_ran_gaussian(r, sigma);
+                nodes[i].links_in.push_back(aji);
+            }
+        }
+    }
+}
+
+
 void init_avgs(long N, double *&avgs, double avn_0){
     avgs = new double[N];
     for (long i = 0; i < N; i++){
@@ -137,21 +164,47 @@ double field_in(long i, double *avgs, vector <long> neighs, vector <double> link
 
 
 double numerator(double beta, double lambda, double hi){
-        return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
-     sqrt(2 * beta) * hi * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
+    return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
+            sqrt(2 * beta) * hi * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
 }
 
 
-double denominator(double beta, double lambda, double hi){
+double denominator(double beta, double lambda, double hi, double normfactor = 1e-10){
     return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
-    beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2);
+            beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)
+            + normfactor;
 }
 
 
-double new_averages(long N, double *avgs, double *avgs_new, double beta, double lambda, Tnode *nodes){
+double numerator_assymp(double beta, double lambda, double hi){
+    return sqrt(lambda) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
+           beta * lambda * hi * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
+}
+
+
+double denominator_assymp(double beta, double lambda, double hi, double normfactor = 1e-10){
+    return gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
+           beta * sqrt(lambda) * hi * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2) + 
+           normfactor;
+}
+
+
+
+double new_averages(long N, double *avgs, double *avgs_new, double beta, double lambda, Tnode *nodes, double normfactor = 1e-10, 
+                    double asympthres_1 = 1e-7, double asympthres_2 = 1e-3){
     double var = 0, var_i;
     for (long i = 0; i < N; i++){
-        avgs_new[i] = numerator(beta, lambda, nodes[i].field) / denominator(beta, lambda, nodes[i].field);
+        if (exp(-beta * nodes[i].field * nodes[i].field / 2) < asympthres_1){
+            if (nodes[i].field < lambda){
+                avgs_new[i] = lambda;
+            }else{
+                avgs_new[i] = nodes[i].field;
+            }
+        }else if(1.0 / lambda / beta < asympthres_2){
+            avgs_new[i] = numerator_assymp(beta, lambda, nodes[i].field) / denominator_assymp(beta, lambda, nodes[i].field, normfactor);
+        }else{
+            avgs_new[i] = numerator(beta, lambda, nodes[i].field) / denominator(beta, lambda, nodes[i].field, normfactor);
+        }
         var_i = fabs(avgs_new[i] - avgs[i]);
         if (var_i > var){
             var = var_i;
@@ -185,7 +238,7 @@ double average_sqr(long N, Tnode *nodes){
 
 int convergence(long N, double *avgs, double beta, double lambda, Tnode *nodes, double tol, 
                  int max_iter, char *filehist, char *filefield_hist, int print_every, 
-                 bool divergence){
+                 bool &divergence){
     double *avgs_new;
     avgs_new = new double[N];
     double var = tol + 1;
@@ -261,38 +314,63 @@ int main(int argc, char *argv[]) {
     int print_every = atoi(argv[10]);
     bool gr_inside = atoi(argv[11]);
 
+    gsl_set_error_handler_off();
 
     Tnode *nodes;
     double *avgs;
     double beta = 1.0 / T;
     long N;
-    char gr_str[20];
+    char gr_str[100];
 
     if (gr_inside){
-        sprintf(gr_str, "gr_inside_RRG");
-        N = atol(argv[12]);
-        int c = atoi(argv[13]);
-        gsl_rng * r;
+        if (argc > 14){
+            if (atoi(argv[14]) == 1){
+                N = atol(argv[12]);
+                int c = atoi(argv[13]);
+                sprintf(gr_str, "gr_inside_RRG_N_%li_c_%d", N, c);
+                gsl_rng * r;
 
-        init_ran(r, seed);
+                init_ran(r, seed);
 
-        init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+                init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+            }else if (atoi(argv[14]) == 2){
+                N = atol(argv[12]);
+                double c = atof(argv[13]);
+                sprintf(gr_str, "gr_inside_ER_fully_asym_N_%li_c_%.3lf", N, c);
+                gsl_rng * r;
+                init_ran(r, seed);
+                init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
+            }else{
+                cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
+                exit(1);
+            }
+            
+        }else{
+            N = atol(argv[12]);
+            int c = atoi(argv[13]);
+            sprintf(gr_str, "gr_inside_RRG_N_%li_c_%d", N, c);
+            gsl_rng * r;
+
+            init_ran(r, seed);
+
+            init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+        }
     }else{
         sprintf(gr_str, "gr_from_input");
         init_graph_from_input(nodes, N);
     }
 
 
-    char filehist[200];
+    char filehist[400];
     sprintf(filehist, "IBMF_Lotka_Volterra_steady_state_convergence_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
                       gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
 
 
-    char filefield_hist[200];
+    char filefield_hist[400];
     sprintf(filefield_hist, "IBMF_Lotka_Volterra_avn_hist_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_print_every_%d_seed_%li.txt", 
                           gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, print_every, seed);
 
-    char filefield[200];
+    char filefield[400];
     sprintf(filefield, "IBMF_Lotka_Volterra_steady_state_avn_%s_T_%.3lf_lambda_%.3lf_av0_%.3lf_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", 
                       gr_str, T, lambda, avn_0, tol, max_iter, eps, mu, sigma, seed);
 

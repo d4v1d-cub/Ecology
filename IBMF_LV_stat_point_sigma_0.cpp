@@ -17,20 +17,43 @@ double field_in(double avg, int c, double mu){
 
 
 double numerator(double beta, double lambda, double hi){
-        return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
-     sqrt(2 * beta) * hi * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
+    return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
+            sqrt(2 * beta) * hi * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
 }
 
 
-double denominator(double beta, double lambda, double hi){
+double denominator(double beta, double lambda, double hi, double normfactor = 1e-10){
     return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
-    beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2);
+            beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)
+            + normfactor;
 }
 
 
-double new_average(double avg, double beta, double lambda, double mu, int c){
+double numerator_assymp(double beta, double lambda, double hi){
+    return sqrt(lambda) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
+           beta * lambda * hi * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
+}
+
+double denominator_assymp(double beta, double lambda, double hi, double normfactor = 1e-10){
+    return gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
+           beta * sqrt(lambda) * hi * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2) + 
+           normfactor;
+}
+
+double new_average(double avg, double beta, double lambda, double mu, int c, 
+                   double normfactor = 1e-14, double asympthres_1 = 1e-7, double asympthres_2 = 1e-3){
     double field = field_in(avg, c, mu);
-    return numerator(beta, lambda, field) / denominator(beta, lambda, field);
+    if (exp(-beta * field * field / 2) < asympthres_1){
+        if (field < lambda){
+            return lambda;
+        }else{
+            return field;
+        }
+    }else if(1.0 / lambda / beta < asympthres_2){
+        return numerator_assymp(beta, lambda, field) / denominator_assymp(beta, lambda, field, normfactor);
+    }else{
+        return numerator(beta, lambda, field) / denominator(beta, lambda, field, normfactor);
+    }
 }
 
 
