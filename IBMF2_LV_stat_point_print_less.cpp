@@ -26,6 +26,8 @@ typedef struct{
     double var; // variance of the perturbed gaussian that depends on the neighbors
     double av; // average value of n in that node
     double q_sqr; // average value of n^2 in that node
+    bool converged; // whether the node converged or not
+    bool var_positive; // whether the variance is positive or not
 }Tnode;
 
 
@@ -175,20 +177,86 @@ double var_in(long i, Tnode *nodes, vector <long> neighs, vector <double> links_
 }
 
 double numerator_av(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return 2 * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) + 
-           sqrt(2 * beta) * hi_div_s * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2);
+    return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) + 
+           sqrt(beta / 2) * hi_div_s * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2);
 }
 
 
 double numerator_q_sqr(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return 4 * hi_div_s * gsl_sf_gamma((3 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) + 
-           sqrt(2 * beta) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2);
+    return 2 * hi_div_s * gsl_sf_gamma((3 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) + 
+           sqrt(beta / 2) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2);
 }
 
 
-double denominator(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return sqrt(2 * beta) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
-           2 * beta * hi_div_s * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2);
+double denominator(double beta, double lambda, double hi_div_s, double hi2_div_s, double normfactor = 1e-14){
+    return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
+           beta * hi_div_s * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2);
+}
+
+
+double numerator_av_asymp(double beta, double lambda, double hi_div_s, double hi2_div_s){
+    return sqrt(lambda) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) +
+           beta * lambda * hi_div_s * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2);
+}
+
+
+double numerator_q_sqr_asymp(double beta, double lambda, double hi_div_s, double hi2_div_s){
+    return lambda * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) +
+           beta * lambda * sqrt(lambda) * hi_div_s * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2);
+}
+
+
+double denominator_asymp(double beta, double lambda, double hi_div_s, double hi2_div_s, double normfactor = 1e-14){
+    return gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
+           beta * sqrt(lambda) * hi_div_s * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) + 
+           normfactor;
+}
+
+
+int check_wich_diverges(double beta, double lambda, double hi2_div_s, double limit = 1e+10){
+    if (isnan(gsl_sf_gamma((3 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((3 + beta * lambda) / 2)) || gsl_sf_gamma((3 + beta * lambda) / 2) > limit){
+        if (isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) 
+            || gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        } else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else if(isnan(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
+                 gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else if(isnan(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
+                 || gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else if(isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
+                 gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else {
+            return 2; // only gamma diverges
+        }
+    }else if (isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) 
+            || gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
+                 gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
+                 || gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
+                 gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else{
+        return 0; // cannot identify divergence
+    }
 }
 
 
@@ -205,30 +273,60 @@ void comp_vars(long N, Tnode *nodes, double beta){
 }
 
 
-double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol_asymp, double normfactor = 1e-10){
+double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol_asymp, double normfactor = 1e-14){
     double delta = 0, delta_av, delta_q_sqr, s, hi_div_s, hi2_div_s, den, av_new, q_sqr_new;
-    
+    int identify_divergence = 0;
+
     for (long i = 0; i < N; i++){
         if (nodes[i].var > 0){
+            nodes[i].var_positive = true;   
             s = sqrt(nodes[i].var);
             hi_div_s = nodes[i].av * (1.0 / s - s) + s * nodes[i].field;
             hi2_div_s = hi_div_s * hi_div_s;
-            if (exp(-beta * hi2_div_s / 2) / pow(hi2_div_s, beta * lambda / 2) < tol_asymp){
-                hi_div_s = nodes[i].field;
-                hi2_div_s = hi_div_s * hi_div_s;
-                den = denominator(beta, lambda, hi_div_s, hi2_div_s);
-                av_new = fabs(numerator_av(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor);
-                q_sqr_new = av_new * av_new;
-            }else{
-                den = denominator(beta, lambda, hi_div_s, hi2_div_s);
-                av_new = s * fabs(numerator_av(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor); 
-                q_sqr_new = nodes[i].var * fabs(numerator_q_sqr(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor);
+            den = denominator(beta, lambda, hi_div_s, hi2_div_s, normfactor);
+            av_new = s * numerator_av(beta, lambda, hi_div_s, hi2_div_s) / den; 
+            q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, hi_div_s, hi2_div_s) / den;
+            if (isnan(q_sqr_new) || isinf(q_sqr_new) || isnan(av_new) || isinf(av_new)){
+                identify_divergence = check_wich_diverges(beta, lambda, hi2_div_s);
+                if (identify_divergence == 1){
+                    if (hi_div_s < 0){
+                        av_new = 0;
+                        q_sqr_new = 0;
+                    }else{
+                        av_new = s * hi_div_s;
+                        q_sqr_new = nodes[i].var * hi2_div_s;
+                    }
+                }else if (identify_divergence == 2){
+                    den = denominator_asymp(beta, lambda, hi_div_s, hi2_div_s, normfactor);
+                    av_new = s * numerator_av_asymp(beta, lambda, hi_div_s, hi2_div_s) / den; 
+                    q_sqr_new = nodes[i].var * numerator_q_sqr_asymp(beta, lambda, hi_div_s, hi2_div_s) / den;
+                }else{
+                    cout << "Cannot identify divergence for node " << i << endl;
+                    exit(1);
+                }
             }
         }else{
+            nodes[i].var_positive = false;
             hi_div_s = nodes[i].field;
             hi2_div_s = hi_div_s * hi_div_s;
-            den = denominator(beta, lambda, hi_div_s, hi2_div_s);
-            av_new = fabs(numerator_av(beta, lambda, hi_div_s, hi2_div_s)) / (den + normfactor);
+            den = denominator(beta, lambda, hi_div_s, hi2_div_s, normfactor);
+            av_new = numerator_av(beta, lambda, hi_div_s, hi2_div_s) / den;
+            if (isnan(av_new) || isinf(av_new)){
+                identify_divergence = check_wich_diverges(beta, lambda, hi2_div_s);
+                if (identify_divergence == 1){
+                    if (hi_div_s < 0){
+                        av_new = 0;
+                    }else{
+                        av_new = hi_div_s;
+                    }
+                }else if (identify_divergence == 2){
+                    den = denominator_asymp(beta, lambda, hi_div_s, hi2_div_s, normfactor);
+                    av_new = numerator_av_asymp(beta, lambda, hi_div_s, hi2_div_s) / den;
+                }else{
+                    cout << "Cannot identify divergence for node " << i << endl;
+                    exit(1);
+                }
+            }
             q_sqr_new = av_new * av_new;
         }
         
@@ -242,6 +340,13 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol
         }
         nodes[i].av = av_new;
         nodes[i].q_sqr = q_sqr_new;
+
+        if (delta_av < delta && delta_q_sqr < delta){
+            nodes[i].converged = true;
+        }
+        else{
+            nodes[i].converged = false;
+        }
 
     }
     return delta;
@@ -307,6 +412,20 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, do
 
 
 void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, bool divergence){
+    long counter_diverged = 0;
+    for (long i = 0; i < N; i++){
+        if (!nodes[i].converged){
+            counter_diverged++;
+        }
+    }
+
+    long counter_varneg = 0;
+    for (long i = 0; i < N; i++){
+        if (!nodes[i].var_positive){
+            counter_varneg++;
+        }
+    }
+
     double av_field = average_field(N, nodes);
     double av_field_sqr = average_field_sqr(N, nodes);
     double av_var = average_var(N, nodes);
@@ -315,12 +434,14 @@ void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, bool
         cout << iter << "\t" << "diverges" << "\t" << 
                 av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
                 av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
+                counter_diverged << "\t" << counter_varneg << "\t" <<
                 seed << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << 
                 av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
                 av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
+                counter_diverged << "\t" << counter_varneg << "\t" <<
                 seed << endl;
     }
 

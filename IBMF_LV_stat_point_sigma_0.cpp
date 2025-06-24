@@ -18,42 +18,85 @@ double field_in(double avg, int c, double mu){
 
 double numerator(double beta, double lambda, double hi){
     return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
-            sqrt(2 * beta) * hi * gsl_sf_gamma(1 + beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
+            sqrt(beta / 2) * hi * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
 }
 
 
-double denominator(double beta, double lambda, double hi, double normfactor = 1e-10){
+double denominator(double beta, double lambda, double hi, double normfactor = 1e-14){
     return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
             beta * hi * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)
             + normfactor;
 }
 
 
-double numerator_assymp(double beta, double lambda, double hi){
+double numerator_asymp(double beta, double lambda, double hi){
     return sqrt(lambda) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) +
            beta * lambda * hi * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2);
 }
 
-double denominator_assymp(double beta, double lambda, double hi, double normfactor = 1e-10){
+double denominator_asymp(double beta, double lambda, double hi, double normfactor = 1e-14){
     return gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) + 
            beta * sqrt(lambda) * hi * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2) + 
            normfactor;
 }
 
-double new_average(double avg, double beta, double lambda, double mu, int c, 
-                   double normfactor = 1e-14, double asympthres_1 = 1e-7, double asympthres_2 = 1e-3){
-    double field = field_in(avg, c, mu);
-    if (exp(-beta * field * field / 2) < asympthres_1){
-        if (field < lambda){
-            return lambda;
+
+int check_wich_diverges(double beta, double lambda, double hi, double limit = 1e+10){
+    if (isnan(gsl_sf_gamma(1 + beta * lambda / 2)) || isinf(gsl_sf_gamma(1 + beta * lambda / 2)) || gsl_sf_gamma(1 + beta * lambda / 2) > limit){
+        if (isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2)) 
+            || gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
+        }else if(isnan(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)) || 
+                 gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2) > limit){
+            return 1; // gamma and hypergeometric diverge
         }else{
-            return field;
+            return 2; // only gamma diverges
         }
-    }else if(1.0 / lambda / beta < asympthres_2){
-        return numerator_assymp(beta, lambda, field) / denominator_assymp(beta, lambda, field, normfactor);
+    }else if (isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2)) 
+            || gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi * hi / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi * hi / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2))
+                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi * hi / 2) > limit){
+        return 1; // gamma and hypergeometric diverge
+    }else if(isnan(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)) || isinf(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2)) || 
+                 gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi * hi / 2) > limit){
+        return 1; // hypergeometric diverges
     }else{
-        return numerator(beta, lambda, field) / denominator(beta, lambda, field, normfactor);
+        return 0; // cannot identify divergence
     }
+}
+
+
+double new_average(double avg, double beta, double lambda, double mu, int c, double normfactor = 1e-14){
+    double field = field_in(avg, c, mu);
+    int identify_divergence = 0;
+    double avg_new = numerator(beta, lambda, field) / denominator(beta, lambda, field, normfactor);
+    if (isnan(avg_new) || isinf(avg_new)){
+        identify_divergence = check_wich_diverges(beta, lambda, field);
+        if (identify_divergence == 1){
+            if (field < 0){
+                avg_new = 0;
+            }else{
+                avg_new = field;
+            }
+        }else if (identify_divergence == 2){
+            avg_new = numerator_asymp(beta, lambda, field) / denominator_asymp(beta, lambda, field, normfactor);
+        }else{
+            cout << "Cannot identify divergence" << endl;
+            exit(1);
+        }
+    }
+
+    return avg_new;
 }
 
 
@@ -90,6 +133,8 @@ int main(int argc, char *argv[]) {
     double muf = atof(argv[8]);
 
     int c = atoi(argv[9]);
+
+    gsl_set_error_handler_off();
 
     double avg, field;
 
