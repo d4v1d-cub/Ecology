@@ -190,7 +190,8 @@ double numerator_q_sqr(double beta, double lambda, double hi_div_s, double hi2_d
 
 double denominator(double beta, double lambda, double hi_div_s, double hi2_div_s, double normfactor = 1e-14){
     return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
-           beta * hi_div_s * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2);
+           beta * hi_div_s * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) + 
+           normfactor;
 }
 
 
@@ -273,7 +274,7 @@ void comp_vars(long N, Tnode *nodes, double beta){
 }
 
 
-double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol_asymp, double normfactor = 1e-14){
+double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol, double normfactor = 1e-14){
     double delta = 0, delta_av, delta_q_sqr, s, hi_div_s, hi2_div_s, den, av_new, q_sqr_new;
     int identify_divergence = 0;
 
@@ -341,10 +342,9 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol
         nodes[i].av = av_new;
         nodes[i].q_sqr = q_sqr_new;
 
-        if (delta_av < delta && delta_q_sqr < delta){
+        if (delta_av < tol && delta_q_sqr < tol){
             nodes[i].converged = true;
-        }
-        else{
+        }else{
             nodes[i].converged = false;
         }
 
@@ -388,8 +388,7 @@ double average_var_sqr(long N, Tnode *nodes){
     return av_sqr / N;
 }
 
-int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, double tol_asymp, 
-                int max_iter, bool &divergence){
+int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, int max_iter, bool &divergence){
     double delta = tol + 1;
     int iter = 0;
 
@@ -397,7 +396,7 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, do
     comp_vars(N, nodes, beta);
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(N, beta, lambda, nodes, tol_asymp);
+        delta = new_averages(N, beta, lambda, nodes, tol);
         iter++;
         comp_fields(N, nodes);
         comp_vars(N, nodes, beta);
@@ -405,6 +404,7 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, do
             divergence = true;
             return iter;
         }
+        cout << iter << "\t" << delta << endl;
     }
     divergence = false;
     return iter;
@@ -455,32 +455,32 @@ int main(int argc, char *argv[]) {
     double T = atof(argv[3]);
     double lambda = atof(argv[4]);
     double tol = atof(argv[5]);
-    double tol_asymp = atof(argv[6]);
-    int max_iter = atoi(argv[7]);
-    double eps = atof(argv[8]);
-    double mu = atof(argv[9]);
-    double sigma = atof(argv[10]);
-    bool gr_inside = atoi(argv[11]);
+    int max_iter = atoi(argv[6]);
+    double eps = atof(argv[7]);
+    double mu = atof(argv[8]);
+    double sigma = atof(argv[9]);
+    bool gr_inside = atoi(argv[10]);
 
+    gsl_set_error_handler_off();
 
     Tnode *nodes;
     double beta = 1.0 / T;
     long N;
 
     if (gr_inside){
-        if (argc > 14){
-            if (atoi(argv[14]) == 1){
-                N = atol(argv[12]);
-                int c = atoi(argv[13]);
+        if (argc > 13){
+            if (atoi(argv[13]) == 1){
+                N = atol(argv[11]);
+                int c = atoi(argv[12]);
                 gsl_rng * r;
 
                 init_ran(r, seed);
 
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-            }else if (atoi(argv[14]) == 2)
+            }else if (atoi(argv[13]) == 2)
             {
-                N = atol(argv[12]);
-                double c = atof(argv[13]);
+                N = atol(argv[11]);
+                double c = atof(argv[12]);
                 gsl_rng * r;
                 init_ran(r, seed);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
@@ -490,8 +490,8 @@ int main(int argc, char *argv[]) {
             }
             
         }else{
-            N = atol(argv[12]);
-            int c = atoi(argv[13]);
+            N = atol(argv[11]);
+            int c = atoi(argv[12]);
             gsl_rng * r;
 
             init_ran(r, seed);
@@ -506,7 +506,7 @@ int main(int argc, char *argv[]) {
 
     bool divergence;
 
-    int iter = convergence(N, beta, lambda, nodes, tol, tol_asymp, max_iter, divergence);
+    int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence);
 
     print_results(iter, nodes, N, seed, max_iter, divergence);
     

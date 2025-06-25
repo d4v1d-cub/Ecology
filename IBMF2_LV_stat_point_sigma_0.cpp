@@ -122,7 +122,7 @@ void comp_var(Tnode &node, double beta, int c, double mu){
 }
 
 
-double new_averages(double beta, double lambda, Tnode &node, double tol_asymp, double normfactor = 1e-14){
+double new_averages(double beta, double lambda, Tnode &node, double normfactor = 1e-14){
     double delta_av, delta_q_sqr, s, hi_div_s, hi2_div_s, den, av_new, q_sqr_new;
     int identify_divergence = 0;
 
@@ -186,8 +186,7 @@ double new_averages(double beta, double lambda, Tnode &node, double tol_asymp, d
 }
 
 
-int convergence(double beta, double lambda, int c, double mu, Tnode &node, double tol, double tol_asymp, 
-                int max_iter, bool &divergence){
+int convergence(double beta, double lambda, int c, double mu, Tnode &node, double tol, int max_iter, bool &divergence){
     double delta = tol + 1;
     int iter = 0;
 
@@ -195,7 +194,7 @@ int convergence(double beta, double lambda, int c, double mu, Tnode &node, doubl
     comp_var(node, beta, c, mu);
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(beta, lambda, node, tol_asymp);
+        delta = new_averages(beta, lambda, node);
         iter++;
         comp_field(node, c, mu);
         comp_var(node, beta, c, mu);
@@ -215,13 +214,13 @@ int main(int argc, char *argv[]) {
     double T = atof(argv[2]);
     double lambda = atof(argv[3]);
     double tol = atof(argv[4]);
-    double tol_asymp = atof(argv[5]);
-    int max_iter = atoi(argv[6]);
-    double mu0 = atof(argv[7]);
-    double dmu = atof(argv[8]);
-    double muf = atof(argv[9]);
-    int c = atoi(argv[10]);
+    int max_iter = atoi(argv[5]);
+    double mu0 = atof(argv[6]);
+    double dmu = atof(argv[7]);
+    double muf = atof(argv[8]);
+    int c = atoi(argv[9]);
 
+    gsl_set_error_handler_off();
 
     Tnode node;
     double beta = 1.0 / T;
@@ -232,7 +231,7 @@ int main(int argc, char *argv[]) {
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
         node.av = avn_0;
         node.q_sqr = avn_0 * avn_0;
-        iter = convergence(beta, lambda, c, mu, node, tol, tol_asymp, max_iter, divergence);
+        iter = convergence(beta, lambda, c, mu, node, tol, max_iter, divergence);
         if (divergence){
             cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << node.field << "\t" << node.var << endl;
         }else{
