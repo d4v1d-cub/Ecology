@@ -176,6 +176,45 @@ double var_in(long i, Tnode *nodes, vector <long> neighs, vector <double> links_
     return 1.0 / (1 - beta * sum);
 }
 
+
+bool comp_coefficients(double beta, double lambda, double **&coefficients){
+    bool gamma_diverges = false;
+    if (isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((1 + beta * lambda) / 2))){
+        gamma_diverges = true;
+    }
+
+    coefficients = new double *[3];
+    for (int i = 0; i < 3; i++){
+        coefficients[i] = new double[2];
+    }
+
+    if (gamma_diverges){
+        coefficients[0][0] = 1;
+        coefficients[0][1] = beta * sqrt(lambda) * (1 - 1.0 / 4 / beta / lambda);
+
+        coefficients[1][0] = sqrt(lambda) * (1 - 1.0 / 4 / beta / lambda);
+        coefficients[1][1] = lambda * beta;
+
+        coefficients[2][0] = lambda;
+        coefficients[2][1] = lambda * beta * sqrt(lambda) * (1 + 3.0 / 4 / beta / lambda);
+
+    }else{
+        double gammabl2 = gsl_sf_gamma(beta * lambda / 2);
+        double gammabl12 = gsl_sf_gamma((1 + beta * lambda) / 2);
+        
+        coefficients[0][0] = sqrt(beta / 2) * gammabl2;
+        coefficients[0][1] = beta * gammabl12;
+
+        coefficients[1][0] = gammabl12;
+        coefficients[1][1] = sqrt(beta / 2) * beta * lambda * gammabl2;
+
+        coefficients[2][0] = sqrt(beta / 2) * lambda * gammabl2;
+        coefficients[2][1] = (1 + beta * lambda) * gammabl12;
+    }
+
+    return gamma_diverges;
+}
+
 double numerator_av(double beta, double lambda, double hi_div_s, double hi2_div_s){
     return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) + 
            sqrt(beta / 2) * hi_div_s * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2);
@@ -183,8 +222,8 @@ double numerator_av(double beta, double lambda, double hi_div_s, double hi2_div_
 
 
 double numerator_q_sqr(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return 2 * hi_div_s * gsl_sf_gamma((3 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) + 
-           sqrt(beta / 2) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2);
+    return sqrt(beta / 2) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
+    hi_div_s * (1 + beta * lambda) * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2);
 }
 
 
