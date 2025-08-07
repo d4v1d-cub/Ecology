@@ -31,7 +31,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_print_less.out",
-            "args": ["1", "0.08", "0.005", "1e-05", "1e-4", "1000", "1.0", "0.0", "0.26", "1", "1000", "3", "1"],
+            "args": ["1", "0.08", "0.05", "1e-06", "1e-4", "10000", "1.0", "0.0", "0.08", "1", "1000", "3", "1"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -57,7 +57,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_sigma_0.out",
-            "args": ["0.08", "0.06", "1e-4", "1e-4", "10000", "0.001", "0.001", "0.5", "3"],
+            "args": ["0.001", "0.0001", "1e-6", "1e-4", "10000", "0.001", "0.001", "0.5", "6"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -79,37 +79,11 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 IBMF2 stat",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/IBMF2_pert_LV_stat_point.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "1e-6", "1000", "1.0", "0.0", "0.25", "1", "1", "1000", "3"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 IBMF2 stat",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
             "name": "C/C++: g++-11 IBMF2 stat print less",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF2_LV_stat_point_print_less.out",
-            "args": ["1", "0.08", "0.000001", "1e-2", "1e-4", "1000", "1.0", "0.6", "0.0", "1", "1000", "3", "2"],
+            "args": ["1", "0.08", "0.5", "1e-2", "1e-4", "10000", "1.0", "0.0", "0.22", "1", "1000", "3"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -135,7 +109,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF2_LV_stat_point_sigma_0.out",
-            "args": ["0.08", "0.0001", "1e-4", "1e-4", "100000", "0.01", "0.01", "1.0", "3"],
+            "args": ["0.08", "0.06", "1e-6", "1e-4", "10000", "0.001", "0.001", "0.5", "3"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -157,11 +131,11 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 IBMF3 stat print less",
+            "name": "C/C++: g++-11 GMF sigma0",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${fileDirname}/Debug/IBMF3_LV_stat_point_print_less.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "1e-6", "10000", "1.0", "0.0", "0.1", "0", "1e-7", "1000", "1", "1000", "3"],
+            "program": "${fileDirname}/Debug/GMF_LV_stat_point_sigma_0.out",
+            "args": ["0.08", "0.0001", "1e-6", "1e-4", "10000", "0.2", "0.001", "0.5", "5"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -179,189 +153,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 IBMF3 stat print less",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "C/C++: g++-11 IBMF3 sigma0",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/IBMF3_LV_stat_point_sigma_0.out",
-            "args": ["0.08", "0.5", "0.01", "1e-4", "1e-6", "1000", "0.1", "0.05", "3.0", "3", "0", "1e-7", "1000"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 IBMF3 sigma0",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "C/C++: g++-11 PBMF stat ansatz",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.0", "0.30", "0.001", "3", "100", "1e-3", "1", "1", "512", "3"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 PBMF stat ansatz",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "C/C++: g++-11 PBMF stat ansatz print less",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz_print_less.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.0", "0.30", "0.001", "3", "200", "1e-3", "1", "512", "3"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 PBMF stat ansatz print less",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "C/C++: g++-11 from m to mhat PBMF",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/from_m_to_mhat_PBMF.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.1", "0.34", "0.001", "3", "300", "1e-3", "1", "1000", "3"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 from m to mhat PBMF",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "C/C++: g++-11 from mhat to Psingle PBMF",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/from_mhat_to_Psingle_PBMF.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.1", "0.34", "0.001", "3", "300", "1e-3", "1", "1000", "3"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 from mhat to Psingle PBMF",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "C/C++: g++-11 check solution PBMF",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/check_solution_PBMF.out",
-            "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.1", "0.34", "0.001", "3", "300", "1e-3", "1", "1000", "3"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 check solution PBMF",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "C/C++: g++-11 PBMF sigma0",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz_sigma_0.out",
-            "args": ["0.01", "0.5", "0.01", "1e-4", "1000", "0.3", "0.01", "0.4", "0.001", "10.0", "1000", "1e-3", "3"],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}/Debug",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: g++-11 PBMF sigma0",
+            "preLaunchTask": "C/C++: g++-11 GMF sigma0",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
@@ -369,7 +161,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/FokkerPlanck_single_var.out",
-            "args": ["0.5", "0.01", "10", "1000", "1", "1e-6", "1e-6", "1e-6", "1", "0.5", "0.0001", "10000", "5", "1"],
+            "args": ["0.1", "0.1", "10", "1000", "10", "1e-6", "1e-6", "1e-6", "1", "0.5", "0.001", "10000", "5", "1"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -415,7 +207,241 @@
             ],
             "preLaunchTask": "C/C++: g++-11 FP single var avoid div",
             "miDebuggerPath": "/usr/bin/gdb"
-        }
+        }//,
+        // {
+        //     "name": "C/C++: g++-11 IBMF2 stat",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/IBMF2_pert_LV_stat_point.out",
+        //     "args": ["1", "0.08", "0.5", "0.01", "1e-4", "1e-6", "1000", "1.0", "0.0", "0.25", "1", "1", "1000", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 IBMF2 stat",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 IBMF3 stat print less",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/IBMF3_LV_stat_point_print_less.out",
+        //     "args": ["1", "0.08", "0.5", "0.01", "1e-4", "1e-6", "10000", "1.0", "0.0", "0.1", "0", "1e-7", "1000", "1", "1000", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 IBMF3 stat print less",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 IBMF3 sigma0",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/IBMF3_LV_stat_point_sigma_0.out",
+        //     "args": ["0.08", "0.5", "0.01", "1e-4", "1e-6", "1000", "0.1", "0.05", "3.0", "3", "0", "1e-7", "1000"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 IBMF3 sigma0",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 PBMF stat ansatz",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz.out",
+        //     "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.0", "0.30", "0.001", "3", "100", "1e-3", "1", "1", "512", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 PBMF stat ansatz",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 PBMF stat ansatz print less",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz_print_less.out",
+        //     "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.0", "0.30", "0.001", "3", "200", "1e-3", "1", "512", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 PBMF stat ansatz print less",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 from m to mhat PBMF",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/from_m_to_mhat_PBMF.out",
+        //     "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.1", "0.34", "0.001", "3", "300", "1e-3", "1", "1000", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 from m to mhat PBMF",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 from mhat to Psingle PBMF",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/from_mhat_to_Psingle_PBMF.out",
+        //     "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.1", "0.34", "0.001", "3", "300", "1e-3", "1", "1000", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 from mhat to Psingle PBMF",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 check solution PBMF",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/check_solution_PBMF.out",
+        //     "args": ["1", "0.08", "0.5", "0.01", "1e-4", "500", "1.0", "0.1", "0.34", "0.001", "3", "300", "1e-3", "1", "1000", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 check solution PBMF",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // },
+        // {
+        //     "name": "C/C++: g++-11 PBMF sigma0",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz_sigma_0.out",
+        //     "args": ["0.01", "0.5", "0.01", "1e-4", "1000", "0.3", "0.01", "0.4", "0.001", "10.0", "1000", "1e-3", "3"],
+        //     "stopAtEntry": false,
+        //     "cwd": "${fileDirname}/Debug",
+        //     "environment": [],
+        //     "externalConsole": false,
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Set Disassembly Flavor to Intel",
+        //             "text": "-gdb-set disassembly-flavor intel",
+        //             "ignoreFailures": true
+        //         }
+        //     ],
+        //     "preLaunchTask": "C/C++: g++-11 PBMF sigma0",
+        //     "miDebuggerPath": "/usr/bin/gdb"
+        // }
     ],
     "version": "2.0.0"
 }

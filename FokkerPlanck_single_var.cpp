@@ -55,6 +55,7 @@ int P_der_t(double t, const double P[], double der_t[], void *params){
                    (n_grid[i] * (1 - n_grid[i]) + lambda - 2 * temp) * P_der_n[i] + 
                     temp * n_grid[i] * P_der2_n[i];
     }
+    der_t[0] += (temp - lambda) * P[0];
     return GSL_SUCCESS;
 }
 
@@ -99,6 +100,8 @@ int jacobian(double t, const double P[], double *dfdy, double dfdt[], void *para
     gsl_matrix_set(m, pos, pos, 
         -(1 - 2 * n_grid[pos]) -
         (n_grid[pos] * (1 - n_grid[pos]) + lambda - 2 * temp) / (n_grid[pos] - n_grid[pos - 1]));
+
+    gsl_matrix_set(m, 0, 0, gsl_matrix_get(m, 0, 0) + (temp - lambda));
 
     for (int i = 0; i < npoints; i++){
         dfdt[i] = 0.0;

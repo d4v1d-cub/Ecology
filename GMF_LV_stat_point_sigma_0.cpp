@@ -17,17 +17,18 @@ typedef struct{
     double av; // average value of n in that node
     double q_sqr; // average value of n^2 in that node
     double beta_qm; // beta * (q_sqr - av^2), used to compute the standard deviation
+    bool beta_qm_converged; // whether the average value of n^2 has converged
 }Tnode;
 
 
 
 double field_in(Tnode node, int c, double mu){
-    return 1 - c * mu * node.av;
+    return 1 - (c - 1) * mu * node.av;
 }
 
 
 double var_in(Tnode node, int c, double mu){
-    return 1.0 / (1 - c * mu * mu * node.beta_qm);
+    return 1.0 / (1 - (c - 1) * mu * mu * node.beta_qm);
 }
 
 
@@ -129,17 +130,43 @@ void comp_var(Tnode &node, int c, double mu){
 
 
 double new_averages(double beta, double lambda, Tnode &node, 
-                    double hmax, double **coefficients, int iter, double normfactor = 1e-14){
-    double delta_av, delta_q_sqr, Q, hi, hi_div_Q, den, av_new, q_sqr_new;
+                    double hmax, double **coefficients, int iter, double tol, 
+                    double normfactor = 1e-14){
+    double Q, hi, hi_div_Q, den, av_new, q_sqr_new, beta_qm_new;
 
-    if (node.var > 0){
+    if (node.beta_qm_converged){
+        beta_qm_new = node.beta_qm;
+        if (node.var > 0){
+            Q = sqrt(node.var);
+            hi = node.field * node.var;
+            hi_div_Q = hi / Q;
+            if (hi_div_Q > hmax){
+                av_new = hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q);
+            }else if (hi_div_Q < 0){
+                av_new = 0;
+            }else{
+                den = denominator(beta, lambda, hi_div_Q, coefficients[0], normfactor);
+                av_new = Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den;
+            }
+        }else{
+            hi = node.field;
+            if (hi > hmax){
+                av_new = hi * (1 - 1.0 / beta / hi / hi + lambda / hi / hi);
+            }else if (hi < 0){
+                av_new = 0;
+            }else{
+                den = denominator(beta, lambda, hi, coefficients[0], normfactor);
+                av_new = numerator_av(beta, lambda, hi, coefficients[1]) / den;
+            }
+        }
+    }else if (node.var > 0){
         Q = sqrt(node.var);
-        hi = node.av * (1.0 - node.var) + node.field * node.var;
+        hi = node.field * node.var;
         hi_div_Q = hi / Q;
         if (hi_div_Q > hmax){
             av_new = hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q);
             q_sqr_new = hi * hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + 2 * lambda / hi_div_Q / hi_div_Q);
-            node.beta_qm = node.var;
+            beta_qm_new = node.var;
         }else if (hi_div_Q < 0){
             av_new = 0;
             q_sqr_new = 0;
@@ -148,7 +175,7 @@ double new_averages(double beta, double lambda, Tnode &node,
             den = denominator(beta, lambda, hi_div_Q, coefficients[0], normfactor);
             av_new = Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den;
             q_sqr_new = node.var * numerator_q_sqr(beta, lambda, hi_div_Q, coefficients[2]) / den;
-            node.beta_qm = beta * (q_sqr_new - av_new * av_new);
+            beta_qm_new = beta * (q_sqr_new - av_new * av_new);
         }
     }else{
         hi = node.field;
@@ -162,7 +189,7 @@ double new_averages(double beta, double lambda, Tnode &node,
         }
             
         q_sqr_new = av_new * av_new;
-        node.beta_qm = 0;
+        beta_qm_new = 0;
     }
         
 
@@ -171,13 +198,20 @@ double new_averages(double beta, double lambda, Tnode &node,
         return sqrt(-1);
     }
 
-    delta_av = fabs(av_new - node.av);
-    delta_q_sqr = fabs(q_sqr_new - node.q_sqr);
-    
+    double delta_av = fabs(av_new - node.av);
+    double delta_q_sqr = fabs(q_sqr_new - node.q_sqr);
+
+    double delta = max(delta_av, delta_q_sqr);
+
+    if (!node.beta_qm_converged && fabs(beta_qm_new - node.beta_qm) < tol){
+        node.beta_qm_converged = true;
+    }
+
     node.av = av_new;
     node.q_sqr = q_sqr_new;
+    node.beta_qm = beta_qm_new;
 
-    return max(delta_av, delta_q_sqr);
+    return delta;
 }
 
 
@@ -189,8 +223,10 @@ int convergence(double beta, double lambda, int c, double mu, Tnode &node, doubl
     comp_field(node, c, mu);
     comp_var(node, c, mu);
 
+    node.beta_qm_converged = false;
+
     while (delta > tol && iter < max_iter){
-        delta = new_averages(beta, lambda, node, hmax, coefficients, iter);
+        delta = new_averages(beta, lambda, node, hmax, coefficients, iter, tol);
         iter++;
         comp_field(node, c, mu);
         comp_var(node, c, mu);
@@ -234,10 +270,10 @@ int main(int argc, char *argv[]) {
         iter = convergence(beta, lambda, c, mu, node, tol, max_iter, divergence, 
                            hmax, coefficients);
         if (divergence){
-            cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << node.field << "\t" << node.var << endl;
+            cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << node.field << "\t" << node.var << "\t" << node.beta_qm_converged << endl;
         }else{
             conv = iter < max_iter;
-            cout << mu << "\t" << iter << "\t" << conv << "\t" << node.field << "\t" << node.var << endl;
+            cout << mu << "\t" << iter << "\t" << conv << "\t" << node.field << "\t" << node.var << "\t" << node.beta_qm_converged << endl;
         }
     }
     

@@ -21,6 +21,7 @@ void init_ran(gsl_rng * &r, unsigned long s){
 
 typedef struct{
     vector <long> neighs;
+    vector <double> links_out;
     vector <double> links_in;
     double field; // local field in that node
     double var; // variance of the perturbed gaussian that depends on the neighbors
@@ -28,6 +29,7 @@ typedef struct{
     double q_sqr; // average value of n^2 in that node
     bool converged; // whether the node converged or not
     bool var_positive; // whether the variance is positive or not
+    double beta_qm; // q_sqr - av^2, used to compute the standard deviation
 }Tnode;
 
 
@@ -36,13 +38,15 @@ void init_graph_from_input(Tnode *&nodes, long &N){
     scanf("%ld %ld", &N, &M);
     nodes = new Tnode[N];
     long i, j;
-    double aij, aji;
+    double aij, aji; // aij is the coupling that sees node j from node i
     for (long e = 0; e < M; e++){
         scanf("%ld %ld %lf %lf", &i, &j, &aij, &aji);
         nodes[i].neighs.push_back(j);
         nodes[j].neighs.push_back(i);
         nodes[i].links_in.push_back(aji);
         nodes[j].links_in.push_back(aij);
+        nodes[i].links_out.push_back(aij);
+        nodes[j].links_out.push_back(aji);
     }
 }
 
@@ -51,6 +55,7 @@ void init_nodes(Tnode *nodes, long N){
     for (long i = 0; i < N; i++){
         nodes[i].links_in = vector <double> ();
         nodes[i].neighs = vector <long> ();
+        nodes[i].links_out = vector <double> ();
     }
 }
 
@@ -64,7 +69,7 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
         bool success = false;
         long M = N * c / 2;
         long pos_i, pos_j, i, j;
-        double aij, aji;
+        double aij, aji;  // aij is the coupling that sees node j from node i
         nodes = new Tnode[N];
 
         while (!success)
@@ -100,6 +105,8 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
                 }
                 nodes[i].links_in.push_back(aji);
                 nodes[j].links_in.push_back(aij);
+                nodes[i].links_out.push_back(aij);
+                nodes[j].links_out.push_back(aji);
             }
 
             pos_i = 0;
@@ -118,36 +125,11 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
                 }
                 nodes[i].links_in.push_back(aji);
                 nodes[j].links_in.push_back(aij);
+                nodes[i].links_out.push_back(aij);
+                nodes[j].links_out.push_back(aji);
             }
         }
     }    
-}
-
-
-void init_graph_inside_RGER_full_asym(Tnode *&nodes, long N, double c,
-                                      double mu, double sigma, gsl_rng * r){
-    // eps is the degree of symmetry of the graph
-    double aji;
-    nodes = new Tnode[N];
-
-    init_nodes(nodes, N);
-
-    for (long i = 0; i < N; i++){
-        for (long j = 0; j < i; j++){
-            if (gsl_rng_uniform(r) < c / N){
-                nodes[i].neighs.push_back(j);
-                aji = mu + gsl_ran_gaussian(r, sigma);
-                nodes[i].links_in.push_back(aji);
-            }
-        }
-        for (long j = i + 1; j < N; j++){
-            if (gsl_rng_uniform(r) < c / N){
-                nodes[i].neighs.push_back(j);
-                aji = mu + gsl_ran_gaussian(r, sigma);
-                nodes[i].links_in.push_back(aji);
-            }
-        }
-    }
 }
 
 
@@ -155,6 +137,7 @@ void init_avgs(long N, Tnode *nodes, double avn_0){
     for (long i = 0; i < N; i++){
         nodes[i].av = avn_0;
         nodes[i].q_sqr = avn_0 * avn_0;
+        nodes[i].beta_qm = 0;
     }
 }
 
@@ -168,12 +151,13 @@ double field_in(long i, Tnode *nodes, vector <long> neighs, vector <double> link
 }
 
 
-double var_in(long i, Tnode *nodes, vector <long> neighs, vector <double> links_in, double beta){
+double var_in(long i, Tnode *nodes, vector <long> neighs, 
+              vector <double> links_in, vector <double> links_out){
     double sum = 0;
     for (long j = 0; j < neighs.size(); j++){
-        sum += links_in[j] * links_in[j] * (nodes[neighs[j]].q_sqr - nodes[neighs[j]].av * nodes[neighs[j]].av);
+        sum += links_in[j] * links_out[j] * nodes[neighs[j]].beta_qm;
     }
-    return 1.0 / (1 - beta * sum);
+    return 1.0 / (1 - sum);
 }
 
 
@@ -215,89 +199,55 @@ bool comp_coefficients(double beta, double lambda, double **&coefficients){
     return gamma_diverges;
 }
 
-double numerator_av(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) + 
-           sqrt(beta / 2) * hi_div_s * beta * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2);
-}
 
-
-double numerator_q_sqr(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return sqrt(beta / 2) * lambda * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
-    hi_div_s * (1 + beta * lambda) * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2);
-}
-
-
-double denominator(double beta, double lambda, double hi_div_s, double hi2_div_s, double normfactor = 1e-14){
-    return sqrt(beta / 2) * gsl_sf_gamma(beta * lambda / 2) * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
-           beta * hi_div_s * gsl_sf_gamma((1 + beta * lambda) / 2) * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) + 
-           normfactor;
-}
-
-
-double numerator_av_asymp(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return sqrt(lambda) * gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) +
-           beta * lambda * hi_div_s * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2);
-}
-
-
-double numerator_q_sqr_asymp(double beta, double lambda, double hi_div_s, double hi2_div_s){
-    return lambda * gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) +
-           beta * lambda * sqrt(lambda) * hi_div_s * gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2);
-}
-
-
-double denominator_asymp(double beta, double lambda, double hi_div_s, double hi2_div_s, double normfactor = 1e-14){
-    return gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) + 
-           beta * sqrt(lambda) * hi_div_s * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) + 
-           normfactor;
-}
-
-
-int check_wich_diverges(double beta, double lambda, double hi2_div_s, double limit = 1e+10){
-    if (isnan(gsl_sf_gamma((3 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((3 + beta * lambda) / 2)) || gsl_sf_gamma((3 + beta * lambda) / 2) > limit){
-        if (isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) 
-            || gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) > limit){
-            return 1; // gamma and hypergeometric diverge
-        }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2))
-                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2) > limit){
-            return 1; // gamma and hypergeometric diverge
-        } else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
-                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
-            return 1; // gamma and hypergeometric diverge
-        }else if(isnan(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
-                 gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
-            return 1; // gamma and hypergeometric diverge
-        }else if(isnan(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
-                 || gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
-            return 1; // gamma and hypergeometric diverge
-        }else if(isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
-                 gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
-            return 1; // gamma and hypergeometric diverge
-        }else {
-            return 2; // only gamma diverges
-        }
-    }else if (isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2)) 
-            || gsl_sf_hyperg_1F1(-beta * lambda / 2, 0.5, -beta * hi2_div_s / 2) > limit){
-        return 1; // gamma and hypergeometric diverge
-    }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2))
-                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 1.5, -beta * hi2_div_s / 2) > limit){
-        return 1; // gamma and hypergeometric diverge
-    }else if(isnan(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
-                 || gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
-        return 1; // gamma and hypergeometric diverge
-    }else if(isnan(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
-                 gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
-        return 1; // gamma and hypergeometric diverge
-    }else if(isnan(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2))
-                 || gsl_sf_hyperg_1F1(-(1 + beta * lambda) / 2, 0.5, -beta * hi2_div_s / 2) > limit){
-        return 1; // gamma and hypergeometric diverge
-    }else if(isnan(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || isinf(gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2)) || 
-                 gsl_sf_hyperg_1F1(-beta * lambda / 2, 1.5, -beta * hi2_div_s / 2) > limit){
-        return 1; // gamma and hypergeometric diverge
-    }else{
-        return 0; // cannot identify divergence
+double find_divergence(double beta, double alpha, double hmax=100, double precision=1e-4, double maximum=1e10){
+    double val1, val2;
+    val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * hmax * hmax / 2);
+    val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * hmax * hmax / 2);
+    while (!(isnan(val1) || isinf(val1) || isnan(val2) || isinf(val2) || 
+             val1 > maximum || val2 > maximum)){
+        hmax *= 2;
+        val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * hmax * hmax / 2);
+        val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * hmax * hmax / 2);   
     }
+
+    double hmin = 0;
+    double h = (hmax + hmin) / 2;
+    while (hmax - hmin > precision){
+        val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * h * h / 2);
+        val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * h * h / 2);
+        if (isnan(val1) || isinf(val1) || isnan(val2) || isinf(val2) || 
+            val1 > maximum || val2 > maximum){
+            hmax = h;
+        }else{
+            hmin = h;
+        }
+        h = (hmax + hmin) / 2;
+    }
+
+    cerr << "Divergence found at h = " << hmax << endl;
+    cerr << "Last value to converge: " << hmin << endl;
+    return hmin;
 }
+
+double numerator_av(double beta, double lambda, double hi_div_Q, double *coefficients){
+    return coefficients[0] * gsl_sf_hyperg_1F1((1 + beta * lambda) / 2, 0.5, beta * hi_div_Q * hi_div_Q / 2) +
+           coefficients[1] * hi_div_Q * gsl_sf_hyperg_1F1(1 + beta * lambda / 2, 1.5, beta * hi_div_Q * hi_div_Q / 2);
+}
+
+
+double numerator_q_sqr(double beta, double lambda, double hi_div_Q, double *coefficients){
+    return coefficients[0] * gsl_sf_hyperg_1F1(1 + beta * lambda / 2, 0.5, beta * hi_div_Q * hi_div_Q / 2) + 
+           coefficients[1] * hi_div_Q * gsl_sf_hyperg_1F1((3 + beta * lambda) / 2, 1.5, beta * hi_div_Q * hi_div_Q / 2);
+}
+
+
+double denominator(double beta, double lambda, double hi_div_Q, double *coefficients, double normfactor = 1e-14){
+    return coefficients[0] * gsl_sf_hyperg_1F1(beta * lambda / 2, 0.5, beta * hi_div_Q * hi_div_Q / 2) + 
+           coefficients[1] * hi_div_Q * gsl_sf_hyperg_1F1((1 + beta * lambda) / 2, 1.5, beta * hi_div_Q * hi_div_Q / 2)
+           + normfactor;
+}
+
 
 
 void comp_fields(long N, Tnode *nodes){
@@ -306,70 +256,59 @@ void comp_fields(long N, Tnode *nodes){
     }
 }
 
-void comp_vars(long N, Tnode *nodes, double beta){
+void comp_vars(long N, Tnode *nodes){
     for (long i = 0; i < N; i++){
-        nodes[i].var = var_in(i, nodes, nodes[i].neighs, nodes[i].links_in, beta);
+        nodes[i].var = var_in(i, nodes, nodes[i].neighs, nodes[i].links_in, 
+                              nodes[i].links_out);
     }
 }
 
 
-double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol, double normfactor = 1e-14){
-    double delta = 0, delta_av, delta_q_sqr, s, hi_div_s, hi2_div_s, den, av_new, q_sqr_new;
-    int identify_divergence = 0;
+double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol, 
+                    double hmax, double **coefficients, int iter, double normfactor = 1e-14){
+    double delta = 0, delta_av, delta_q_sqr, Q, hi, hi_div_Q, den, av_new, q_sqr_new;
 
     for (long i = 0; i < N; i++){
         if (nodes[i].var > 0){
             nodes[i].var_positive = true;   
-            s = sqrt(nodes[i].var);
-            hi_div_s = nodes[i].av * (1.0 / s - s) + s * nodes[i].field;
-            hi2_div_s = hi_div_s * hi_div_s;
-            den = denominator(beta, lambda, hi_div_s, hi2_div_s, normfactor);
-            av_new = s * numerator_av(beta, lambda, hi_div_s, hi2_div_s) / den; 
-            q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, hi_div_s, hi2_div_s) / den;
-            if (isnan(q_sqr_new) || isinf(q_sqr_new) || isnan(av_new) || isinf(av_new)){
-                identify_divergence = check_wich_diverges(beta, lambda, hi2_div_s);
-                if (identify_divergence == 1){
-                    if (hi_div_s < 0){
-                        av_new = 0;
-                        q_sqr_new = 0;
-                    }else{
-                        av_new = s * hi_div_s;
-                        q_sqr_new = nodes[i].var * hi2_div_s;
-                    }
-                }else if (identify_divergence == 2){
-                    den = denominator_asymp(beta, lambda, hi_div_s, hi2_div_s, normfactor);
-                    av_new = s * numerator_av_asymp(beta, lambda, hi_div_s, hi2_div_s) / den; 
-                    q_sqr_new = nodes[i].var * numerator_q_sqr_asymp(beta, lambda, hi_div_s, hi2_div_s) / den;
-                }else{
-                    cout << "Cannot identify divergence for node " << i << endl;
-                    exit(1);
-                }
+            Q = sqrt(nodes[i].var);
+            hi = nodes[i].av * (1.0 - nodes[i].var) + nodes[i].field * nodes[i].var;
+            hi_div_Q = hi / Q;
+            if (hi_div_Q > hmax){
+                av_new = hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q);
+                q_sqr_new = hi * hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + 2 * lambda / hi_div_Q / hi_div_Q);
+                nodes[i].beta_qm = nodes[i].var;
+            }else if (hi_div_Q < 0){
+                av_new = 0;
+                q_sqr_new = 0;
+                nodes[i].beta_qm = 0;
+            }else{
+                den = denominator(beta, lambda, hi_div_Q, coefficients[0], normfactor);
+                av_new = Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den;
+                q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, hi_div_Q, coefficients[2]) / den;
+                nodes[i].beta_qm = beta * (q_sqr_new - av_new * av_new);
             }
         }else{
             nodes[i].var_positive = false;
-            hi_div_s = nodes[i].field;
-            hi2_div_s = hi_div_s * hi_div_s;
-            den = denominator(beta, lambda, hi_div_s, hi2_div_s, normfactor);
-            av_new = numerator_av(beta, lambda, hi_div_s, hi2_div_s) / den;
-            if (isnan(av_new) || isinf(av_new)){
-                identify_divergence = check_wich_diverges(beta, lambda, hi2_div_s);
-                if (identify_divergence == 1){
-                    if (hi_div_s < 0){
-                        av_new = 0;
-                    }else{
-                        av_new = hi_div_s;
-                    }
-                }else if (identify_divergence == 2){
-                    den = denominator_asymp(beta, lambda, hi_div_s, hi2_div_s, normfactor);
-                    av_new = numerator_av_asymp(beta, lambda, hi_div_s, hi2_div_s) / den;
-                }else{
-                    cout << "Cannot identify divergence for node " << i << endl;
-                    exit(1);
-                }
+            hi = nodes[i].field;
+            if (hi > hmax){
+                av_new = hi * (1 - 1.0 / beta / hi / hi + lambda / hi / hi);
+            }else if (hi < 0){
+                av_new = 0;
+            }else{
+                den = denominator(beta, lambda, hi, coefficients[0], normfactor);
+                av_new = numerator_av(beta, lambda, hi, coefficients[1]) / den;
             }
+            
             q_sqr_new = av_new * av_new;
+            nodes[i].beta_qm = 0;
         }
         
+        if (isnan(av_new) || isinf(av_new) || isnan(q_sqr_new) || isinf(q_sqr_new)){
+            cerr << "Error: averages are nan or inf at site i=" << i << "   iter=" << iter << endl;
+            return sqrt(-1);
+        }
+
         delta_av = fabs(av_new - nodes[i].av);
         delta_q_sqr = fabs(q_sqr_new - nodes[i].q_sqr);
         if (delta_av > delta){
@@ -427,23 +366,25 @@ double average_var_sqr(long N, Tnode *nodes){
     return av_sqr / N;
 }
 
-int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, int max_iter, bool &divergence){
+int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
+                int max_iter, bool &divergence, double hmax, double **coefficients, 
+                double maximum=1e10){
     double delta = tol + 1;
     int iter = 0;
 
     comp_fields(N, nodes);
-    comp_vars(N, nodes, beta);
+    comp_vars(N, nodes);
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(N, beta, lambda, nodes, tol);
+        delta = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter);
         iter++;
         comp_fields(N, nodes);
-        comp_vars(N, nodes, beta);
-        if (isinf(delta)){
+        comp_vars(N, nodes);
+        if (isinf(delta) || isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
         }
-        cout << iter << "\t" << delta << endl;
+        // cout << iter << "\t" << delta << endl;
     }
     divergence = false;
     return iter;
@@ -473,15 +414,13 @@ void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, bool
         cout << iter << "\t" << "diverges" << "\t" << 
                 av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
                 av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
-                counter_diverged << "\t" << counter_varneg << "\t" <<
-                seed << endl;
+                counter_diverged << "\t" << counter_varneg << "\t" << seed << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << 
                 av_field << "\t" << sqrt((av_field_sqr - av_field * av_field) / N) << "\t" << 
                 av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
-                counter_diverged << "\t" << counter_varneg << "\t" <<
-                seed << endl;
+                counter_diverged << "\t" << counter_varneg << "\t" << seed << endl;
     }
 
 }
@@ -507,45 +446,27 @@ int main(int argc, char *argv[]) {
     long N;
 
     if (gr_inside){
-        if (argc > 13){
-            if (atoi(argv[13]) == 1){
-                N = atol(argv[11]);
-                int c = atoi(argv[12]);
-                gsl_rng * r;
+        N = atol(argv[11]);
+        int c = atoi(argv[12]);
+        gsl_rng * r;
 
-                init_ran(r, seed);
+        init_ran(r, seed);
 
-                init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-            }else if (atoi(argv[13]) == 2)
-            {
-                N = atol(argv[11]);
-                double c = atof(argv[12]);
-                gsl_rng * r;
-                init_ran(r, seed);
-                init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
-            }else{
-                cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
-                exit(1);
-            }
-            
-        }else{
-            N = atol(argv[11]);
-            int c = atoi(argv[12]);
-            gsl_rng * r;
-
-            init_ran(r, seed);
-
-            init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-        }
+        init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
     }else{
         init_graph_from_input(nodes, N);
     }
 
     init_avgs(N, nodes, avn_0);
 
+    double hmax = find_divergence(beta, 1 + beta * lambda / 2);
+    double **coefficients;
+    comp_coefficients(beta, lambda, coefficients);
+
     bool divergence;
 
-    int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence);
+    int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
+                           hmax, coefficients);
 
     print_results(iter, nodes, N, seed, max_iter, divergence);
     

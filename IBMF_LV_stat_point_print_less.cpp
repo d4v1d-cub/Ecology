@@ -246,7 +246,7 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol
     double var = 0, var_i;
     double av_new;
     for (long i = 0; i < N; i++){
-        if (fabs(nodes[i].field) > hmax){
+        if (nodes[i].field > hmax){
             av_new = nodes[i].field * (1 - 1.0 / beta / nodes[i].field / nodes[i].field + 
                                        lambda / nodes[i].field / nodes[i].field);                      
         }else if (nodes[i].field < 0)
@@ -259,8 +259,8 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol
         }
 
         if (isnan(av_new) || isinf(av_new)){
-            cout << "av_new is nan or inf at site i=" << i << "   iter=" << iter << endl;
-            exit(1);
+            cerr << "Error: av_new is nan or inf at site i=" << i << "   iter=" << iter << endl;
+            return sqrt(-1);
         }
         
         var_i = fabs(av_new - nodes[i].av);
@@ -303,7 +303,8 @@ double average_sqr(long N, Tnode *nodes){
 
 
 int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
-                 int max_iter, bool &divergence, double hmax, double **coefficients){
+                 int max_iter, bool &divergence, double hmax, double **coefficients, 
+                 double maximum=1e10){
     double var = tol + 1;
     int iter = 0;
 
@@ -312,7 +313,7 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol,
         var = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter);
         iter++;
         comp_fields(N, nodes);
-        if (isinf(var)){
+        if (isinf(var) || isnan(var) || var > maximum){
             divergence = true;
             return iter;
         }
@@ -335,7 +336,7 @@ void print_results_short(int iter, Tnode *nodes, long N, long seed, int max_iter
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
     if (divergence){
-        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;;
+        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
@@ -363,21 +364,15 @@ int main(int argc, char *argv[]) {
     char gr_str[20];
 
     if (gr_inside){
+        N = atol(argv[11]);
+        int c = atoi(argv[12]);
+        gsl_rng * r;
+        init_ran(r, seed);
         if (argc > 13){
-            if (atoi(argv[13]) == 1){
-                N = atol(argv[11]);
-                int c = atoi(argv[12]);
-                gsl_rng * r;
-
-                init_ran(r, seed);
-
+            if (atoi(argv[13]) == 1){                
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
             }else if (atoi(argv[13]) == 2)
             {
-                N = atol(argv[11]);
-                double c = atof(argv[12]);
-                gsl_rng * r;
-                init_ran(r, seed);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
             }else{
                 cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
@@ -385,12 +380,6 @@ int main(int argc, char *argv[]) {
             }
             
         }else{
-            N = atol(argv[11]);
-            int c = atoi(argv[12]);
-            gsl_rng * r;
-
-            init_ran(r, seed);
-
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
         }
     }else{
