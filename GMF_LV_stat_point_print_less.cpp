@@ -99,7 +99,7 @@ void init_nodes(Tnode *nodes, long N){
     }
 }
 
-void init_graph_inside_RRG(Tnode *&nodes, Tedge *&edges, long N, int c, double eps,
+long init_graph_inside_RRG(Tnode *&nodes, Tedge *&edges, long N, int c, double eps,
                            double mu, double sigma, gsl_rng * r){
     // eps is the degree of symmetry of the graph
     if (N * c % 2 != 0){
@@ -184,6 +184,7 @@ void init_graph_inside_RRG(Tnode *&nodes, Tedge *&edges, long N, int c, double e
             }
         }
         fill_except(nodes, edges, M);
+        return M;
     }
 }
 
@@ -412,7 +413,7 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 delta = delta_chi_cav;
             }
 
-            if (!edges[e].chi_cav_converged && delta_chi_cav < tol){
+            if (!edges[e].chi_cav_converged[k] && delta_chi_cav < tol){
                 edges[e].chi_cav_converged[k] = true;
             }
 
@@ -460,7 +461,7 @@ double var_in(long i, Tnode *nodes, Tedge *edges){
 double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda, 
                double hmax, double **coefficients, double normfactor = 1e-14){
     double av = 0;
-    double h, h_div_Q, Q, den;
+    double h, h_div_Q, Q, den, q_sqr_new;
     for (long i = 0; i < N; i++){
         nodes[i].field = field_in(i, nodes, edges);
         nodes[i].var = var_in(i, nodes, edges);
@@ -471,11 +472,15 @@ double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda,
 
             if (h_div_Q > hmax){
                 nodes[i].av = h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q);
+                nodes[i].chi = nodes[i].var;
             } else if (h_div_Q < 0){
                 nodes[i].av = 0;
+                nodes[i].chi = nodes[i].var;
             } else{
                 den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
                 nodes[i].av = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
+                q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, h_div_Q, coefficients[2]) / den;
+                nodes[i].chi = beta * (q_sqr_new - nodes[i].av * nodes[i].av);
             }
         }else{
             h = nodes[i].field;
@@ -487,6 +492,7 @@ double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda,
                 den = denominator(beta, lambda, h, coefficients[0], normfactor);
                 nodes[i].av = numerator_av(beta, lambda, h, coefficients[1]) / den;
             }
+            nodes[i].chi = nodes[i].var;
         }
         
         av += nodes[i].av;
@@ -504,18 +510,18 @@ double average_sqr(long N, Tnode *nodes){
 }
 
 
-double average_var(long N, Tnode *nodes){
+double average_chi(long N, Tnode *nodes){
     double av = 0;
     for (long i = 0; i < N; i++){
-        av += nodes[i].var;
+        av += nodes[i].chi;
     }
     return av / N;
 }
 
-double average_var_sqr(long N, Tnode *nodes){
+double average_chi_sqr(long N, Tnode *nodes){
     double av_sqr = 0;
     for (long i = 0; i < N; i++){
-        av_sqr += nodes[i].var * nodes[i].var;
+        av_sqr += nodes[i].chi * nodes[i].chi;
     }
     return av_sqr / N;
 }
@@ -565,24 +571,26 @@ double average_chi_cav_sqr(long M, Tedge *edges){
 }
 
 
-int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
+int convergence(long M, double beta, double lambda, Tedge *edges, double tol, 
                 int max_iter, bool &divergence, double hmax, double **coefficients, 
                 double maximum=1e10){
     double delta = tol + 1;
     int iter = 0;
 
-    comp_fields(N, nodes);
-    comp_vars(N, nodes);
+    comp_fields_cav(M, edges);
+    comp_vars_cav(M, edges);
 
-    for (long i = 0; i < N; i++){
-        nodes[i].chi_cav_converged = false;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            edges[e].chi_cav_converged[k] = false;
+        }
     }
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter);
+        delta = new_averages(M, beta, lambda, edges, tol, hmax, coefficients, iter);
         iter++;
-        comp_fields(N, nodes);
-        comp_vars(N, nodes);
+        comp_fields_cav(M, edges);
+        comp_vars_cav(M, edges);
         if (isinf(delta) || isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
@@ -594,42 +602,59 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol,
 }
 
 
-void print_results(int iter, Tnode *nodes, long N, long seed, int max_iter, bool divergence){
+void print_results(int iter, Tnode *nodes, Tedge *edges, long N, long M, long seed, 
+                   int max_iter, bool divergence, double beta, double lambda, 
+                   double hmax, double **coefficients, double normfactor = 1e-14){
     long counter_diverged = 0;
-    for (long i = 0; i < N; i++){
-        if (!nodes[i].converged){
-            counter_diverged++;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            if (!edges[e].converged[k]){
+                counter_diverged++;
+            }
         }
     }
 
     long counter_varneg = 0;
-    for (long i = 0; i < N; i++){
-        if (!nodes[i].var_positive){
-            counter_varneg++;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            if (!edges[e].var_cav_positive[k]){
+                counter_varneg++;
+            }
         }
     }
 
     long counter_chi_cav_diverged = 0;
-    for (long i = 0; i < N; i++){
-        if (!nodes[i].chi_cav_converged){
-            counter_chi_cav_diverged++;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            if (!edges[e].chi_cav_converged[k]){
+                counter_chi_cav_diverged++;
+            }
         }
     }
 
-    double av = average(N, nodes);
+    double av = average(N, nodes, edges, beta, lambda, hmax, coefficients, normfactor);
     double av_sqr = average_sqr(N, nodes);
-    double av_var = average_var(N, nodes);
-    double av_var_sqr = average_var_sqr(N, nodes);
+    double av_chi = average_chi(N, nodes);
+    double av_chi_sqr = average_chi_sqr(N, nodes);
+
+    double av_cav = average_cav(M, edges);
+    double av_cav_sqr = average_cav_sqr(M, edges);
+    double av_chi_cav = average_chi_cav(M, edges);
+    double av_chi_cav_sqr = average_chi_cav_sqr(M, edges);
     if (divergence){
         cout << iter << "\t" << "diverges" << "\t" << 
+                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
                 av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
+                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << seed << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << 
+                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
                 av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_var << "\t" << sqrt((av_var_sqr - av_var * av_var) / N) << "\t" << 
+                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << seed << endl;
     }
 
@@ -652,8 +677,9 @@ int main(int argc, char *argv[]) {
     gsl_set_error_handler_off();
 
     Tnode *nodes;
+    Tedge *edges;
     double beta = 1.0 / T;
-    long N;
+    long N, M;
 
     if (gr_inside){
         N = atol(argv[11]);
@@ -662,12 +688,12 @@ int main(int argc, char *argv[]) {
 
         init_ran(r, seed);
 
-        init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+        M = init_graph_inside_RRG(nodes, edges, N, c, eps, mu, sigma, r);
     }else{
-        init_graph_from_input(nodes, N);
+        init_graph_from_input(nodes, edges, N, M);
     }
 
-    init_avgs(N, nodes, avn_0);
+    init_avgs(M, edges, avn_0);
 
     double hmax = find_divergence(beta, 1 + beta * lambda / 2);
     double **coefficients;
@@ -675,10 +701,11 @@ int main(int argc, char *argv[]) {
 
     bool divergence;
 
-    int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
+    int iter = convergence(M, beta, lambda, edges, tol, max_iter, divergence, 
                            hmax, coefficients);
 
-    print_results(iter, nodes, N, seed, max_iter, divergence);
+    print_results(iter, nodes, edges, N, M, seed, max_iter, divergence,
+                  beta, lambda, hmax, coefficients);
     
     return 0;
 }
