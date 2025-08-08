@@ -288,7 +288,7 @@ void comp_fields(long N, Tnode *nodes){
 double average(long N, Tnode *nodes){
     double av = 0;
     for (long i = 0; i < N; i++){
-        av += nodes[i].field;
+        av += nodes[i].av;
     }
     return av / N;
 }
@@ -296,7 +296,7 @@ double average(long N, Tnode *nodes){
 double average_sqr(long N, Tnode *nodes){
     double av_sqr = 0;
     for (long i = 0; i < N; i++){
-        av_sqr += nodes[i].field * nodes[i].field;
+        av_sqr += nodes[i].av * nodes[i].av;
     }
     return av_sqr / N;
 }

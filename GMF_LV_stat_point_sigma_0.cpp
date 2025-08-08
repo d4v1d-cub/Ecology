@@ -12,23 +12,26 @@ using namespace std;
 
 
 typedef struct{
-    double field; // local field in that node
-    double var; // variance of the perturbed gaussian that depends on the neighbors
+    double field_cav; // local field in that node, given that one neighbor is zero
+    double var_cav; // variance of the perturbed gaussian that depends on the neighbors, given that one neighbor is zero
+    double av_cav; // average value of n in that node, given that one neighbor is zero
+    double chi_cav; // beta * (q_sqr_cav - av_cav^2)
+    bool chi_cav_converged; // whether the average value of n^2 has converged
     double av; // average value of n in that node
-    double q_sqr; // average value of n^2 in that node
-    double beta_qm; // beta * (q_sqr - av^2), used to compute the standard deviation
-    bool beta_qm_converged; // whether the average value of n^2 has converged
+    double var; // variance of the perturbed gaussian that depends on the neighbors
+    double field; // field in that node
+    double chi; // beta * (q_sqr - av^2)
 }Tnode;
 
 
 
 double field_in(Tnode node, int c, double mu){
-    return 1 - (c - 1) * mu * node.av;
+    return 1 - (c - 1) * mu * node.av_cav;
 }
 
 
 double var_in(Tnode node, int c, double mu){
-    return 1.0 / (1 - (c - 1) * mu * mu * node.beta_qm);
+    return 1.0 / (1 - (c - 1) * mu * mu * node.chi_cav);
 }
 
 
@@ -121,24 +124,24 @@ double denominator(double beta, double lambda, double hi_div_Q, double *coeffici
 
 
 void comp_field(Tnode &node, int c, double mu){
-    node.field = field_in(node, c, mu);
+    node.field_cav = field_in(node, c, mu);
 }
 
 void comp_var(Tnode &node, int c, double mu){
-    node.var = var_in(node, c, mu);
+    node.var_cav = var_in(node, c, mu);
 }
 
 
 double new_averages(double beta, double lambda, Tnode &node, 
                     double hmax, double **coefficients, int iter, double tol, 
                     double normfactor = 1e-14){
-    double Q, hi, hi_div_Q, den, av_new, q_sqr_new, beta_qm_new;
+    double Q, hi, hi_div_Q, den, av_new, q_sqr_new, chi_cav_new;
 
-    if (node.beta_qm_converged){
-        beta_qm_new = node.beta_qm;
-        if (node.var > 0){
-            Q = sqrt(node.var);
-            hi = node.field * node.var;
+    if (node.chi_cav_converged){
+        chi_cav_new = node.chi_cav;
+        if (node.var_cav > 0){
+            Q = sqrt(node.var_cav);
+            hi = node.field_cav * node.var_cav;
             hi_div_Q = hi / Q;
             if (hi_div_Q > hmax){
                 av_new = hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q);
@@ -149,7 +152,7 @@ double new_averages(double beta, double lambda, Tnode &node,
                 av_new = Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den;
             }
         }else{
-            hi = node.field;
+            hi = node.field_cav;
             if (hi > hmax){
                 av_new = hi * (1 - 1.0 / beta / hi / hi + lambda / hi / hi);
             }else if (hi < 0){
@@ -159,26 +162,24 @@ double new_averages(double beta, double lambda, Tnode &node,
                 av_new = numerator_av(beta, lambda, hi, coefficients[1]) / den;
             }
         }
-    }else if (node.var > 0){
-        Q = sqrt(node.var);
-        hi = node.field * node.var;
+    }else if (node.var_cav > 0){
+        Q = sqrt(node.var_cav);
+        hi = node.field_cav * node.var_cav;
         hi_div_Q = hi / Q;
         if (hi_div_Q > hmax){
             av_new = hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q);
-            q_sqr_new = hi * hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + 2 * lambda / hi_div_Q / hi_div_Q);
-            beta_qm_new = node.var;
+            chi_cav_new = node.var_cav;
         }else if (hi_div_Q < 0){
             av_new = 0;
-            q_sqr_new = 0;
-            node.beta_qm = 0;
+            chi_cav_new = node.var_cav;
         }else{
             den = denominator(beta, lambda, hi_div_Q, coefficients[0], normfactor);
             av_new = Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den;
-            q_sqr_new = node.var * numerator_q_sqr(beta, lambda, hi_div_Q, coefficients[2]) / den;
-            beta_qm_new = beta * (q_sqr_new - av_new * av_new);
+            q_sqr_new = node.var_cav * numerator_q_sqr(beta, lambda, hi_div_Q, coefficients[2]) / den;
+            chi_cav_new = beta * (q_sqr_new - av_new * av_new);
         }
     }else{
-        hi = node.field;
+        hi = node.field_cav;
         if (hi > hmax){
             av_new = hi * (1 - 1.0 / beta / hi / hi + lambda / hi / hi);
         }else if (hi < 0){
@@ -188,30 +189,27 @@ double new_averages(double beta, double lambda, Tnode &node,
             av_new = numerator_av(beta, lambda, hi, coefficients[1]) / den;
         }
             
-        q_sqr_new = av_new * av_new;
-        beta_qm_new = 0;
+        chi_cav_new = node.var_cav;
     }
         
 
-    if (isnan(av_new) || isinf(av_new) || isnan(q_sqr_new) || isinf(q_sqr_new)){
+    if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
         cerr << "Error: averages are nan or inf at iter=" << iter << endl;
         return sqrt(-1);
     }
 
-    double delta_av = fabs(av_new - node.av);
-    double delta_q_sqr = fabs(q_sqr_new - node.q_sqr);
+    double delta_av = fabs(av_new - node.av_cav);
+    double delta_chi_cav = fabs(chi_cav_new - node.chi_cav);
 
-    double delta = max(delta_av, delta_q_sqr);
 
-    if (!node.beta_qm_converged && fabs(beta_qm_new - node.beta_qm) < tol){
-        node.beta_qm_converged = true;
+    if (!node.chi_cav_converged && fabs(chi_cav_new - node.chi_cav) < tol){
+        node.chi_cav_converged = true;
     }
 
-    node.av = av_new;
-    node.q_sqr = q_sqr_new;
-    node.beta_qm = beta_qm_new;
+    node.av_cav = av_new;
+    node.chi_cav = chi_cav_new;
 
-    return delta;
+    return max(delta_av, delta_chi_cav);
 }
 
 
@@ -223,7 +221,7 @@ int convergence(double beta, double lambda, int c, double mu, Tnode &node, doubl
     comp_field(node, c, mu);
     comp_var(node, c, mu);
 
-    node.beta_qm_converged = false;
+    node.chi_cav_converged = false;
 
     while (delta > tol && iter < max_iter){
         delta = new_averages(beta, lambda, node, hmax, coefficients, iter, tol);
@@ -238,6 +236,44 @@ int convergence(double beta, double lambda, int c, double mu, Tnode &node, doubl
 
     divergence = false;
     return iter;
+}
+
+
+void averages_node(Tnode &node, double beta, double lambda, int c, double mu, 
+                     double hmax, double **coefficients, double normfactor = 1e-14){
+    double av = 0;
+    double h, h_div_Q, Q, den, q_sqr_new;
+    node.field = 1 - c * mu * node.av_cav;
+    node.var = 1.0 / (1 - c * mu * mu * node.chi_cav);
+    if (node.var > 0){
+        h = node.field * node.var;
+        Q = sqrt(node.var);
+        h_div_Q = h / Q;
+
+        if (h_div_Q > hmax){
+            node.av = h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q);
+            node.chi = node.var;
+        } else if (h_div_Q < 0){
+            node.av = 0;
+            node.chi = node.var;
+        } else{
+            den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
+            node.av = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
+            q_sqr_new = node.var * numerator_q_sqr(beta, lambda, h_div_Q, coefficients[2]) / den;
+            node.chi = beta * (q_sqr_new - node.av * node.av);
+        }
+    }else{
+        h = node.field;
+        if (h > hmax){
+            node.av = h * (1 - 1.0 / beta / h / h + lambda / h / h);
+        }else if (h < 0){
+            node.av = 0;
+        }else{
+            den = denominator(beta, lambda, h, coefficients[0], normfactor);
+            node.av = numerator_av(beta, lambda, h, coefficients[1]) / den;
+        }
+        node.chi = node.var;
+    }
 }
 
 
@@ -265,15 +301,18 @@ int main(int argc, char *argv[]) {
     comp_coefficients(beta, lambda, coefficients);
 
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
-        node.av = avn_0;
-        node.q_sqr = avn_0 * avn_0;
+        node.av_cav = avn_0;
+        node.chi_cav = 0;
         iter = convergence(beta, lambda, c, mu, node, tol, max_iter, divergence, 
                            hmax, coefficients);
+        averages_node(node, beta, lambda, c, mu, hmax, coefficients);
         if (divergence){
-            cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << node.field << "\t" << node.var << "\t" << node.beta_qm_converged << endl;
+            cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << node.chi_cav_converged << "\t" << node.av_cav << "\t" 
+                 << node.chi_cav << "\t" << node.av << "\t" << node.chi << endl;
         }else{
             conv = iter < max_iter;
-            cout << mu << "\t" << iter << "\t" << conv << "\t" << node.field << "\t" << node.var << "\t" << node.beta_qm_converged << endl;
+            cout << mu << "\t" << iter << "\t" << conv << "\t" << node.chi_cav_converged << "\t" << node.av_cav << "\t" 
+                 << node.chi_cav << "\t" << node.av << "\t" << node.chi << endl;
         }
     }
     
