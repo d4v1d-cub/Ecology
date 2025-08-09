@@ -13,7 +13,7 @@ def find_transition(path, T, lda, av0, tol, max_iter, c, mu0, dmu, muf, ndigits_
     mu_prev = mu0
     format_str = "{0:." + str(ndigits_T) + "f}"
     str_T = format_str.format(T)
-    filein = f'{path}/AllData/PhaseDiagram/sigma0/IBMF2_LV_sigma_0_T_{str_T}_lambda_{lda}_av0_{av0}_tol_{tol}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
+    filein = f'{path}/AllData/PhaseDiagram/sigma0/GMF_LV_sigma_0_T_{str_T}_lambda_{lda}_av0_{av0}_tol_{tol}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
     fin = open(filein, 'r')
     fin.readline()  # Skip header line
     all_lines = fin.readlines()
@@ -22,7 +22,7 @@ def find_transition(path, T, lda, av0, tol, max_iter, c, mu0, dmu, muf, ndigits_
         line1 = all_lines[index].split()
         line2 = all_lines[index + 1].split()
         if line1[2] == '0' and line2[2] == '0':
-            if line1[5] == '0' and line2[5] == '0':
+            if line1[3] == '0' and line2[3] == '0':
                 if ind_prev == 1:
                     trans.append([mu_prev, mu])
                     ind_prev += 1
@@ -32,7 +32,7 @@ def find_transition(path, T, lda, av0, tol, max_iter, c, mu0, dmu, muf, ndigits_
                     ind_prev += 2
                 break
             else:
-                if line1[5] == '1' and line2[5] == '1':
+                if line1[3] == '1' and line2[3] == '1':
                     if ind_prev == 0:
                         trans.append([mu_prev, mu])
                         ind_prev += 1
@@ -44,7 +44,7 @@ def find_transition(path, T, lda, av0, tol, max_iter, c, mu0, dmu, muf, ndigits_
 
 def find_all_trans(path, T0, dT, Tf, lda, av0, tol, max_iter, c, mu0, dmu, muf, 
                    ndigits_T):
-    fileout = f'{path}/IBMF2_LV_sigma_0_transitions_T0_{T0}_dT_{dT}_Tf_{Tf}_lambda_{lda}_av0_{av0}_tol_{tol}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
+    fileout = f'{path}/GMF_LV_sigma_0_transitions_T0_{T0}_dT_{dT}_Tf_{Tf}_lambda_{lda}_av0_{av0}_tol_{tol}_maxiter_{max_iter}_c_{c}_mu0_{"{0:.3f}".format(mu0)}_dmu_{"{0:.3f}".format(dmu)}_muf_{"{0:.3f}".format(muf)}.txt'
     fo = open(fileout, 'w')
     fo.write("#T\ttrans_1\ttrans_2\n")
     format_str = "{0:." + str(ndigits_T) + "f}"
@@ -64,11 +64,11 @@ def find_all_trans(path, T0, dT, Tf, lda, av0, tol, max_iter, c, mu0, dmu, muf,
 def main():
     lda = "1e-6"
     av0 = "0.08"
-    tol = "1e-4"
-    max_iter = "10000"
+    tol = "1e-6"
+    max_iter = "100000"
     c = "3"
 
-    path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF2/"
+    path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
     
 
     T0 = 0.001
