@@ -391,14 +391,15 @@ int main(int argc, char *argv[]) {
 
     if (gr_inside){
         N = atol(argv[12]);
-        int c = atoi(argv[13]);
         gsl_rng * r;
         init_ran(r, seed);
         if (argc > 14){
             if (atoi(argv[14]) == 1){
+                int c = atoi(argv[13]);
                 sprintf(gr_str, "gr_inside_RRG_N_%li_c_%d", N, c);
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
             }else if (atoi(argv[14]) == 2){
+                double c = atof(argv[13]);
                 sprintf(gr_str, "gr_inside_ER_fully_asym_N_%li_c_%.3lf", N, c);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
             }else{
@@ -407,6 +408,7 @@ int main(int argc, char *argv[]) {
             }
             
         }else{
+            int c = atoi(argv[13]);
             sprintf(gr_str, "gr_inside_RRG_N_%li_c_%d", N, c);
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
         }

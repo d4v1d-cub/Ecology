@@ -365,14 +365,15 @@ int main(int argc, char *argv[]) {
 
     if (gr_inside){
         N = atol(argv[11]);
-        int c = atoi(argv[12]);
         gsl_rng * r;
         init_ran(r, seed);
         if (argc > 13){
             if (atoi(argv[13]) == 1){                
+                int c = atoi(argv[12]);
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
             }else if (atoi(argv[13]) == 2)
             {
+                double c = atof(argv[12]);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
             }else{
                 cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
@@ -380,6 +381,7 @@ int main(int argc, char *argv[]) {
             }
             
         }else{
+            int c = atoi(argv[12]);
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
         }
     }else{

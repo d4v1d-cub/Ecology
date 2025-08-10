@@ -83,7 +83,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_T0.out",
-            "args": ["1", "0.08", "1e-4", "10000", "0.0", "0.9", "0.0", "1", "8000", "3.0", "2"],
+            "args": ["5", "4", "1e-4", "10000", "0.0", "0.9", "0.0", "1", "4000", "2.5", "2"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -102,6 +102,32 @@
                 }
             ],
             "preLaunchTask": "C/C++: g++-11 IBMF T0",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: g++-11 IBMF T0 lambda",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/IBMF_LV_stat_point_T0_lambda.out",
+            "args": ["1", "0.08", "1e-10", "1e-4", "10000", "0.0", "0.9", "0.0", "1", "1000", "2.5", "2"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++-11 IBMF T0 lambda",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {

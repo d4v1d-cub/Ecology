@@ -164,14 +164,14 @@ double field_in(long i, Tnode *nodes){
 }
 
 
-double new_averages(long N, Tnode *nodes, double tol, int iter, double normfactor = 1e-14){
+double new_averages(long N, double lambda, Tnode *nodes, double tol, int iter, double normfactor = 1e-14){
     double var = 0, var_i;
     double av_new;
     for (long i = 0; i < N; i++){
         if (nodes[i].field > 0){
-            av_new = nodes[i].field; // If no links, the average is 1
+            av_new = nodes[i].field + lambda / nodes[i].field; // If no links, the average is 1
         }else{
-            av_new = 0;                      
+            av_new = -lambda / nodes[i].field;                      
         }
 
         if (isnan(av_new) || isinf(av_new)){
@@ -219,14 +219,14 @@ double average_sqr(long N, Tnode *nodes){
 }
 
 
-int convergence(long N, Tnode *nodes, double tol, int max_iter, bool &divergence, 
+int convergence(long N, double lambda, Tnode *nodes, double tol, int max_iter, bool &divergence, 
                 double maximum=1e10){
     double var = tol + 1;
     int iter = 0;
 
     comp_fields(N, nodes);
     while (var > tol && iter < max_iter){
-        var = new_averages(N, nodes, tol, iter);
+        var = new_averages(N, lambda, nodes, tol, iter);
         iter++;
         comp_fields(N, nodes);
         if (isinf(var) || isnan(var) || var > maximum){
@@ -263,12 +263,13 @@ void print_results_short(int iter, Tnode *nodes, long N, long seed, int max_iter
 int main(int argc, char *argv[]) {
     unsigned long seed = atoi(argv[1]);
     double avn_0 = atof(argv[2]);
-    double tol = atof(argv[3]);
-    int max_iter = atoi(argv[4]);
-    double eps = atof(argv[5]);
-    double mu = atof(argv[6]);
-    double sigma = atof(argv[7]);
-    bool gr_inside = atoi(argv[8]);
+    double lambda = atof(argv[3]);
+    double tol = atof(argv[4]);
+    int max_iter = atoi(argv[5]);
+    double eps = atof(argv[6]);
+    double mu = atof(argv[7]);
+    double sigma = atof(argv[8]);
+    bool gr_inside = atoi(argv[9]);
 
     gsl_set_error_handler_off();
 
@@ -277,16 +278,16 @@ int main(int argc, char *argv[]) {
     char gr_str[20];
 
     if (gr_inside){
-        N = atol(argv[9]);
+        N = atol(argv[10]);
         gsl_rng * r;
         init_ran(r, seed);
-        if (argc > 11){
-            if (atoi(argv[11]) == 1){  
-                int c = atoi(argv[10]);              
+        if (argc > 12){
+            if (atoi(argv[12]) == 1){
+                int c = atoi(argv[11]);                
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-            }else if (atoi(argv[11]) == 2)
+            }else if (atoi(argv[12]) == 2)
             {
-                double c = atof(argv[10]);
+                double c = atof(argv[11]);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
             }else{
                 cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
@@ -294,7 +295,7 @@ int main(int argc, char *argv[]) {
             }
             
         }else{
-            int c = atoi(argv[10]);
+            int c = atoi(argv[11]);
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
         }
     }else{
@@ -305,7 +306,7 @@ int main(int argc, char *argv[]) {
 
     bool divergence = false;
 
-    int iter = convergence(N, nodes, tol, max_iter, divergence);
+    int iter = convergence(N, lambda, nodes, tol, max_iter, divergence);
 
     print_results_short(iter, nodes, N, seed, max_iter, divergence);
     
