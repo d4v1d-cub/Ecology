@@ -213,7 +213,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_sigma_0.out",
-            "args": ["0.08", "0.0001", "1e-6", "1e-4", "10000", "0.2", "0.001", "0.5", "3"],
+            "args": ["0.08", "0.006", "1e-6", "1e-4", "100000", "0.1", "0.001", "0.5", "3"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],

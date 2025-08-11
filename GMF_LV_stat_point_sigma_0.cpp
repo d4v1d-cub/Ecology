@@ -151,16 +151,6 @@ double new_averages(double beta, double lambda, Tnode &node,
                 den = denominator(beta, lambda, hi_div_Q, coefficients[0], normfactor);
                 av_new = Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den;
             }
-        }else{
-            hi = node.field_cav;
-            if (hi > hmax){
-                av_new = hi * (1 - 1.0 / beta / hi / hi + lambda / hi / hi);
-            }else if (hi < 0){
-                av_new = 0;
-            }else{
-                den = denominator(beta, lambda, hi, coefficients[0], normfactor);
-                av_new = numerator_av(beta, lambda, hi, coefficients[1]) / den;
-            }
         }
     }else if (node.var_cav > 0){
         Q = sqrt(node.var_cav);
@@ -189,7 +179,7 @@ double new_averages(double beta, double lambda, Tnode &node,
             av_new = numerator_av(beta, lambda, hi, coefficients[1]) / den;
         }
             
-        chi_cav_new = node.var_cav;
+        chi_cav_new = 0;
     }
         
 
@@ -199,10 +189,15 @@ double new_averages(double beta, double lambda, Tnode &node,
     }
 
     double delta_av = fabs(av_new - node.av_cav);
-    double delta_chi_cav = fabs(chi_cav_new - node.chi_cav);
+    double delta_chi_cav;
+    if (node.var_cav > 0){
+        delta_chi_cav = fabs(chi_cav_new - node.chi_cav);
+    }else{
+        delta_chi_cav = 1; // If the variance is zero, we consider the chi_cav to be converged
+    }
 
 
-    if (!node.chi_cav_converged && fabs(chi_cav_new - node.chi_cav) < tol){
+    if (!node.chi_cav_converged && delta_chi_cav < tol){
         node.chi_cav_converged = true;
     }
 

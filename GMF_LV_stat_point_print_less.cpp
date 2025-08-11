@@ -355,17 +355,6 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                         den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
                         av_new = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
                     }
-                }else{
-                    edges[e].var_cav_positive[k] = false;
-                    h = edges[e].fields_cav[k];
-                    if (h > hmax){
-                        av_new = h * (1 - 1.0 / beta / h / h + lambda / h / h);
-                    }else if (h < 0){
-                        av_new = 0;
-                    }else{
-                        den = denominator(beta, lambda, h, coefficients[0], normfactor);
-                        av_new = numerator_av(beta, lambda, h, coefficients[1]) / den;
-                    }
                 }
             }else if (edges[e].var_cav[k] > 0){
                 edges[e].var_cav_positive[k] = true;   
@@ -396,7 +385,7 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                     av_new = numerator_av(beta, lambda, h, coefficients[1]) / den;
                 }
                 
-                chi_cav_new = edges[e].var_cav[k];
+                chi_cav_new = 0;
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -405,7 +394,12 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
             }
 
             delta_av = fabs(av_new - edges[e].cond_av[k]);
-            delta_chi_cav = fabs(chi_cav_new - edges[e].chi_cav[k]);
+            if (edges[e].var_cav_positive[k]){
+                delta_chi_cav = fabs(chi_cav_new - edges[e].chi_cav[k]);
+            }else{
+                delta_chi_cav = 1;
+            }
+
             if (delta_av > delta){
                 delta = delta_av;
             }

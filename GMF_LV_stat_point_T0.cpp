@@ -279,7 +279,7 @@ double new_averages(long M, Tedge *edges, double tol, int iter,
                 }else if (h < 0){
                     av_new = 0;
                 }
-                chi_cav_new = 1;
+                chi_cav_new = 0;
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -288,7 +288,7 @@ double new_averages(long M, Tedge *edges, double tol, int iter,
             }
 
             delta_av = fabs(av_new - edges[e].cond_av[k]);
-            if (edges[e].var_cav[k] > 0){
+            if (edges[e].var_cav_positive[k]){
                 delta_chi_cav = fabs(chi_cav_new - edges[e].chi_cav[k]);
             }else{
                 delta_chi_cav = 1;
