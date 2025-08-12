@@ -72,46 +72,100 @@ def print_params(temp_list, mu_central, interval_len_langevin, dmu_langevin, pat
     print(f"Parameters saved to {path}/{filename}")
 
 
+def read_transitions_temps(path_in, file_transitions):
+    fin = open(f'{path_in}/{file_transitions}', 'r')
+    fin.readline()  # Skip header line
+    all_lines = fin.readlines()
+    fin.close()
+    temp_list = []
+    for line in all_lines:
+        line_split = line.split()
+        temp = line_split[0]
+        temp_list.append(temp)
+    return temp_list
+
+
+def build_params_2(path_in, filein, file_transitions, path_out, fileout, max_mu, dmu):
+    temp_transitions = read_transitions_temps(path_in, file_transitions)
+    
+    fin = open(f'{path_in}/{filein}', 'r')
+    fin.readline()  # Skip header line
+    all_lines = fin.readlines()
+    fin.close()
+
+    counter = 0
+    fo = open(f'{path_out}/{fileout}', 'w')
+    for line in all_lines:
+        line_split = line.split()
+        T = line_split[0]
+        if T not in temp_transitions:
+            min_mu = float(line_split[2]) + dmu
+            for mu in np.arange(min_mu, max_mu + dmu / 2, dmu):
+                fo.write(f"{T}\t{mu:.3f}\n")
+                counter += 1
+    fo.close()
+    print(counter)
+
 
 def main():
-    lda = "1e-6"
-    av0 = "0.08"
-    tol = "1e-4"
-    max_iter = "10000"
-    c = "3"
+    # lda = "1e-6"
+    # av0 = "0.08"
+    # tol = "1e-4"
+    # max_iter = "10000"
+    # c = "3"
 
-    ndigits_T = 3
+    # ndigits_T = 3
 
-    path_GMF = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
-    path_IBMF = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
+    # path_GMF = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
+    # path_IBMF = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
     
 
-    T0 = 0.001
-    dT = 0.001
-    Tf = 0.1
+    # T0 = 0.001
+    # dT = 0.001
+    # Tf = 0.1
 
 
-    mu0 = 0.010
+    # mu0 = 0.010
+    # dmu = 0.002
+    # muf = 1.000
+
+    # T0_langevin = 0.002
+    # dT_langevin = 0.002
+    # Tf_langevin = 0.0500
+
+    # temp_list_langevin = np.arange(T0_langevin, Tf_langevin + dT_langevin / 2, dT_langevin)
+    # temp_list_langevin = np.insert(temp_list_langevin, 0, T0)
+
+    # mu_central = find_mu_central(path_GMF, path_IBMF, T0, dT, Tf, temp_list_langevin, lda, av0,
+    #                              tol, max_iter, c, mu0, dmu, muf, ndigits_T)
+    
+    # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Lecce/"
+    # fileout = "params_Langevin_1.txt"
+
+    # interval_len_langevin = 0.16
+    # dmu_langevin = 0.002
+
+    # print_params(temp_list_langevin, mu_central, interval_len_langevin, dmu_langevin, path_out, fileout)
+
+
+    eps = "1.0"
+    lda = "1e-06"
+    N = "256"
+    c = "3.00"
+    h = "0.001"
+    sigma = "0"
+
+    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
+
+    file_transitions = f'Lotka-Volterra_transitions_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_sigma_{sigma}.txt'
+    file_minmax = f'Lotka-Volterra_min_max_mu_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_sigma_{sigma}.txt'
+
+    path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/"
+    fileout = "params_Langevin_2.txt"
+    max_mu = 0.352
     dmu = 0.002
-    muf = 1.000
 
-    T0_langevin = 0.002
-    dT_langevin = 0.002
-    Tf_langevin = 0.0500
-
-    temp_list_langevin = np.arange(T0_langevin, Tf_langevin + dT_langevin / 2, dT_langevin)
-    temp_list_langevin = np.insert(temp_list_langevin, 0, T0)
-
-    mu_central = find_mu_central(path_GMF, path_IBMF, T0, dT, Tf, temp_list_langevin, lda, av0,
-                                 tol, max_iter, c, mu0, dmu, muf, ndigits_T)
-    
-    path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Lecce/"
-    fileout = "params_Langevin_1.txt"
-
-    interval_len_langevin = 0.16
-    dmu_langevin = 0.002
-
-    print_params(temp_list_langevin, mu_central, interval_len_langevin, dmu_langevin, path_out, fileout)
+    build_params_2(path_in, file_minmax, file_transitions, path_out, fileout, max_mu, dmu)
 
     return 0
 

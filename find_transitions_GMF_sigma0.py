@@ -64,8 +64,8 @@ def find_all_trans(path, T0, dT, Tf, lda, av0, tol, max_iter, c, mu0, dmu, muf,
 def main():
     lda = "1e-6"
     av0 = "0.08"
-    tol = "1e-6"
-    max_iter = "100000"
+    tol = "1e-4"
+    max_iter = "10000"
     c = "3"
 
     path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
