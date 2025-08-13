@@ -163,8 +163,8 @@ int main(int argc, char *argv[]) {
     double **coefficients;
     comp_coefficients(beta, lambda, coefficients);
 
+    avg = avn_0;
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
-        avg = avn_0;
         iter = convergence(avg, beta, lambda, mu, c, tol, max_iter, divergence, 
                            hmax, coefficients);
         field = field_in(avg, c, mu);

@@ -295,9 +295,11 @@ int main(int argc, char *argv[]) {
     double **coefficients;
     comp_coefficients(beta, lambda, coefficients);
 
+    node.av_cav = avn_0;
+    node.chi_cav = 0;
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
-        node.av_cav = avn_0;
-        node.chi_cav = 0;
+        // node.av_cav = avn_0;
+        // node.chi_cav = 0;
         iter = convergence(beta, lambda, c, mu, node, tol, max_iter, divergence, 
                            hmax, coefficients);
         averages_node(node, beta, lambda, c, mu, hmax, coefficients);

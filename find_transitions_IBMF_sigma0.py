@@ -64,7 +64,7 @@ def main():
     lda = "1e-6"
     av0 = "0.08"
     tol = "1e-4"
-    max_iter = "10000"
+    max_iter = "100000"
     c = "3"
 
     path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
