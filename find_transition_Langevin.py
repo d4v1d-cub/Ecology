@@ -16,6 +16,7 @@ def find_all_trans(path, eps, lda, h, N, c, sigma, ndigits):
     index = 0
     min_mu = {}
     max_mu = {}
+    transition_found = {}
     while index < len(lines) - 1:
         line_split = lines[index].split()
         T = float(line_split[0])
@@ -33,9 +34,10 @@ def find_all_trans(path, eps, lda, h, N, c, sigma, ndigits):
 
         line_split_below = lines[index + 1].split()
         T_below = float(line_split_below[0])
-        if T_below == T:
+        if T_below == T and not T in transition_found:
             num_div_below = int(line_split_below[4])
             if num_div_below >= 50 and num_div < 50:
+                transition_found[T] = True
                 mu_below = float(line_split_below[1])
                 fout.write(f"{T:.{ndigits}f}\t{mu:.{ndigits}f}\t{mu_below:.{ndigits}f}\n")
         index += 1

@@ -31,31 +31,35 @@ def summary_statistics(path, filename):
     fin.readline()  # Skip header line
     all_lines = fin.readlines()
     fin.close()
-    av_time = 0.0
-    av_div = 0.0
-    samples_div = 0
-    av_ni = 0.0
-    std_av_ni = 0.0
-    av_std_ni = 0.0
-    std_av_std_ni = 0.0
-    for line in all_lines:
-        line_split = line.split()
-        av_time += float(line_split[3])
-        ni_div = int(line_split[4])
-        av_div += ni_div
-        if ni_div > 0:
-            samples_div += 1
-        av_ni += float(line_split[5])
-        std_av_ni += float(line_split[6])
-        av_std_ni += float(line_split[7])
-        std_av_std_ni += float(line_split[8])
-    av_time /= len(all_lines)
-    av_div /= len(all_lines)
-    av_ni /= len(all_lines)
-    std_av_ni /= len(all_lines)
-    av_std_ni /= len(all_lines)
-    std_av_std_ni /= len(all_lines)
-    return av_time, av_div, samples_div, av_ni, std_av_ni, av_std_ni, std_av_std_ni
+    if len(all_lines) > 0:
+        av_time = 0.0
+        av_div = 0.0
+        samples_div = 0
+        av_ni = 0.0
+        std_av_ni = 0.0
+        av_std_ni = 0.0
+        std_av_std_ni = 0.0
+        for line in all_lines:
+            line_split = line.split()
+            av_time += float(line_split[3])
+            ni_div = int(line_split[4])
+            av_div += ni_div
+            if ni_div > 0:
+                samples_div += 1
+            av_ni += float(line_split[5])
+            std_av_ni += float(line_split[6])
+            av_std_ni += float(line_split[7])
+            std_av_std_ni += float(line_split[8])
+        av_time /= len(all_lines)
+        av_div /= len(all_lines)
+        av_ni /= len(all_lines)
+        std_av_ni /= len(all_lines)
+        av_std_ni /= len(all_lines)
+        std_av_std_ni /= len(all_lines)
+        return av_time, av_div, samples_div, av_ni, std_av_ni, av_std_ni, std_av_std_ni, True
+    else:
+        print(f"No data found in file {filename}. Returning zeros.")
+        return 0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, False
 
 
 def find_transition(path, eps, lda, h, N, c, sigma, T, ndigits_T):
@@ -65,8 +69,9 @@ def find_transition(path, eps, lda, h, N, c, sigma, T, ndigits_T):
     sorted_pairs = filter_files(path, eps, lda, h, N, c, sigma, str_T)
     vals_list = []
     for filename, mu in sorted_pairs:
-        av_time, av_div, samples_div, av_ni, std_av_ni, av_std_ni, std_av_std_ni = summary_statistics(path, filename)
-        vals_list.append((T, mu, av_time, av_div, samples_div, av_ni, std_av_ni, av_std_ni, std_av_std_ni))
+        av_time, av_div, samples_div, av_ni, std_av_ni, av_std_ni, std_av_std_ni, found = summary_statistics(path, filename)
+        if found:
+            vals_list.append((T, mu, av_time, av_div, samples_div, av_ni, std_av_ni, av_std_ni, std_av_std_ni))
     return vals_list
 
 
