@@ -25,7 +25,7 @@ def print_params(path_in, filein, path_out, fileout, dsigma, pos1, pos2):
         for mu in sigma_transitions:
             sigma_min, sigma_max = sigma_transitions[mu]
             sigma_list = np.arange(sigma_min, sigma_max + dsigma / 2, dsigma)
-            for sigma in sigma_list:
+            for sigma in sigma_list[1:-1]:
                 fo.write(f"{mu:.3f}\t{sigma:.3f}\n")
                 counter += 1
     print(f"Parameters saved to {path_out}/{fileout}")
