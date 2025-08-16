@@ -26,6 +26,15 @@ def find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, nsamples):
         num_div_m = int(line_split[5])
         num_div_chi = int(line_split[6])
 
+        if num_div_m >= nsamples / 2:
+            if not mu in transition_found_m:
+                transitions_m[mu] = (0, sigma)
+                transition_found_m[mu] = True
+        if num_div_chi >= nsamples / 2:
+            if not mu in transition_found_chi:
+                transitions_chi[mu] = (0, sigma)
+                transition_found_chi[mu] = True
+
         line_split_below = lines[index + 1].split()
         mu_below = float(line_split_below[0])
         if mu_below == mu:
@@ -44,7 +53,12 @@ def find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, nsamples):
                     transitions_chi[mu] = (sigma, sigma_below)
         index += 1
     
-    for mu in transitions_m:
+    mu_list = sorted(set(transitions_m.keys()).union(set(transitions_chi.keys())))
+    for mu in mu_list:
+        if mu not in transitions_m:
+            transitions_m[mu] = (0, 0)
+        if mu not in transitions_chi:
+            transitions_chi[mu] = (0, 0)
         sigma_m, sigma_below_m = transitions_m[mu]
         sigma_chi, sigma_below_chi = transitions_chi[mu]
         fout.write(f"{mu:.{ndigits}f}\t{sigma_m:.{ndigits}f}\t{sigma_below_m:.{ndigits}f}\t{sigma_chi:.{ndigits}f}\t{sigma_below_chi:.{ndigits}f}\n")
@@ -67,7 +81,6 @@ def main():
     ndigits = 3
     nsamples = 10000
 
-    find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, nsamples)
     find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, nsamples)
 
     return 0

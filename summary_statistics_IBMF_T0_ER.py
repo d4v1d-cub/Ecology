@@ -23,7 +23,6 @@ def filter_files(path, eps, avn0, tol, max_iter):
 
 def summary_statistics(path, filename):
     fin = open(f'{path}/{filename}', 'r')
-    fin.readline()  # Skip header line
     all_lines = fin.readlines()
     fin.close()
     if len(all_lines) > 0:
