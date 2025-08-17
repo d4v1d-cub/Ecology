@@ -66,11 +66,13 @@ def get_all_vals(path, eps, avn0, tol, max_iter):
 
 def print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits):
     fout = open(f'{path_out}/IBMF_T0_directed_ER_PD_Lotka_Volterra_summary_av0_{avn0}_tol_{tol}_maxiter_{max_iter}.txt', 'w')
-    fout.write("# N c mu sigma av_time av_div samples_div prob_div av_m std_m\n")
+    fout.write("# N c mu sigma av_time av_div samples_div nsamples prob_div error_prob av_m std_m\n")
     vals_list = get_all_vals(path_in, eps, avn0, tol, max_iter)
     for vals in vals_list:
         N, c, mu, sigma, av_time, av_num_div, samples_div_m, nsamples, av_m, std_av_m = vals
-        fout.write(f'{N} {c} {mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.{6}f} {av_num_div:.{6}f} {samples_div_m} {samples_div_m / nsamples:.{6}f} {av_m:.{6}f} {std_av_m:.{6}f}\n')
+        prob = samples_div_m / nsamples if nsamples > 0 else 0.0
+        error = np.sqrt(prob * (1 - prob) / nsamples) if nsamples > 0 else 0.0
+        fout.write(f'{N} {c} {mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.{6}f} {av_num_div:.{6}f} {samples_div_m} {nsamples} {samples_div_m / nsamples:.{6}f} {error:.{6}f} {av_m:.{6}f} {std_av_m:.{6}f}\n')
     fout.close()
 
 
