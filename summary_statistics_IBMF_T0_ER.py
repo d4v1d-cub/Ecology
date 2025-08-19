@@ -72,7 +72,7 @@ def print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits):
         N, c, mu, sigma, av_time, av_num_div, samples_div_m, nsamples, av_m, std_av_m = vals
         prob = samples_div_m / nsamples if nsamples > 0 else 0.0
         error = np.sqrt(prob * (1 - prob) / nsamples) if nsamples > 0 else 0.0
-        fout.write(f'{N} {c} {mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.{6}f} {av_num_div:.{6}f} {samples_div_m} {nsamples} {samples_div_m / nsamples:.{6}f} {error:.{6}f} {av_m:.{6}f} {std_av_m:.{6}f}\n')
+        fout.write(f'{N} {int(c * 10 ** ndigits)} {int(mu * 10 ** ndigits)} {int(sigma * 10 ** ndigits)} {av_time:.{6}f} {av_num_div:.{6}f} {samples_div_m} {nsamples} {samples_div_m / nsamples:.{6}f} {error:.{6}f} {av_m:.{6}f} {std_av_m:.{6}f}\n')
     fout.close()
 
 
