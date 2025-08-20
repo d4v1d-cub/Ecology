@@ -28,6 +28,7 @@ def summary_statistics(path, filename):
     if len(all_lines) > 0:
         av_time = 0.0
         av_num_div = 0.0
+        av_num_div_sqr = 0.0
         samples_div_m = 0
         av_m = 0.0
         av_m_sqr = 0.0
@@ -35,16 +36,19 @@ def summary_statistics(path, filename):
             line_split = line.split()
             av_time += int(line_split[0])
             av_num_div += int(line_split[4])
+            av_num_div_sqr += int(line_split[4]) * int(line_split[4])
             if line_split[1] != "1":
                 samples_div_m += 1
             av_m += float(line_split[2])
             av_m_sqr += float(line_split[2]) * float(line_split[2])
         av_time /= len(all_lines)
         av_num_div /= len(all_lines)
+        av_num_div_sqr /= len(all_lines)
         av_m /= len(all_lines)
         av_m_sqr /= len(all_lines)
-        std_av_m = np.sqrt(av_m_sqr - av_m * av_m)
-        return av_time, av_num_div, samples_div_m, len(all_lines), av_m, std_av_m, True
+        error_av_m = np.sqrt((av_m_sqr - av_m * av_m) / len(all_lines))
+        error_av_num_div = np.sqrt((av_num_div_sqr - av_num_div * av_num_div) / len(all_lines))
+        return av_time, av_num_div, error_av_num_div, samples_div_m, len(all_lines), av_m, error_av_m, True
     else:
         print(f"No data found in file {filename}. Returning zeros.")
         return 0.0, 0.0, 0, 0, 0.0, 0.0, False
@@ -55,9 +59,9 @@ def get_all_vals(path, eps, avn0, tol, max_iter):
     sorted_data = filter_files(path, eps, avn0, tol, max_iter)
     vals_list = []
     for filename, N, c, mu, sigma in sorted_data:
-        av_time, av_num_div, samples_div_m, nsamples, av_m, std_av_m, found = summary_statistics(path, filename)
+        av_time, av_num_div, error_av_num_div, samples_div_m, nsamples, av_m, error_av_m, found = summary_statistics(path, filename)
         if found:
-            vals_list.append((N, c, mu, sigma, av_time, av_num_div, samples_div_m, nsamples, av_m, std_av_m))
+            vals_list.append((N, c, mu, sigma, av_time, av_num_div, error_av_num_div, samples_div_m, nsamples, av_m, error_av_m))
         print(f'Processed N={N}  c={c}  mu={mu}   sigma={sigma}')
     return vals_list
 
@@ -66,13 +70,13 @@ def get_all_vals(path, eps, avn0, tol, max_iter):
 
 def print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits):
     fout = open(f'{path_out}/IBMF_T0_directed_ER_PD_Lotka_Volterra_summary_av0_{avn0}_tol_{tol}_maxiter_{max_iter}.txt', 'w')
-    fout.write("# N c mu sigma av_time av_div samples_div nsamples prob_div error_prob av_m std_m\n")
+    fout.write("# N c mu sigma av_time av_div error_av_div samples_div nsamples prob_div error_prob av_m error_av_m\n")
     vals_list = get_all_vals(path_in, eps, avn0, tol, max_iter)
     for vals in vals_list:
-        N, c, mu, sigma, av_time, av_num_div, samples_div_m, nsamples, av_m, std_av_m = vals
+        N, c, mu, sigma, av_time, av_num_div, error_av_num_div, samples_div_m, nsamples, av_m, error_av_m = vals
         prob = samples_div_m / nsamples if nsamples > 0 else 0.0
         error = np.sqrt(prob * (1 - prob) / nsamples) if nsamples > 0 else 0.0
-        fout.write(f'{N} {int(c * 10 ** ndigits)} {int(mu * 10 ** ndigits)} {int(sigma * 10 ** ndigits)} {av_time:.{6}f} {av_num_div:.{6}f} {samples_div_m} {nsamples} {samples_div_m / nsamples:.{6}f} {error:.{6}f} {av_m:.{6}f} {std_av_m:.{6}f}\n')
+        fout.write(f'{N} {int(c * 10 ** ndigits)} {int(mu * 10 ** ndigits)} {int(sigma * 10 ** ndigits)} {av_time:.{6}f} {av_num_div:.{6}f} {error_av_num_div:.{6}f} {samples_div_m} {nsamples} {samples_div_m / nsamples:.{6}f} {error:.{6}f} {av_m:.{6}f} {error_av_m:.{6}f}\n')
     fout.close()
 
 
