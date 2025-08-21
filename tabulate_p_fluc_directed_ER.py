@@ -11,6 +11,10 @@ def prob(n0, c):
         sum -= np.power(lambw, 2 * i + 1) / (2 * i + 1)
     return 1 - np.exp(-sum)
 
+def prob_IBMF(c):
+    lambw = lambertw(c).real  # Get the real part of the Lambert W function
+    return 1 - (1 - lambw) * c / lambw
+
 
 def print_pairs(c_vals, mu, fileout):
     n0 = 3
@@ -24,6 +28,15 @@ def print_pairs(c_vals, mu, fileout):
     fout.write("# c p(fluc)\n")
     for c in c_vals:
         p = prob(n0, c)
+        fout.write(f'{c}\t{p}\n')
+        print(f'{c}\t{p}')
+
+
+def print_pairs_IBMF(c_vals, fileout):
+    fout = open(fileout, 'w')
+    fout.write("# c p(fluc)\n")
+    for c in c_vals:
+        p = prob_IBMF(c)
         fout.write(f'{c}\t{p}\n')
         print(f'{c}\t{p}')
 
@@ -44,6 +57,9 @@ def main():
     mu = 3.0
     fileout = f'{path}/p_fluc_directed_ER_mu_{mu}.txt'
     print_pairs(c_vals, mu, fileout)
+
+    fileout = f'{path}/p_fluc_IBMF_directed_ER.txt'
+    print_pairs_IBMF(c_vals, fileout)
 
     return 0
 
