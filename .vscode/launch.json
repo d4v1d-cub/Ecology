@@ -31,7 +31,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_print_less.out",
-            "args": ["2", "0.08", "0.0001", "1e-6", "1e-4", "10000", "0.0", "1", "0.0", "1", "4000", "3", "2"],
+            "args": ["1", "0.08", "0.02", "1e-6", "1e-4", "10000", "1.0", "0.2", "0.0", "1", "1024", "3", "1"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -50,6 +50,32 @@
                 }
             ],
             "preLaunchTask": "C/C++: g++-11 IBMF stat print less",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: g++-11 IBMF stat print less seq",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/IBMF_LV_stat_point_print_less_seq.out",
+            "args": ["1", "0.08", "0.02", "1e-6", "1e-6", "10000", "1.0", "0.14", "0.0", "1", "5", "1e-2", "1", "1024", "3", "1"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++-11 IBMF stat print less seq",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
@@ -83,7 +109,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_T0.out",
-            "args": ["1", "0.08", "1e-4", "10000", "0.0", "0.0", "0.38", "1", "1000", "3", "1"],
+            "args": ["1", "0.08", "1e-4", "10000", "0.0", "0.334", "0.0", "1", "1000", "3", "1"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -102,6 +128,32 @@
                 }
             ],
             "preLaunchTask": "C/C++: g++-11 IBMF T0",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: g++-11 IBMF T0 seq",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/IBMF_LV_stat_point_T0_seq.out",
+            "args": ["1", "0.08", "1e-6", "10000", "0.0", "0.354", "0.0", "1", "5", "1e-2", "1", "8192", "3", "1"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++-11 IBMF T0 seq",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
@@ -209,6 +261,32 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
+            "name": "C/C++: g++-11 GMF stat print less seq",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/GMF_LV_stat_point_print_less_seq.out",
+            "args": ["1", "0.08", "0.02", "1e-6", "1e-6", "10000", "1.0", "0.178", "0.0", "1", "5", "1e-2", "1", "1024", "3"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++-11 GMF stat print less seq",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
             "name": "C/C++: g++-11 GMF sigma0",
             "type": "cppdbg",
             "request": "launch",
@@ -258,6 +336,32 @@
                 }
             ],
             "preLaunchTask": "C/C++: g++-11 GMF T0",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: g++-11 GMF T0 seq",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/GMF_LV_stat_point_T0_seq.out",
+            "args": ["1", "0.08", "1e-6", "10000", "1.0", "0.353", "0.0", "1", "5", "1e-2", "1", "1000", "3"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++-11 GMF T0 seq",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
