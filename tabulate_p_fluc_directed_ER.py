@@ -11,9 +11,12 @@ def prob(n0, c):
         sum -= np.power(lambw, 2 * i + 1) / (2 * i + 1)
     return 1 - np.exp(-sum)
 
-def prob_IBMF(c):
+def prob_IBMF(n0, c):
     lambw = lambertw(c).real  # Get the real part of the Lambert W function
-    return 1 - (1 - lambw) * c / lambw
+    sum = -np.log(1 - lambw)
+    for i in range(1, n0):
+        sum -= np.power(lambw, i) / i
+    return 1 - np.exp(-sum)
 
 
 def print_pairs(c_vals, mu, fileout):
@@ -32,11 +35,11 @@ def print_pairs(c_vals, mu, fileout):
         print(f'{c}\t{p}')
 
 
-def print_pairs_IBMF(c_vals, fileout):
+def print_pairs_IBMF(n0, c_vals, fileout):
     fout = open(fileout, 'w')
     fout.write("# c p(fluc)\n")
     for c in c_vals:
-        p = prob_IBMF(c)
+        p = prob_IBMF(n0, c)
         fout.write(f'{c}\t{p}\n')
         print(f'{c}\t{p}')
 
@@ -50,16 +53,13 @@ def main():
 
     path = '/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/Comparison'
 
-    mu = 1.5
+    mu = 1.05
     fileout = f'{path}/p_fluc_directed_ER_mu_{mu}.txt'
     print_pairs(c_vals, mu, fileout)
 
-    mu = 3.0
-    fileout = f'{path}/p_fluc_directed_ER_mu_{mu}.txt'
-    print_pairs(c_vals, mu, fileout)
-
-    fileout = f'{path}/p_fluc_IBMF_directed_ER.txt'
-    print_pairs_IBMF(c_vals, fileout)
+    n0 = 4
+    fileout = f'{path}/p_fluc_IBMF_directed_ER_n0_{n0}.txt'
+    print_pairs_IBMF(n0, c_vals, fileout)
 
     return 0
 

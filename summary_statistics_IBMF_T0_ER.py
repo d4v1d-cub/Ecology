@@ -6,17 +6,17 @@ import fnmatch
 
 
 
-def filter_files(path, eps, avn0, tol, max_iter):
+def filter_files(path, eps, avn0, tol, max_iter, nseq):
     files_mu_sigma = []
 
     # Define the pattern for matching filenames
-    pattern = f'IBMF_T0_ER_PD_Lotka_Volterra_final_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_*_sigma_*_N_*_c_*.txt'
+    pattern = f'IBMF_T0_seq_ER_PD_Lotka_Volterra_final_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_*_sigma_*_N_*_c_*_nseq_{nseq}.txt'
 
     # Iterate through the files in the specified directory
     for filename in os.listdir(path):
         if fnmatch.fnmatch(filename, pattern):
             parts = filename.split('_')
-            files_mu_sigma.append((filename, int(parts[20]), float(parts[22][:-4]), float(parts[16]), float(parts[18])))
+            files_mu_sigma.append((filename, int(parts[21]), float(parts[23]), float(parts[17]), float(parts[19])))
     sorted_pairs = sorted(files_mu_sigma, key=lambda x: (x[1], x[2], x[3], x[4]))  # Sort by mu value
     return sorted_pairs
 
@@ -54,9 +54,9 @@ def summary_statistics(path, filename):
         return 0.0, 0.0, 0, 0, 0.0, 0.0, False
 
 
-def get_all_vals(path, eps, avn0, tol, max_iter):
+def get_all_vals(path, eps, avn0, tol, max_iter, nseq):
     # Find all files that match the pattern
-    sorted_data = filter_files(path, eps, avn0, tol, max_iter)
+    sorted_data = filter_files(path, eps, avn0, tol, max_iter, nseq)
     vals_list = []
     for filename, N, c, mu, sigma in sorted_data:
         av_time, av_num_div, error_av_num_div, samples_div_m, nsamples, av_m, error_av_m, found = summary_statistics(path, filename)
@@ -68,10 +68,10 @@ def get_all_vals(path, eps, avn0, tol, max_iter):
 
 
 
-def print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits):
-    fout = open(f'{path_out}/IBMF_T0_directed_ER_PD_Lotka_Volterra_summary_av0_{avn0}_tol_{tol}_maxiter_{max_iter}.txt', 'w')
+def print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits, nseq):
+    fout = open(f'{path_out}/IBMF_T0_seq_directed_ER_PD_Lotka_Volterra_summary_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_nseq_{nseq}.txt', 'w')
     fout.write("# N c mu sigma av_time av_div error_av_div samples_div nsamples prob_div error_prob av_m error_av_m\n")
-    vals_list = get_all_vals(path_in, eps, avn0, tol, max_iter)
+    vals_list = get_all_vals(path_in, eps, avn0, tol, max_iter, nseq)
     for vals in vals_list:
         N, c, mu, sigma, av_time, av_num_div, error_av_num_div, samples_div_m, nsamples, av_m, error_av_m = vals
         prob = samples_div_m / nsamples if nsamples > 0 else 0.0
@@ -83,15 +83,17 @@ def print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits):
 def main():
     eps = "0.000"
     avn0 = "0.08"
-    tol = "1e-4"
+    tol = "1e-6"
     max_iter = "10000"
+    nseq = "1"
+
 
     path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/directed_ER/"
     path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
 
     ndigits = 3
 
-    print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits)
+    print_summary(path_in, path_out, eps, avn0, tol, max_iter, ndigits, nseq)
     return 0
 
 
