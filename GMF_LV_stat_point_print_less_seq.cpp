@@ -318,9 +318,9 @@ double denominator(double beta, double lambda, double hi_div_Q, double *coeffici
 
 
 double new_averages(long M, double beta, double lambda, Tedge *edges, double tol, 
-                    double hmax, double **coefficients, int iter, long sequence[], 
+                    double hmax, double **coefficients, int iter, long sequence[], double damping, 
                     double normfactor = 1e-14){
-    double delta = 0, delta_av, delta_chi_cav, Q, h, h_div_Q, den, av_new, 
+    double delta = 0, delta_av, delta_chi_cav, Q, h, h_div_Q, den, av_new, av_new_not_damp, 
            q_sqr_new, chi_cav_new;
 
     long pos;
@@ -337,12 +337,12 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                     h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                     h_div_Q = h / Q;
                     if (h_div_Q > hmax){
-                        av_new = h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q);
+                        av_new = (1 - damping) * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + damping * edges[pos].cond_av[k];
                     }else if (h_div_Q < 0){
-                        av_new = 0;
+                        av_new = damping * edges[pos].cond_av[k];
                     }else{
                         den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
-                        av_new = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
+                        av_new = (1 - damping) * Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den + damping * edges[pos].cond_av[k];
                     }
                 }
             }else if (edges[pos].var_cav[k] > 0){
@@ -351,30 +351,32 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                 h_div_Q = h / Q;
                 if (h_div_Q > hmax){
-                    av_new = h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q);
-                    chi_cav_new = edges[pos].var_cav[k];
+                    av_new = (1 - damping) * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + damping * edges[pos].cond_av[k];
+                    chi_cav_new = (1 - damping) * edges[pos].var_cav[k] + damping * edges[pos].chi_cav[k];
                 }else if (h_div_Q < 0){
-                    av_new = 0;
-                    chi_cav_new = edges[pos].var_cav[k];
+                    av_new = damping * edges[pos].cond_av[k];
+                    chi_cav_new = (1 - damping) * edges[pos].var_cav[k] + damping * edges[pos].chi_cav[k];
                 }else{
                     den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
-                    av_new = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
+                    av_new_not_damp = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
+                    av_new = (1 - damping) * av_new_not_damp + damping * edges[pos].cond_av[k];
                     q_sqr_new = edges[pos].var_cav[k] * numerator_q_sqr(beta, lambda, h_div_Q, coefficients[2]) / den;
-                    chi_cav_new = beta * (q_sqr_new - av_new * av_new);
+                    chi_cav_new = (1 - damping) * beta * (q_sqr_new - av_new_not_damp * av_new_not_damp) + damping * edges[pos].chi_cav[k];
                 }
             }else{
                 edges[pos].var_cav_positive[k] = false;
                 h = edges[pos].fields_cav[k];
                 if (h > hmax){
-                    av_new = h * (1 - 1.0 / beta / h / h + lambda / h / h);
+                    av_new = (1 - damping) * h * (1 - 1.0 / beta / h / h + lambda / h / h) + damping * edges[pos].cond_av[k];
                 }else if (h < 0){
-                    av_new = 0;
+                    av_new = damping * edges[pos].cond_av[k];
                 }else{
                     den = denominator(beta, lambda, h, coefficients[0], normfactor);
-                    av_new = numerator_av(beta, lambda, h, coefficients[1]) / den;
+                    av_new = (1 - damping) * numerator_av(beta, lambda, h, coefficients[1]) / den + 
+                             damping * edges[pos].cond_av[k];
                 }
                 
-                chi_cav_new = 0;
+                chi_cav_new = damping * edges[pos].chi_cav[k];
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -556,7 +558,7 @@ double average_chi_cav_sqr(long M, Tedge *edges){
 
 int convergence(long M, double beta, double lambda, Tedge *edges, double tol, 
                 int max_iter, bool &divergence, double hmax, double **coefficients, 
-                long sequence[], double maximum=1e10){
+                long sequence[], double damping, double maximum=1e10){
     double delta = tol + 1;
     int iter = 0;
 
@@ -568,7 +570,7 @@ int convergence(long M, double beta, double lambda, Tedge *edges, double tol,
     }
 
     while (delta > tol && iter < max_iter){
-        delta = new_averages(M, beta, lambda, edges, tol, hmax, coefficients, iter, sequence);
+        delta = new_averages(M, beta, lambda, edges, tol, hmax, coefficients, iter, sequence, damping);
         iter++;
         if (isinf(delta) || isnan(delta) || delta > maximum){
             divergence = true;
@@ -708,7 +710,8 @@ int main(int argc, char *argv[]) {
     unsigned long seed_seq_init = atoi(argv[10]);
     unsigned long num_seq = atoi(argv[11]);
     double tol_fixed_point = atof(argv[12]);
-    bool gr_inside = atoi(argv[13]);
+    double damping = atof(argv[13]);
+    bool gr_inside = atoi(argv[14]);
 
     gsl_set_error_handler_off();
 
@@ -718,8 +721,8 @@ int main(int argc, char *argv[]) {
     long N, M;
 
     if (gr_inside){
-        N = atol(argv[14]);
-        int c = atoi(argv[15]);
+        N = atol(argv[15]);
+        int c = atoi(argv[16]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -741,7 +744,7 @@ int main(int argc, char *argv[]) {
     produce_random_seq(seed_seq_init, M, sequence);
     init_avgs(M, edges, avn_0);
     int iter = convergence(M, beta, lambda, edges, tol, max_iter, divergence, 
-                           hmax, coefficients, sequence);
+                           hmax, coefficients, sequence, damping);
     double av = average(N, nodes, edges, beta, lambda, hmax, coefficients);
 
 
@@ -753,7 +756,7 @@ int main(int argc, char *argv[]) {
             produce_random_seq(seed_seq, M, sequence);
             init_avgs(M, edges, avn_0);
             iter = convergence(M, beta, lambda, edges, tol, max_iter, divergence, 
-                               hmax, coefficients, sequence);
+                               hmax, coefficients, sequence, damping);
             av = average(N, nodes, edges, beta, lambda, hmax, coefficients);
             same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
             seed_seq++;

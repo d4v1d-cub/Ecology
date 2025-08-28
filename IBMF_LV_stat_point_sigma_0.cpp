@@ -117,13 +117,15 @@ double new_average(double avg, double beta, double lambda, double mu, int c,
 
 
 int convergence(double &avg, double beta, double lambda, double mu, int c, double tol, 
-                int max_iter, bool &divergence, double hmax, double **coefficients){
+                int max_iter, bool &divergence, double hmax, double **coefficients, 
+                double damping){
     double avg_new;
     double var = tol + 1;
     int iter = 0;
 
     while (var > tol && iter < max_iter){
-        avg_new = new_average(avg, beta, lambda, mu, c, hmax, coefficients, iter);
+        avg_new = (1 - damping) * new_average(avg, beta, lambda, mu, c, hmax, coefficients, iter) + 
+                  damping * avg;
         var = fabs(avg_new - avg);
         iter++;
         avg = avg_new;
@@ -150,6 +152,8 @@ int main(int argc, char *argv[]) {
 
     int c = atoi(argv[9]);
 
+    double damping = atof(argv[10]);
+
     gsl_set_error_handler_off();
 
     double avg, field;
@@ -166,7 +170,7 @@ int main(int argc, char *argv[]) {
     avg = avn_0;
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
         iter = convergence(avg, beta, lambda, mu, c, tol, max_iter, divergence, 
-                           hmax, coefficients);
+                           hmax, coefficients, damping);
         field = field_in(avg, c, mu);
         if (divergence){
             cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << avg << "\t" << field << "\t" << endl;
