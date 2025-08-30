@@ -94,18 +94,21 @@ double denominator(double beta, double lambda, double hi, double *coefficients, 
 
 
 double new_average(double avg, double beta, double lambda, double mu, int c, 
-                   double hmax, double **coefficients, int iter, double normfactor = 1e-14){
+                   double hmax, double **coefficients, int iter, double damping, 
+                   double normfactor = 1e-14){
     double field = field_in(avg, c, mu);
     double av_new;
     if (field > hmax){
-        av_new = field * (1 - 1.0 / beta / field / field + lambda / field / field);                      
+        av_new = damping * field * (1 - 1.0 / beta / field / field + lambda / field / field) + 
+                 (1 - damping) * avg;                      
     }else if (field < 0)
     {
-        av_new = 0;
+        av_new = (1 - damping) * avg;
     }
     else {
-        av_new = numerator_av(beta, lambda, field, coefficients[1]) /
-                 denominator(beta, lambda, field, coefficients[0], normfactor);
+        av_new = damping * numerator_av(beta, lambda, field, coefficients[1]) /
+                 denominator(beta, lambda, field, coefficients[0], normfactor) +
+                 (1 - damping) * avg;
     }
 
     if (isnan(av_new) || isinf(av_new)){
@@ -118,20 +121,25 @@ double new_average(double avg, double beta, double lambda, double mu, int c,
 
 int convergence(double &avg, double beta, double lambda, double mu, int c, double tol, 
                 int max_iter, bool &divergence, double hmax, double **coefficients, 
-                double damping){
+                double damping, double maximum=1e10, int min_consecutive=5){
     double avg_new;
     double var = tol + 1;
     int iter = 0;
 
-    while (var > tol && iter < max_iter){
-        avg_new = (1 - damping) * new_average(avg, beta, lambda, mu, c, hmax, coefficients, iter) + 
-                  damping * avg;
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
+        avg_new = new_average(avg, beta, lambda, mu, c, hmax, coefficients, iter, damping);
         var = fabs(avg_new - avg);
         iter++;
         avg = avg_new;
-        if (isinf(var)){
+        if (isinf(var) || isnan(var) || var > maximum){
             divergence = true;
             return iter;
+        }
+        if (var < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
         }
     }
 

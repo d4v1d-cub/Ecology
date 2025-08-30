@@ -244,9 +244,9 @@ void comp_vars_cav(long M, Tedge *edges){
 }
 
 
-double new_averages(long M, Tedge *edges, double tol, int iter, 
+double new_averages(long M, Tedge *edges, double tol, int iter, double damping, 
                     double normfactor = 1e-14){
-    double delta = 0, delta_av, delta_chi_cav, h, den, av_new, 
+    double delta = 0, delta_av, delta_chi_cav, h, den, av_new, av_new_not_damp, 
            chi_cav_new;
 
     for (long e = 0; e < M; e++){
@@ -257,29 +257,29 @@ double new_averages(long M, Tedge *edges, double tol, int iter,
                     edges[e].var_cav_positive[k] = true;
                     h = edges[e].fields_cav[k] * edges[e].var_cav[k];
                     if (h > 0){
-                        av_new = h;
+                        av_new = damping * h + (1 - damping) * edges[e].cond_av[k];
                     }else {
-                        av_new = 0;
+                        av_new = (1 - damping) * edges[e].cond_av[k];
                     }
                 }
             }else if (edges[e].var_cav[k] > 0){
                 edges[e].var_cav_positive[k] = true;   
                 h = edges[e].fields_cav[k] * edges[e].var_cav[k];
                 if (h > 0){
-                    av_new = h;
+                    av_new = damping * h + (1 - damping) * edges[e].cond_av[k];
                 }else if (h < 0){
-                    av_new = 0;
+                    av_new = (1 - damping) * edges[e].cond_av[k];
                 }
-                chi_cav_new = edges[e].var_cav[k];
+                chi_cav_new = damping * edges[e].var_cav[k] + (1 - damping) * edges[e].chi_cav[k];
             }else{
                 edges[e].var_cav_positive[k] = false;
                 h = edges[e].fields_cav[k];
                 if (h > 0){
-                    av_new = h;
+                    av_new = damping * h + (1 - damping) * edges[e].cond_av[k];
                 }else if (h < 0){
-                    av_new = 0;
+                    av_new = (1 - damping) * edges[e].cond_av[k];
                 }
-                chi_cav_new = 0;
+                chi_cav_new = (1 - damping) * edges[e].chi_cav[k];
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -446,8 +446,8 @@ double average_chi_cav_sqr(long M, Tedge *edges){
 }
 
 
-int convergence(long M, Tedge *edges, double tol, int max_iter, 
-                bool &divergence, double maximum=1e10){
+int convergence(long M, Tedge *edges, double tol, int max_iter, bool &divergence, 
+                double damping, double maximum=1e10, int min_consecutive=5){
     double delta = tol + 1;
     int iter = 0;
 
@@ -460,8 +460,9 @@ int convergence(long M, Tedge *edges, double tol, int max_iter,
         }
     }
 
-    while (delta > tol && iter < max_iter){
-        delta = new_averages(M, edges, tol, iter);
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
+        delta = new_averages(M, edges, tol, iter, damping);
         iter++;
         comp_fields_cav(M, edges);
         comp_vars_cav(M, edges);
@@ -469,7 +470,11 @@ int convergence(long M, Tedge *edges, double tol, int max_iter,
             divergence = true;
             return iter;
         }
-        // cout << iter << "\t" << delta << endl;
+        if (delta < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
+        }
     }
     divergence = false;
     return iter;
@@ -516,18 +521,18 @@ void print_results(int iter, Tnode *nodes, Tedge *edges, long N, long M, long se
     double av_chi_cav_sqr = average_chi_cav_sqr(M, edges);
     if (divergence){
         cout << iter << "\t" << "diverges" << "\t" << 
-                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
-                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
-                av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << seed << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << 
-                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
-                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
-                av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << seed << endl;
     }
 
@@ -543,7 +548,8 @@ int main(int argc, char *argv[]) {
     double eps = atof(argv[5]);
     double mu = atof(argv[6]);
     double sigma = atof(argv[7]);
-    bool gr_inside = atoi(argv[8]);
+    double damping = atof(argv[8]);
+    bool gr_inside = atoi(argv[9]);
 
     gsl_set_error_handler_off();
 
@@ -552,8 +558,8 @@ int main(int argc, char *argv[]) {
     long N, M;
 
     if (gr_inside){
-        N = atol(argv[9]);
-        int c = atoi(argv[10]);
+        N = atol(argv[10]);
+        int c = atoi(argv[11]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -567,7 +573,7 @@ int main(int argc, char *argv[]) {
 
     bool divergence;
 
-    int iter = convergence(M, edges, tol, max_iter, divergence);
+    int iter = convergence(M, edges, tol, max_iter, divergence, damping);
 
     print_results(iter, nodes, edges, N, M, seed, max_iter, divergence);
     

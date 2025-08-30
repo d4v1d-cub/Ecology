@@ -244,7 +244,7 @@ double denominator(double beta, double lambda, double hi, double *coefficients, 
 
 double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol, 
                     double hmax, double **coefficients, int iter, long sequence[], 
-                    double normfactor = 1e-14){
+                    double damping, double normfactor = 1e-14){
     double var = 0, var_i;
     double av_new;
     long pos;
@@ -252,15 +252,17 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol
         pos = sequence[i];
         nodes[pos].field = field_in(pos, nodes);
         if (nodes[pos].field > hmax){
-            av_new = nodes[pos].field * (1 - 1.0 / beta / nodes[pos].field / nodes[pos].field + 
-                                       lambda / nodes[pos].field / nodes[pos].field);                
+            av_new = damping * nodes[pos].field * (1 - 1.0 / beta / nodes[pos].field / nodes[pos].field + 
+                                                   lambda / nodes[pos].field / nodes[pos].field) + 
+                     (1 - damping) * nodes[pos].av;                
         }else if (nodes[pos].field < 0)
         {
-            av_new = 0;
+            av_new = (1 - damping) * nodes[pos].av;
         }
         else {
-            av_new = numerator_av(beta, lambda, nodes[pos].field, coefficients[1]) /
-                     denominator(beta, lambda, nodes[pos].field, coefficients[0], normfactor);
+            av_new = damping * numerator_av(beta, lambda, nodes[pos].field, coefficients[1]) /
+                     denominator(beta, lambda, nodes[pos].field, coefficients[0], normfactor) + 
+                     (1 - damping) * nodes[pos].av;
         }
 
         if (isnan(av_new) || isinf(av_new)){
@@ -304,16 +306,23 @@ double average_sqr(long N, Tnode *nodes){
 
 int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
                  int max_iter, bool &divergence, double hmax, double **coefficients, 
-                 long sequence[], double maximum=1e10){
+                 long sequence[], double damping, double maximum=1e10, int min_consecutive=5){
     double var = tol + 1;
     int iter = 0;
 
-    while (var > tol && iter < max_iter){
-        var = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter, sequence);
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
+        var = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter, sequence, 
+                           damping);
         iter++;
         if (isinf(var) || isnan(var) || var > maximum){
             divergence = true;
             return iter;
+        }
+        if (var < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
         }
     }
 
@@ -346,11 +355,11 @@ void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed,
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
     if (divergence){
-        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
+        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
                 counter << "\t" << counter_dead << "\t" << seed << "\t" << same_fixed_point << endl;
     }else{
         bool conv = iter < max_iter;
-        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
+        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
                 counter << "\t" << counter_dead << "\t" << seed << "\t" << same_fixed_point << endl;
     }
 }
@@ -407,7 +416,8 @@ int main(int argc, char *argv[]) {
     unsigned long seed_seq_init = atoi(argv[10]);
     unsigned long num_seq = atoi(argv[11]);
     double tol_fixed_point = atof(argv[12]);
-    bool gr_inside = atoi(argv[13]);
+    double damping = atof(argv[13]);
+    bool gr_inside = atoi(argv[14]);
 
     gsl_set_error_handler_off();
 
@@ -417,16 +427,16 @@ int main(int argc, char *argv[]) {
     char gr_str[20];
 
     if (gr_inside){
-        N = atol(argv[14]);
+        N = atol(argv[15]);
         gsl_rng * r;
         init_ran(r, seed);
-        if (argc > 16){
-            if (atoi(argv[16]) == 1){                
-                int c = atoi(argv[15]);
+        if (argc > 17){
+            if (atoi(argv[17]) == 1){                
+                int c = atoi(argv[16]);
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-            }else if (atoi(argv[16]) == 2)
+            }else if (atoi(argv[17]) == 2)
             {
-                double c = atof(argv[15]);
+                double c = atof(argv[16]);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
             }else{
                 cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
@@ -434,7 +444,7 @@ int main(int argc, char *argv[]) {
             }
             
         }else{
-            int c = atoi(argv[15]);
+            int c = atoi(argv[16]);
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
         }
     }else{
@@ -455,7 +465,7 @@ int main(int argc, char *argv[]) {
     produce_random_seq(seed_seq_init, N, sequence);
     init_avgs(N, nodes, avn_0);
     int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                           hmax, coefficients, sequence);
+                           hmax, coefficients, sequence, damping);
 
     bool same_fixed_point = true;
     if (!divergence && iter < max_iter){
@@ -465,7 +475,7 @@ int main(int argc, char *argv[]) {
             produce_random_seq(seed_seq, N, sequence);
             init_avgs(N, nodes, avn_0);
             iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                               hmax, coefficients, sequence);
+                               hmax, coefficients, sequence, damping);
             same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
             seed_seq++;
         }

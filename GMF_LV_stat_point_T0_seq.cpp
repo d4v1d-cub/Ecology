@@ -230,7 +230,7 @@ double var_cav_in(long e, int k, Tedge *edges){
 
 
 double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[], 
-                    double normfactor = 1e-14){
+                    double damping, double normfactor = 1e-14){
     double delta = 0, delta_av, delta_chi_cav, h, den, av_new, 
            chi_cav_new;
 
@@ -246,29 +246,29 @@ double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[],
                     edges[pos].var_cav_positive[k] = true;
                     h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                     if (h > 0){
-                        av_new = h;
+                        av_new = damping * h + (1 - damping) * edges[pos].cond_av[k];
                     }else {
-                        av_new = 0;
+                        av_new = (1 - damping) * edges[pos].cond_av[k];
                     }
                 }
             }else if (edges[pos].var_cav[k] > 0){
                 edges[pos].var_cav_positive[k] = true;   
                 h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                 if (h > 0){
-                    av_new = h;
+                    av_new = damping * h + (1 - damping) * edges[pos].cond_av[k];
                 }else if (h < 0){
-                    av_new = 0;
+                    av_new = (1 - damping) * edges[pos].cond_av[k];
                 }
-                chi_cav_new = edges[pos].var_cav[k];
+                chi_cav_new = damping * edges[pos].var_cav[k] + (1 - damping) * edges[pos].chi_cav[k];
             }else{
                 edges[pos].var_cav_positive[k] = false;
                 h = edges[pos].fields_cav[k];
                 if (h > 0){
-                    av_new = h;
+                    av_new = damping * h + (1 - damping) * edges[pos].cond_av[k];
                 }else if (h < 0){
-                    av_new = 0;
+                    av_new = (1 - damping) * edges[pos].cond_av[k];
                 }
-                chi_cav_new = 0;
+                chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -436,7 +436,8 @@ double average_chi_cav_sqr(long M, Tedge *edges){
 
 
 int convergence(long M, Tedge *edges, double tol, int max_iter, 
-                bool &divergence, long sequence[], double maximum=1e10){
+                bool &divergence, long sequence[], double damping, 
+                double maximum=1e10, int min_consecutive=5){
     double delta = tol + 1;
     int iter = 0;
 
@@ -446,14 +447,19 @@ int convergence(long M, Tedge *edges, double tol, int max_iter,
         }
     }
 
-    while (delta > tol && iter < max_iter){
-        delta = new_averages(M, edges, tol, iter, sequence);
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
+        delta = new_averages(M, edges, tol, iter, sequence, damping);
         iter++;
         if (isinf(delta) || isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
         }
-        // cout << iter << "\t" << delta << endl;
+        if (delta < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
+        }
     }
     divergence = false;
     return iter;
@@ -510,19 +516,19 @@ void print_results(double av, int iter, Tnode *nodes, Tedge *edges, long N, long
     double av_chi_cav_sqr = average_chi_cav_sqr(M, edges);
     if (divergence){
         cout << iter << "\t" << "diverges" << "\t" << 
-                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
-                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
-                av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
                 count_dead << "\t" << seed << "\t" << same_fixed_point << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << 
-                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
-                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
-                av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
                 count_dead << "\t" << seed << "\t" << same_fixed_point << endl;
     }
@@ -585,7 +591,8 @@ int main(int argc, char *argv[]) {
     unsigned long seed_seq_init = atol(argv[8]);
     unsigned long num_seq = atol(argv[9]);
     double tol_fixed_point = atof(argv[10]);
-    bool gr_inside = atoi(argv[11]);
+    double damping = atof(argv[11]);
+    bool gr_inside = atoi(argv[12]);
 
     gsl_set_error_handler_off();
 
@@ -594,8 +601,8 @@ int main(int argc, char *argv[]) {
     long N, M;
 
     if (gr_inside){
-        N = atol(argv[12]);
-        int c = atoi(argv[13]);
+        N = atol(argv[13]);
+        int c = atoi(argv[14]);
         gsl_rng * r;
 
         init_ran(r, seed);
@@ -614,7 +621,7 @@ int main(int argc, char *argv[]) {
     divergence = false;
     produce_random_seq(seed_seq_init, M, sequence);
     init_avgs(M, edges, avn_0);
-    int iter = convergence(M, edges, tol, max_iter, divergence, sequence);
+    int iter = convergence(M, edges, tol, max_iter, divergence, sequence, damping);
     double av = average(N, nodes, edges);
 
     bool same_fixed_point = true;
@@ -624,7 +631,7 @@ int main(int argc, char *argv[]) {
         while (seed_seq < seed_seq_init + num_seq && !divergence && iter < max_iter && same_fixed_point) {
             produce_random_seq(seed_seq, M, sequence);
             init_avgs(M, edges, avn_0);
-            iter = convergence(M, edges, tol, max_iter, divergence, sequence);
+            iter = convergence(M, edges, tol, max_iter, divergence, sequence, damping);
             av = average(N, nodes, edges);
             same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
             seed_seq++;

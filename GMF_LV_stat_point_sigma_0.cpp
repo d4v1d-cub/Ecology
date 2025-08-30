@@ -144,14 +144,14 @@ double new_averages(double beta, double lambda, Tnode &node,
             hi = node.field_cav * node.var_cav;
             hi_div_Q = hi / Q;
             if (hi_div_Q > hmax){
-                av_new = (1 - damping) * hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q) + 
-                          damping * node.av_cav;
+                av_new = damping * hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q) + 
+                          (1 - damping) * node.av_cav;
             }else if (hi_div_Q < 0){
-                av_new = damping * node.av_cav;
+                av_new = (1 - damping) * node.av_cav;
             }else{
                 den = denominator(beta, lambda, hi_div_Q, coefficients[0], normfactor);
-                av_new = (1 - damping) * Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den + 
-                          damping * node.av_cav;
+                av_new = damping * Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den + 
+                         (1 - damping) * node.av_cav;
             }
         }
     }else if (node.var_cav > 0){
@@ -159,33 +159,33 @@ double new_averages(double beta, double lambda, Tnode &node,
         hi = node.field_cav * node.var_cav;
         hi_div_Q = hi / Q;
         if (hi_div_Q > hmax){
-            av_new = (1 - damping) * hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q) + 
-                      damping * node.av_cav;
-            chi_cav_new = (1 - damping) * node.var_cav + damping * node.chi_cav;
+            av_new = damping * hi * (1 - 1.0 / beta / hi_div_Q / hi_div_Q + lambda / hi_div_Q / hi_div_Q) + 
+                     (1 - damping) * node.av_cav;
+            chi_cav_new = damping * node.var_cav + (1 - damping) * node.chi_cav;
         }else if (hi_div_Q < 0){
-            av_new = 0;
-            chi_cav_new = (1 - damping) * node.var_cav + damping * node.chi_cav;
+            av_new = (1 - damping) * node.av_cav;
+            chi_cav_new = damping * node.var_cav + (1 - damping) * node.chi_cav;
         }else{
             den = denominator(beta, lambda, hi_div_Q, coefficients[0], normfactor);
             av_new_no_damp = Q * numerator_av(beta, lambda, hi_div_Q, coefficients[1]) / den;
-            av_new = (1 - damping) * av_new_no_damp + damping * node.av_cav;
+            av_new = damping * av_new_no_damp + (1 - damping) * node.av_cav;
             q_sqr_new = node.var_cav * numerator_q_sqr(beta, lambda, hi_div_Q, coefficients[2]) / den;
-            chi_cav_new = (1 - damping) * beta * (q_sqr_new - av_new_no_damp * av_new_no_damp) + damping * node.chi_cav;
+            chi_cav_new = damping * beta * (q_sqr_new - av_new_no_damp * av_new_no_damp) + (1 - damping) * node.chi_cav;
         }
     }else{
         hi = node.field_cav;
         if (hi > hmax){
-            av_new = (1 - damping) * hi * (1 - 1.0 / beta / hi / hi + lambda / hi / hi) + 
-                      damping * node.av_cav;
+            av_new = damping * hi * (1 - 1.0 / beta / hi / hi + lambda / hi / hi) + 
+                     (1 - damping) * node.av_cav;
         }else if (hi < 0){
-            av_new = damping * node.av_cav;
+            av_new = (1 - damping) * node.av_cav;
         }else{
             den = denominator(beta, lambda, hi, coefficients[0], normfactor);
-            av_new = (1 - damping) * numerator_av(beta, lambda, hi, coefficients[1]) / den + 
-                      damping * node.av_cav;
+            av_new = damping * numerator_av(beta, lambda, hi, coefficients[1]) / den + 
+                     (1 - damping) * node.av_cav;
         }
             
-        chi_cav_new = damping * node.chi_cav;
+        chi_cav_new = (1 - damping) * node.chi_cav;
     }
         
 
@@ -216,7 +216,7 @@ double new_averages(double beta, double lambda, Tnode &node,
 
 int convergence(double beta, double lambda, int c, double mu, Tnode &node, double tol, int max_iter, 
                 bool &divergence, double hmax, double **coefficients, double damping, 
-                double maximum=1e10){
+                double maximum=1e10, int min_consecutive=5){
     double delta = tol + 1;
     int iter = 0;
 
@@ -225,7 +225,8 @@ int convergence(double beta, double lambda, int c, double mu, Tnode &node, doubl
 
     node.chi_cav_converged = false;
 
-    while (delta > tol && iter < max_iter){
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
         delta = new_averages(beta, lambda, node, hmax, coefficients, iter, tol, damping);
         iter++;
         comp_field(node, c, mu);
@@ -233,6 +234,12 @@ int convergence(double beta, double lambda, int c, double mu, Tnode &node, doubl
         if (isinf(delta) || isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
+        }
+
+        if (delta < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
         }
     }
 

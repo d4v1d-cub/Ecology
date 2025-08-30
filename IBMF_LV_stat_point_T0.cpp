@@ -169,9 +169,9 @@ double new_averages(long N, Tnode *nodes, double tol, int iter, double damping, 
     double av_new;
     for (long i = 0; i < N; i++){
         if (nodes[i].field > 0){
-            av_new = (1 - damping) * nodes[i].field + damping * nodes[i].av;
+            av_new = damping * nodes[i].field + (1 - damping) * nodes[i].av;
         }else{
-            av_new = damping * nodes[i].av;              
+            av_new = (1 - damping) * nodes[i].av;              
         }
 
         if (isnan(av_new) || isinf(av_new)){
@@ -220,18 +220,24 @@ double average_sqr(long N, Tnode *nodes){
 
 
 int convergence(long N, Tnode *nodes, double tol, int max_iter, bool &divergence, double damping, 
-                double maximum=1e10){
+                double maximum=1e10, int min_consecutive=5){
     double var = tol + 1;
     int iter = 0;
 
     comp_fields(N, nodes);
-    while (var > tol && iter < max_iter){
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
         var = new_averages(N, nodes, tol, iter, damping);
         iter++;
         comp_fields(N, nodes);
         if (isinf(var) || isnan(var) || var > maximum){
             divergence = true;
             return iter;
+        }
+        if (var < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
         }
     }
 
@@ -252,10 +258,10 @@ void print_results_short(int iter, Tnode *nodes, long N, long seed, int max_iter
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
     if (divergence){
-        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
+        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
     }else{
         bool conv = iter < max_iter;
-        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
+        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
     }
 }
 

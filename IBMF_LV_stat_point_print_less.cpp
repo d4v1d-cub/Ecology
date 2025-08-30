@@ -242,20 +242,23 @@ double denominator(double beta, double lambda, double hi, double *coefficients, 
 
 
 double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol, 
-                    double hmax, double **coefficients, int iter, double normfactor = 1e-14){
+                    double hmax, double **coefficients, int iter, double damping, 
+                    double normfactor = 1e-14){
     double var = 0, var_i;
     double av_new;
     for (long i = 0; i < N; i++){
         if (nodes[i].field > hmax){
-            av_new = nodes[i].field * (1 - 1.0 / beta / nodes[i].field / nodes[i].field + 
-                                       lambda / nodes[i].field / nodes[i].field);                      
+            av_new = damping * nodes[i].field * (1 - 1.0 / beta / nodes[i].field / nodes[i].field + 
+                                                 lambda / nodes[i].field / nodes[i].field) + 
+                     (1 - damping) * nodes[i].av;                      
         }else if (nodes[i].field < 0)
         {
-            av_new = 0;
+            av_new = (1 - damping) * nodes[i].av;
         }
         else {
-            av_new = numerator_av(beta, lambda, nodes[i].field, coefficients[1]) /
-                     denominator(beta, lambda, nodes[i].field, coefficients[0], normfactor);
+            av_new = damping * numerator_av(beta, lambda, nodes[i].field, coefficients[1]) /
+                     denominator(beta, lambda, nodes[i].field, coefficients[0], normfactor) +
+                     (1 - damping) * nodes[i].av;
         }
 
         if (isnan(av_new) || isinf(av_new)){
@@ -304,18 +307,24 @@ double average_sqr(long N, Tnode *nodes){
 
 int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
                  int max_iter, bool &divergence, double hmax, double **coefficients, 
-                 double maximum=1e10){
+                 double damping, double maximum=1e10, int min_consecutive=5){
     double var = tol + 1;
     int iter = 0;
 
     comp_fields(N, nodes);
-    while (var > tol && iter < max_iter){
-        var = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter);
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
+        var = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter, damping);
         iter++;
         comp_fields(N, nodes);
         if (isinf(var) || isnan(var) || var > maximum){
             divergence = true;
             return iter;
+        }
+        if (var < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
         }
     }
 
@@ -336,10 +345,10 @@ void print_results_short(int iter, Tnode *nodes, long N, long seed, int max_iter
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
     if (divergence){
-        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
+        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
     }else{
         bool conv = iter < max_iter;
-        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
+        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << counter << "\t" << seed << endl;
     }
 }
 
@@ -354,7 +363,8 @@ int main(int argc, char *argv[]) {
     double eps = atof(argv[7]);
     double mu = atof(argv[8]);
     double sigma = atof(argv[9]);
-    bool gr_inside = atoi(argv[10]);
+    double damping = atof(argv[10]);
+    bool gr_inside = atoi(argv[11]);
 
     gsl_set_error_handler_off();
 
@@ -364,16 +374,16 @@ int main(int argc, char *argv[]) {
     char gr_str[20];
 
     if (gr_inside){
-        N = atol(argv[11]);
+        N = atol(argv[12]);
         gsl_rng * r;
         init_ran(r, seed);
-        if (argc > 13){
-            if (atoi(argv[13]) == 1){                
-                int c = atoi(argv[12]);
+        if (argc > 14){
+            if (atoi(argv[14]) == 1){                
+                int c = atoi(argv[13]);
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-            }else if (atoi(argv[13]) == 2)
+            }else if (atoi(argv[14]) == 2)
             {
-                double c = atof(argv[12]);
+                double c = atof(argv[13]);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
             }else{
                 cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
@@ -381,7 +391,7 @@ int main(int argc, char *argv[]) {
             }
             
         }else{
-            int c = atoi(argv[12]);
+            int c = atoi(argv[13]);
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
         }
     }else{
@@ -397,7 +407,7 @@ int main(int argc, char *argv[]) {
     bool divergence = false;
 
     int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                           hmax, coefficients);
+                           hmax, coefficients, damping);
 
     print_results_short(iter, nodes, N, seed, max_iter, divergence);
     

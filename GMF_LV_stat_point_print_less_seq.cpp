@@ -337,12 +337,12 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                     h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                     h_div_Q = h / Q;
                     if (h_div_Q > hmax){
-                        av_new = (1 - damping) * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + damping * edges[pos].cond_av[k];
+                        av_new = damping * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + (1 - damping) * edges[pos].cond_av[k];
                     }else if (h_div_Q < 0){
-                        av_new = damping * edges[pos].cond_av[k];
+                        av_new = (1 - damping) * edges[pos].cond_av[k];
                     }else{
                         den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
-                        av_new = (1 - damping) * Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den + damping * edges[pos].cond_av[k];
+                        av_new = damping * Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den + (1 - damping) * edges[pos].cond_av[k];
                     }
                 }
             }else if (edges[pos].var_cav[k] > 0){
@@ -351,32 +351,32 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                 h_div_Q = h / Q;
                 if (h_div_Q > hmax){
-                    av_new = (1 - damping) * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + damping * edges[pos].cond_av[k];
-                    chi_cav_new = (1 - damping) * edges[pos].var_cav[k] + damping * edges[pos].chi_cav[k];
+                    av_new = damping * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + (1 - damping) * edges[pos].cond_av[k];
+                    chi_cav_new = damping * edges[pos].var_cav[k] + (1 - damping) * edges[pos].chi_cav[k];
                 }else if (h_div_Q < 0){
-                    av_new = damping * edges[pos].cond_av[k];
-                    chi_cav_new = (1 - damping) * edges[pos].var_cav[k] + damping * edges[pos].chi_cav[k];
+                    av_new = (1 - damping) * edges[pos].cond_av[k];
+                    chi_cav_new = damping * edges[pos].var_cav[k] + (1 - damping) * edges[pos].chi_cav[k];
                 }else{
                     den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
                     av_new_not_damp = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
-                    av_new = (1 - damping) * av_new_not_damp + damping * edges[pos].cond_av[k];
+                    av_new = damping * av_new_not_damp + (1 - damping) * edges[pos].cond_av[k];
                     q_sqr_new = edges[pos].var_cav[k] * numerator_q_sqr(beta, lambda, h_div_Q, coefficients[2]) / den;
-                    chi_cav_new = (1 - damping) * beta * (q_sqr_new - av_new_not_damp * av_new_not_damp) + damping * edges[pos].chi_cav[k];
+                    chi_cav_new = damping * beta * (q_sqr_new - av_new_not_damp * av_new_not_damp) + (1 - damping) * edges[pos].chi_cav[k];
                 }
             }else{
                 edges[pos].var_cav_positive[k] = false;
                 h = edges[pos].fields_cav[k];
                 if (h > hmax){
-                    av_new = (1 - damping) * h * (1 - 1.0 / beta / h / h + lambda / h / h) + damping * edges[pos].cond_av[k];
+                    av_new = damping * h * (1 - 1.0 / beta / h / h + lambda / h / h) + (1 - damping) * edges[pos].cond_av[k];
                 }else if (h < 0){
-                    av_new = damping * edges[pos].cond_av[k];
+                    av_new = (1 - damping) * edges[pos].cond_av[k];
                 }else{
                     den = denominator(beta, lambda, h, coefficients[0], normfactor);
-                    av_new = (1 - damping) * numerator_av(beta, lambda, h, coefficients[1]) / den + 
-                             damping * edges[pos].cond_av[k];
+                    av_new = damping * numerator_av(beta, lambda, h, coefficients[1]) / den + 
+                             (1 - damping) * edges[pos].cond_av[k];
                 }
                 
-                chi_cav_new = damping * edges[pos].chi_cav[k];
+                chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -558,7 +558,7 @@ double average_chi_cav_sqr(long M, Tedge *edges){
 
 int convergence(long M, double beta, double lambda, Tedge *edges, double tol, 
                 int max_iter, bool &divergence, double hmax, double **coefficients, 
-                long sequence[], double damping, double maximum=1e10){
+                long sequence[], double damping, double maximum=1e10, int min_consecutive=5){
     double delta = tol + 1;
     int iter = 0;
 
@@ -569,14 +569,19 @@ int convergence(long M, double beta, double lambda, Tedge *edges, double tol,
         }
     }
 
-    while (delta > tol && iter < max_iter){
+    int consecutive = 0;
+    while (consecutive < min_consecutive && iter < max_iter){
         delta = new_averages(M, beta, lambda, edges, tol, hmax, coefficients, iter, sequence, damping);
         iter++;
         if (isinf(delta) || isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
         }
-        // cout << iter << "\t" << delta << endl;
+        if (delta < tol){
+            consecutive++;
+        }else{
+            consecutive = 0;
+        }
     }
     divergence = false;
     return iter;
@@ -634,19 +639,19 @@ void print_results(double av, int iter, Tnode *nodes, Tedge *edges, long N, long
     double av_chi_cav_sqr = average_chi_cav_sqr(M, edges);
     if (divergence){
         cout << iter << "\t" << "diverges" << "\t" << 
-                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
-                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
-                av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
                 count_dead << "\t" << seed << "\t" << same_fixed_point << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << 
-                av_cav << "\t" << sqrt((av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
-                av_chi_cav << "\t" << sqrt((av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
-                av << "\t" << sqrt((av_sqr - av * av) / N) << "\t" << 
-                av_chi << "\t" << sqrt((av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
                 counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
                 count_dead << "\t" << seed << "\t" << same_fixed_point << endl;
     }
