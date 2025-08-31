@@ -1,0 +1,102 @@
+__author__ = 'david'
+
+import numpy as np
+import os
+import fnmatch
+
+
+
+def filter_files(path, eps, N, c, avn0, tol, max_iter, damping, nseq):
+    files_mu_sigma = []
+
+    # Define the pattern for matching filenames
+    pattern = f'IBMF_T0_seq_RRG_PD_Lotka_Volterra_final_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_*_sigma_*_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt'
+
+    # Iterate through the files in the specified directory
+    for filename in os.listdir(path):
+        if fnmatch.fnmatch(filename, pattern):
+            parts = filename.split('_')
+            files_mu_sigma.append((filename, float(parts[17]), float(parts[19])))
+    sorted_pairs = sorted(files_mu_sigma, key=lambda x: (x[1], x[2]))  # Sort by mu value
+    return sorted_pairs
+
+
+def summary_statistics(path, filename):
+    fin = open(f'{path}/{filename}', 'r')
+    all_lines = fin.readlines()
+    fin.close()
+    if len(all_lines) > 0:
+        av_time = 0.0
+        av_num_div = 0.0
+        samples_with_deaths = 0
+        samples_div_m = 0
+        samples_multiple_eq = 0
+        av_m = 0.0
+        av_m_sqr = 0.0
+        for line in all_lines:
+            line_split = line.split()
+            av_time += int(line_split[0])
+            av_num_div += int(line_split[4])
+            if line_split[1] != "1":
+                samples_div_m += 1
+            if line_split[7] != "1":
+                samples_multiple_eq += 1
+            if int(line_split[5]) > 0:
+                samples_with_deaths += 1
+            av_m += float(line_split[2])
+            av_m_sqr += float(line_split[2]) * float(line_split[2])
+        av_time /= len(all_lines)
+        av_num_div /= len(all_lines)
+        av_m /= len(all_lines)
+        av_m_sqr /= len(all_lines)
+        std_av_m = np.sqrt(abs(av_m_sqr - av_m * av_m))
+        return av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, True
+    else:
+        print(f"No data found in file {filename}. Returning zeros.")
+        return 0.0, 0.0, 0, 0, 0, 0.0, 0.0, False
+
+
+def get_all_vals(path, eps, N, c, avn0, tol, max_iter, damping, nseq):
+    # Find all files that match the pattern
+    sorted_data = filter_files(path, eps, N, c, avn0, tol, max_iter, damping, nseq)
+    vals_list = []
+    for filename, mu, sigma in sorted_data:
+        av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, found = summary_statistics(path, filename)
+        if found:
+            vals_list.append((mu, sigma, av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m))
+        print(f'Processed  mu={mu}   sigma={sigma}')
+    return vals_list
+
+
+
+
+def print_summary(path_in, path_out, eps, N, c, avn0, tol, max_iter, ndigits, damping, nseq):
+    fout = open(f'{path_out}/IBMF_T0_seq_RRG_PD_Lotka_Volterra_summary_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
+    fout.write("# mu sigma av_time av_div samples_div samples_multiple_eq samples_with_deaths av_m std_m\n")
+    vals_list = get_all_vals(path_in, eps, N, c, avn0, tol, max_iter, damping, nseq)
+    for vals in vals_list:
+        fout.write(f"{vals[0]:.{ndigits}f} {vals[1]:.{ndigits}f} {vals[2]:.6f} {vals[3]:.6f} {vals[4]} {vals[5]} {vals[6]} {vals[7]:.6f} {vals[8]:.6f}\n")
+    fout.close()
+
+
+def main():
+    eps = "0.000"
+    avn0 = "0.08"
+    tol = "1e-6"
+    max_iter = "10000"
+    N = "1024"
+    c = "3"
+    damping = "1.0"
+    nseq = "10"
+
+    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
+    path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
+
+    ndigits = 3
+
+    print_summary(path_in, path_out, eps, N, c, avn0, tol, max_iter, ndigits, damping, nseq)
+    return 0
+
+
+if __name__ == '__main__':
+    main()
