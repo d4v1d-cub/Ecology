@@ -15,19 +15,19 @@ def is_number(s):
         return False
 
 
-def filter_files(path, eps, lda, h, N, c, T):
-    files_mu_sigma = []
+def filter_files(path, eps, lda, h, N, c, sigma):
+    files_T_mu = []
 
     # Define the pattern for matching filenames
-    pattern = f'Lotka-Volterra_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_mu_*_sigma_*_T_{T}_Equilibrium_Points.txt'
+    pattern = f'Lotka-Volterra_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_mu_*_sigma_{sigma}_T_*_Equilibrium_Points.txt'
 
     # Iterate through the files in the specified directory
     for filename in os.listdir(path):
         if fnmatch.fnmatch(filename, pattern):
             # Extract the unique strings from the filename
             parts = filename.split('_')
-            files_mu_sigma.append((filename, float(parts[14]), float(parts[16])))
-    sorted_data = sorted(files_mu_sigma, key=lambda x: (x[1], x[2]))  # Sort by mu value
+            files_T_mu.append((filename, float(parts[18]), float(parts[14])))
+    sorted_data = sorted(files_T_mu, key=lambda x: (x[1], x[2]))  # Sort by mu value
     return sorted_data
 
 
@@ -81,45 +81,45 @@ def summary_statistics(path, filename, thr=10):
         return 0.0, 0.0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, False
 
 
-def get_all_vals(path, eps, lda, h, N, c, T):
+def get_all_vals(path, eps, lda, h, N, c, sigma):
     # Find all files that match the pattern
-    sorted_data = filter_files(path, eps, lda, h, N, c, T)
+    sorted_data = filter_files(path, eps, lda, h, N, c, sigma)
     vals_list = []
-    for filename, mu, sigma in sorted_data:
+    for filename, T, mu in sorted_data:
         av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples, found = summary_statistics(path, filename)
         if found:
-            vals_list.append((mu, sigma, av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples))
-        print(f'Processed mu={mu}   sigma={sigma}')
+            vals_list.append((T, mu, av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples))
+        print(f'Processed T={T}   mu={mu}')
     return vals_list
 
 
 
 
-def print_summary(path_in, path_out, eps, lda, h, N, c, T, ndigits):
-    fout = open(f'{path_out}/Lotka-Volterra_summary_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_T_{T}.txt', 'w')
-    fout.write("#mu sigma av_time av_div samples_div samples_deaths av_ni std_av_ni av_std_ni std_av_std_ni nsamples\n")
-    vals_list = get_all_vals(path_in, eps, lda, h, N, c, T)
+def print_summary(path_in, path_out, eps, lda, h, N, c, sigma, ndigits):
+    fout = open(f'{path_out}/Lotka-Volterra_summary_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_sigma_{sigma}.txt', 'w')
+    fout.write("#mu sigma av_time av_div samples_div av_ni std_av_ni av_std_ni std_av_std_ni nsamples\n")
+    vals_list = get_all_vals(path_in, eps, lda, h, N, c, sigma)
     for vals in vals_list:
-        mu, sigma, av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples = vals
-        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {av_div:.6f} {samples_div} {samples_deaths} {av_ni:.6f} {std_av_ni:.6f} {av_std_ni:.6f} {std_av_std_ni:.6f} {nsamples}\n")
+        T, mu, av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples = vals
+        fout.write(f"{T:.{ndigits}f} {mu:.{ndigits}f} {av_time:.6f} {av_div:.6f} {samples_div} {samples_deaths} {av_ni:.6f} {std_av_ni:.6f} {av_std_ni:.6f} {std_av_std_ni:.6f} {nsamples}\n")
     fout.close()
 
 
 def main():
-    eps = "0.0"
+    eps = "1.0"
     lda = "1e-06"
     N = "256"
     c = "3.00"
     h = "0.001"
-    T = "0.0"
+    sigma = "0.0"
 
-    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/AllData/T0/"
+    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/AllData/sigma0/"
     path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
 
     ndigits = 3
 
 
-    print_summary(path_in, path_out, eps, lda, h, N, c, T, ndigits)
+    print_summary(path_in, path_out, eps, lda, h, N, c, sigma, ndigits)
     return 0
 
 

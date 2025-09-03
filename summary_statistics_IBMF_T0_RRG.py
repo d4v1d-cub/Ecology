@@ -43,11 +43,11 @@ def summary_statistics(path, filename):
         av_num_div /= len(all_lines)
         av_m /= len(all_lines)
         av_m_sqr /= len(all_lines)
-        std_av_m = np.sqrt(av_m_sqr - av_m * av_m)
-        return av_time, av_num_div, samples_div_m, av_m, std_av_m, True
+        std_av_m = np.sqrt(abs(av_m_sqr - av_m * av_m))
+        return av_time, av_num_div, samples_div_m, av_m, std_av_m, len(all_lines), True
     else:
         print(f"No data found in file {filename}. Returning zeros.")
-        return 0.0, 0.0, 0, 0.0, 0.0, False
+        return 0.0, 0.0, 0, 0.0, 0.0, 0, False
 
 
 def get_all_vals(path, eps, N, c, avn0, tol, max_iter):
@@ -55,9 +55,9 @@ def get_all_vals(path, eps, N, c, avn0, tol, max_iter):
     sorted_data = filter_files(path, eps, N, c, avn0, tol, max_iter)
     vals_list = []
     for filename, mu, sigma in sorted_data:
-        av_time, av_num_div, samples_div_m, av_m, std_av_m, found = summary_statistics(path, filename)
+        av_time, av_num_div, samples_div_m, av_m, std_av_m, nsamples, found = summary_statistics(path, filename)
         if found:
-            vals_list.append((mu, sigma, av_time, av_num_div, samples_div_m, av_m, std_av_m))
+            vals_list.append((mu, sigma, av_time, av_num_div, samples_div_m, av_m, std_av_m, nsamples))
         print(f'Processed  mu={mu}   sigma={sigma}')
     return vals_list
 
@@ -66,10 +66,11 @@ def get_all_vals(path, eps, N, c, avn0, tol, max_iter):
 
 def print_summary(path_in, path_out, eps, N, c, avn0, tol, max_iter, ndigits):
     fout = open(f'{path_out}/IBMF_T0_RRG_PD_Lotka_Volterra_summary_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}.txt', 'w')
-    fout.write("# mu sigma av_time av_div samples_div av_m std_m\n")
+    fout.write("# mu sigma av_time av_div samples_div av_m std_m nsamples\n")
     vals_list = get_all_vals(path_in, eps, N, c, avn0, tol, max_iter)
     for vals in vals_list:
-        fout.write(f"{vals[0]:.{ndigits}f} {vals[1]:.{ndigits}f} {vals[2]:.6f} {vals[3]:.6f} {vals[4]} {vals[5]:.6f} {vals[6]:.6f}\n")
+        mu, sigma, av_time, av_num_div, samples_div_m, av_m, std_av_m, nsamples = vals
+        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {av_num_div:.6f} {samples_div_m} {av_m:.6f} {std_av_m:.6f} {nsamples}\n")
     fout.close()
 
 

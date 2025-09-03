@@ -5,7 +5,7 @@ import numpy as np
 
 
 
-def find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, nsamples):
+def find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits):
     fout = open(f'{path}/GMF_T0_RRG_PD_Lotka_Volterra_transitions_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}.txt', 'w')
     
     fin = open(f'{path}/GMF_T0_RRG_PD_Lotka_Volterra_summary_av0_{avn0}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}.txt', 'r')
@@ -25,6 +25,7 @@ def find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, nsamples):
 
         num_div_m = int(line_split[5])
         num_div_chi = int(line_split[6])
+        nsamples = int(line_split[-1])
 
         if num_div_m >= nsamples / 2:
             if not mu in transition_found_m:
@@ -79,9 +80,8 @@ def main():
     path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
 
     ndigits = 3
-    nsamples = 10000
 
-    find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, nsamples)
+    find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits)
 
     return 0
 

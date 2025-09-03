@@ -1,7 +1,7 @@
 __author__ = 'david'
 
 
-def find_transition(lines, nsamples, position):
+def find_transition(lines, position):
     index = 0
     transitions = {}
     transition_found = {}
@@ -11,6 +11,7 @@ def find_transition(lines, nsamples, position):
         par_trans = float(line_split[1])
 
         num = int(line_split[position])
+        nsamples = int(line_split[-1])
 
         if num >= nsamples / 2:
             if not par_key in transition_found:
@@ -31,7 +32,7 @@ def find_transition(lines, nsamples, position):
 
 
 
-def find_all_trans(path, lda, eps, sigma, N, c, avn0, tol, max_iter, ndigits, nsamples, damping, nseq):
+def find_all_trans(path, lda, eps, sigma, N, c, avn0, tol, max_iter, ndigits, damping, nseq):
     fout = open(f'{path}/IBMF_seq_RRG_PD_Lotka_Volterra_transitions_av0_{avn0}_lambda_{lda}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_sigma_{sigma}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
     
     fin = open(f'{path}/IBMF_seq_RRG_PD_Lotka_Volterra_summary_av0_{avn0}_lambda_{lda}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_sigma_{sigma}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'r')
@@ -39,9 +40,9 @@ def find_all_trans(path, lda, eps, sigma, N, c, avn0, tol, max_iter, ndigits, ns
 
     lines = fin.readlines()
 
-    transitions_m = find_transition(lines, nsamples, 4)
-    transitions_multiple_eq = find_transition(lines, nsamples, 5)
-    transitions_deaths = find_transition(lines, nsamples, 6)
+    transitions_m = find_transition(lines, 4)
+    transitions_multiple_eq = find_transition(lines, 5)
+    transitions_deaths = find_transition(lines, 6)
     
     keys_list = [transitions_m.keys(), transitions_multiple_eq.keys(), transitions_deaths.keys()]
     T_list = sorted(set().union(*keys_list))
@@ -77,9 +78,8 @@ def main():
     path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
 
     ndigits = 3
-    nsamples = 1000
 
-    find_all_trans(path, lda, eps, sigma, N, c, avn0, tol, max_iter, ndigits, nsamples, damping, nseq)
+    find_all_trans(path, lda, eps, sigma, N, c, avn0, tol, max_iter, ndigits, damping, nseq)
 
     return 0
 
