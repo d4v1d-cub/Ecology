@@ -15,11 +15,11 @@ def is_number(s):
         return False
 
 
-def filter_files(path, eps, lda, h, N, c, T):
+def filter_files(path, eps, lda, tol_fixed_point, N, c, T):
     files_mu_sigma = []
 
     # Define the pattern for matching filenames
-    pattern = f'Lotka-Volterra_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_mu_*_sigma_*_T_{T}_Equilibrium_Points.txt'
+    pattern = f'Lotka-Volterra_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_mu_*_sigma_*_T_{T}_Phase_Diagrama.txt'
 
     # Iterate through the files in the specified directory
     for filename in os.listdir(path):
@@ -42,66 +42,50 @@ def read_carefully(str_val, thr):
         return thr
 
 
-def summary_statistics(path, filename, thr=10):
+def summary_statistics(path, filename):
     fin = open(f'{path}/{filename}', 'r')
     fin.readline()  # Skip header line
     all_lines = fin.readlines()
     fin.close()
     if len(all_lines) > 0:
         av_time = 0.0
-        av_div = 0.0
         samples_div = 0
-        samples_deaths = 0
-        av_ni = 0.0
-        std_av_ni = 0.0
-        av_std_ni = 0.0
-        std_av_std_ni = 0.0
+        samples_multiple_eq = 0
         for line in all_lines:
             line_split = line.split()
             av_time += float(line_split[3])
-            ni_div = int(line_split[4])
-            av_div += ni_div
-            if ni_div > 0:
+            if line_split[8] == "1":
                 samples_div += 1
-            if float(line_split[5]) > 0:
-                samples_deaths += 1
-            av_ni += read_carefully(line_split[6], thr)
-            std_av_ni += read_carefully(line_split[7], thr)
-            av_std_ni += read_carefully(line_split[8], thr)
-            std_av_std_ni += read_carefully(line_split[9], thr)
+            if line_split[10] == "1" or line_split[8] == "1":
+                samples_multiple_eq += 1
         av_time /= len(all_lines)
-        av_div /= len(all_lines)
-        av_ni /= len(all_lines)
-        std_av_ni /= len(all_lines)
-        av_std_ni /= len(all_lines)
-        std_av_std_ni /= len(all_lines)
-        return av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, len(all_lines), True
+        return av_time, samples_div, samples_multiple_eq, len(all_lines), True
     else:
         print(f"No data found in file {filename}. Returning zeros.")
-        return 0.0, 0.0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, False
+        return 0.0, 0, 0, 0, False
 
 
-def get_all_vals(path, eps, lda, h, N, c, T):
+def get_all_vals(path, eps, lda, tol_fixed_point, N, c, T):
     # Find all files that match the pattern
-    sorted_data = filter_files(path, eps, lda, h, N, c, T)
+    sorted_data = filter_files(path, eps, lda, tol_fixed_point, N, c, T)
     vals_list = []
     for filename, mu, sigma in sorted_data:
-        av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples, found = summary_statistics(path, filename)
+        av_time, samples_div, samples_multiple_eq, nsamples, found = summary_statistics(path, filename)
         if found:
-            vals_list.append((mu, sigma, av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples))
+            vals_list.append((mu, sigma, av_time, samples_div, samples_multiple_eq, nsamples))
         print(f'Processed mu={mu}   sigma={sigma}')
     return vals_list
 
 
 
 
-def print_summary(path_in, path_out, eps, lda, h, N, c, T, ndigits):
-    fout = open(f'{path_out}/Lotka-Volterra_summary_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_T_{T}.txt', 'w')
-    fout.write("#mu sigma av_time av_div samples_div samples_deaths av_ni std_av_ni av_std_ni std_av_std_ni nsamples\n")
-    vals_list = get_all_vals(path_in, eps, lda, h, N, c, T)
+def print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits):
+    fout = open(f'{path_out}/Lotka-Volterra_summary_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_T_{T}.txt', 'w')
+    fout.write("#mu sigma av_time samples_div samples_mult_eq nsamples\n")
+    vals_list = get_all_vals(path_in, eps, lda, tol_fixed_point, N, c, T)
     for vals in vals_list:
-        mu, sigma, av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples = vals
-        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {av_div:.6f} {samples_div} {samples_deaths} {av_ni:.6f} {std_av_ni:.6f} {av_std_ni:.6f} {std_av_std_ni:.6f} {nsamples}\n")
+        mu, sigma, av_time, samples_div, samples_multiple_eq, nsamples = vals
+        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {samples_div} {samples_multiple_eq} {nsamples}\n")
     fout.close()
 
 
@@ -110,8 +94,8 @@ def main():
     lda = "1e-06"
     N = "256"
     c = "3.00"
-    h = "0.001"
     T = "0.0"
+    tol_fixed_point = "1e-08"
 
     path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/AllData/T0/"
     path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
@@ -119,7 +103,7 @@ def main():
     ndigits = 3
 
 
-    print_summary(path_in, path_out, eps, lda, h, N, c, T, ndigits)
+    print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits)
     return 0
 
 
