@@ -97,7 +97,7 @@ def get_all_vals(path, eps, lda, h, N, c, sigma):
 
 def print_summary(path_in, path_out, eps, lda, h, N, c, sigma, ndigits):
     fout = open(f'{path_out}/Lotka-Volterra_summary_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_h_{h}_N_{N}_c_{c}_sigma_{sigma}.txt', 'w')
-    fout.write("#mu sigma av_time av_div samples_div av_ni std_av_ni av_std_ni std_av_std_ni nsamples\n")
+    fout.write("#mu sigma av_time av_div samples_div samples_deaths av_ni std_av_ni av_std_ni std_av_std_ni nsamples\n")
     vals_list = get_all_vals(path_in, eps, lda, h, N, c, sigma)
     for vals in vals_list:
         T, mu, av_time, av_div, samples_div, samples_deaths, av_ni, std_av_ni, av_std_ni, std_av_std_ni, nsamples = vals

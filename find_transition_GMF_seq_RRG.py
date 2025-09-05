@@ -76,7 +76,7 @@ def main():
     max_iter = "10000"
     N = "1024"
     c = "3"
-    damping = "1.0"
+    damping = "0.2"
     nseq = "10"
 
     path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
