@@ -340,24 +340,7 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
 
     for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
-            if (edges[e].chi_cav_converged[k]){
-                chi_cav_new = edges[e].chi_cav[k];
-                if (edges[e].var_cav[k] > 0){
-                    edges[e].var_cav_positive[k] = true;   
-                    Q = sqrt(edges[e].var_cav[k]);
-                    h = edges[e].fields_cav[k] * edges[e].var_cav[k];
-                    h_div_Q = h / Q;
-                    if (h_div_Q > hmax){
-                        av_new = damping * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + 
-                                 (1 - damping) * edges[e].cond_av[k];
-                    }else if (h_div_Q < 0){
-                        av_new = (1 - damping) * edges[e].cond_av[k];
-                    }else{
-                        den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
-                        av_new = damping * Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den + (1 - damping) * edges[e].cond_av[k];
-                    }
-                }
-            }else if (edges[e].var_cav[k] > 0){
+            if (edges[e].var_cav[k] > 0){
                 edges[e].var_cav_positive[k] = true;   
                 Q = sqrt(edges[e].var_cav[k]);
                 h = edges[e].fields_cav[k] * edges[e].var_cav[k];
@@ -398,11 +381,7 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
             }
 
             delta_av = fabs(av_new - edges[e].cond_av[k]);
-            if (edges[e].var_cav_positive[k]){
-                delta_chi_cav = fabs(chi_cav_new - edges[e].chi_cav[k]);
-            }else{
-                delta_chi_cav = 1;
-            }
+            delta_chi_cav = fabs(chi_cav_new - edges[e].chi_cav[k]);
 
             if (delta_av > delta){
                 delta = delta_av;
@@ -411,8 +390,10 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 delta = delta_chi_cav;
             }
 
-            if (!edges[e].chi_cav_converged[k] && delta_chi_cav < tol){
+            if (delta_chi_cav < tol){
                 edges[e].chi_cav_converged[k] = true;
+            }else{
+                edges[e].chi_cav_converged[k] = false;
             }
 
             edges[e].cond_av[k] = av_new;

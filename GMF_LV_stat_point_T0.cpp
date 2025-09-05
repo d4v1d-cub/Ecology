@@ -251,18 +251,7 @@ double new_averages(long M, Tedge *edges, double tol, int iter, double damping,
 
     for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
-            if (edges[e].chi_cav_converged[k]){
-                chi_cav_new = edges[e].chi_cav[k];
-                if (edges[e].var_cav[k] > 0){
-                    edges[e].var_cav_positive[k] = true;
-                    h = edges[e].fields_cav[k] * edges[e].var_cav[k];
-                    if (h > 0){
-                        av_new = damping * h + (1 - damping) * edges[e].cond_av[k];
-                    }else {
-                        av_new = (1 - damping) * edges[e].cond_av[k];
-                    }
-                }
-            }else if (edges[e].var_cav[k] > 0){
+            if (edges[e].var_cav[k] > 0){
                 edges[e].var_cav_positive[k] = true;   
                 h = edges[e].fields_cav[k] * edges[e].var_cav[k];
                 if (h > 0){
@@ -288,11 +277,7 @@ double new_averages(long M, Tedge *edges, double tol, int iter, double damping,
             }
 
             delta_av = fabs(av_new - edges[e].cond_av[k]);
-            if (edges[e].var_cav_positive[k]){
-                delta_chi_cav = fabs(chi_cav_new - edges[e].chi_cav[k]);
-            }else{
-                delta_chi_cav = 1;
-            }
+            delta_chi_cav = fabs(chi_cav_new - edges[e].chi_cav[k]);
             
             if (delta_av > delta){
                 delta = delta_av;
@@ -301,8 +286,10 @@ double new_averages(long M, Tedge *edges, double tol, int iter, double damping,
                 delta = delta_chi_cav;
             }
 
-            if (!edges[e].chi_cav_converged[k] && delta_chi_cav < tol){
+            if (delta_chi_cav < tol){
                 edges[e].chi_cav_converged[k] = true;
+            }else{
+                edges[e].chi_cav_converged[k] = false;
             }
 
             edges[e].cond_av[k] = av_new;
