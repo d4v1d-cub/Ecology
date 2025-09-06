@@ -343,7 +343,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_T0_seq.out",
-            "args": ["1", "0.08", "1e-6", "10000", "0.0", "0.354", "0.000", "1", "5", "1e-2", "0.2", "1", "1024", "3"],
+            "args": ["1", "0.08", "1e-6", "10000", "0.0", "0.0", "0.5", "1", "5", "1e-2", "1.0", "1", "1024", "3"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],

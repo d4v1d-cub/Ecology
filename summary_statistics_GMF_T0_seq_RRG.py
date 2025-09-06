@@ -41,11 +41,10 @@ def summary_statistics(path, filename):
             line_split = line.split()
             av_time += int(line_split[0])
             n_div_m = int(line_split[10])
-            n_neg_chi = int(line_split[11])
             n_div_chi = int(line_split[12])
             av_num_div_m += n_div_m
-            av_num_div_chi += max(n_neg_chi, n_div_chi)
-            if n_neg_chi > 0 or n_div_chi > 0:
+            av_num_div_chi += n_div_chi
+            if n_div_chi > 0:
                 samples_div_chi += 1
             if n_div_m > 0:
                 samples_div_m += 1
