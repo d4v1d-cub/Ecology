@@ -85,9 +85,9 @@ def main():
     avn0 = "0.08"
     tol = "1e-6"
     max_iter = "10000"
-    N = "1024"
+    N = "128"
     c = "3"
-    damping = "0.2"
+    damping = "1.0"
     nseq = "10"
 
     path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"

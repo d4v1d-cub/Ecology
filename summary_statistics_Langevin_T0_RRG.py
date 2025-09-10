@@ -44,22 +44,24 @@ def read_carefully(str_val, thr):
 
 def summary_statistics(path, filename):
     fin = open(f'{path}/{filename}', 'r')
-    fin.readline()  # Skip header line
     all_lines = fin.readlines()
     fin.close()
     if len(all_lines) > 0:
         av_time = 0.0
         samples_div = 0
         samples_multiple_eq = 0
+        nsamples = 0
         for line in all_lines:
-            line_split = line.split()
-            av_time += float(line_split[3])
-            if line_split[8] == "1":
-                samples_div += 1
-            if line_split[10] == "1" or line_split[8] == "1":
-                samples_multiple_eq += 1
-        av_time /= len(all_lines)
-        return av_time, samples_div, samples_multiple_eq, len(all_lines), True
+            if not line.startswith('#'):
+                line_split = line.split()
+                av_time += float(line_split[3])
+                if line_split[8] == "1":
+                    samples_div += 1
+                if line_split[10] == "1" or line_split[8] == "1":
+                    samples_multiple_eq += 1
+                nsamples += 1
+        av_time /= nsamples
+        return av_time, samples_div, samples_multiple_eq, nsamples, True
     else:
         print(f"No data found in file {filename}. Returning zeros.")
         return 0.0, 0, 0, 0, False
@@ -92,7 +94,7 @@ def print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits
 def main():
     eps = "0.0"
     lda = "1e-06"
-    N = "256"
+    N = "1024"
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"

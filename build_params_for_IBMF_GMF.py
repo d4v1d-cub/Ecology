@@ -16,37 +16,46 @@ def read_transitions(filein, pos_par_fixed, pos_par_trans_1, pos_par_trans_2, ev
         par_fixed = float(line_split[pos_par_fixed])
         par_trans_min = float(line_split[pos_par_trans_1])
         par_trans_max = float(line_split[pos_par_trans_2])
-        transitions[par_fixed] = (par_trans_min, par_trans_max)
+        if par_trans_min != par_trans_max:
+            transitions[par_fixed] = (par_trans_min, par_trans_max)
     return transitions
         
 
         
 def print_params(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, 
                  pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
-                 eps, seed_block, nsampl_each, every=1, add_to_the_end=0, dpar_fixed=0, 
-                 shift_below_end=0, shift_above_end=0):
+                 par_fixed_list, eps, seed_block, nsampl_each):
     transitions = read_transitions(f'{path_in}/{filein}', pos_par_fixed, 
-                                         pos_par_trans_1, pos_par_trans_2, every)
+                                         pos_par_trans_1, pos_par_trans_2)
     counter = 0
+    par_in_trans = transitions.keys()
     with open(f'{path_out}/{fileout}', 'w') as fo:
-        for par_fixed in transitions:
-            trans_min, trans_max = transitions[par_fixed]
-            min_val = max(0, trans_min - shift_below)
-            max_val = trans_max + shift_above
-            par_list = np.arange(min_val, max_val + dpar_trans / 2, dpar_trans)
-            for par in par_list:
-                fo.write(f"{eps} {par_fixed:.3f} {par:.3f} {seed_block} {nsampl_each}\n")
-                counter += 1
-        par_fixed = max(transitions.keys())
-        trans_min, trans_max = transitions[par_fixed]
-        min_val = max(0, trans_min - shift_below_end)
-        max_val = trans_max + shift_above_end
-        par_list = np.arange(min_val, max_val + dpar_trans / 2, dpar_trans)
-        for i in range(add_to_the_end):
-            par_fixed += dpar_fixed
-            for par in par_list:
-                fo.write(f"{eps} {par_fixed:.3f} {par:.3f} {seed_block} {nsampl_each}\n")
-                counter += 1
+        for par_fixed in par_fixed_list:
+            if par_fixed in par_in_trans:
+                trans_min, trans_max = transitions[par_fixed]
+                min_val = max(0, trans_min - shift_below)
+                max_val = trans_max + shift_above
+                par_list = np.arange(min_val, max_val + dpar_trans / 2, dpar_trans)
+                for par in par_list:
+                    fo.write(f"{eps} {par_fixed:.3f} {par:.3f} {seed_block} {nsampl_each}\n")
+                    counter += 1
+            else:
+                closest_above = max(par_in_trans)
+                closest_below = min(par_in_trans)
+                for par in par_in_trans:
+                    if par < par_fixed and par > closest_below:
+                        closest_below = par
+                    if par > par_fixed and par < closest_above:
+                        closest_above = par
+                trans_above_min, trans_above_max = transitions[closest_above]
+                trans_below_min, trans_below_max = transitions[closest_below]
+                min_val = min(trans_above_min, trans_below_min)
+                max_val = max(trans_above_max, trans_below_max)
+                par_list = np.arange(min_val, max_val + dpar_trans / 2, dpar_trans)
+                for par in par_list:
+                    fo.write(f"{eps} {par_fixed:.3f} {par:.3f} {seed_block} {nsampl_each}\n")
+                    counter += 1
+        
     print(f"Parameters saved to {path_out}/{fileout}")
     print(f"Total parameters: {counter}")
 
@@ -73,95 +82,39 @@ def print_params_ref_max(path_in, filein, path_out, fileout, dpar_trans, pos_par
 
 def main():
 
-    shift_below = 0.02
-    shift_above = 0.02
+    dpar_trans = 0.004
+    shift_below = -dpar_trans
+    shift_above = -dpar_trans
+    ndigits = 3
 
+    eps = "0.000"
     seed_block = "1"
-    nsampl_each = "1000"
+    nsampl_each = "10000"
 
     # EPSILON = "0.0" (ASYMMETRIC)  params: (mu, sigma)
 
     # IBMF
-    # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    # filein = f'IBMF_T0_seq_RRG_PD_Lotka_Volterra_transitions_av0_0.08_tol_1e-6_maxiter_10000_eps_0.000_N_1024_c_3_damping_0.2_nseq_10.txt'
+    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    N_list = [128, 256, 512, 2048, 4096]
+    dpar_fixed = 0.003
+    par_fixed_start = 0.000
+    par_fixed_end = 0.354
+    par_fixed_list = np.arange(par_fixed_start, par_fixed_end + dpar_fixed / 2, dpar_fixed)
+    for i in range(len(par_fixed_list)):
+        par_fixed_list[i] = round(par_fixed_list[i], ndigits)
 
-    # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/IBMF"
-    # fileout = "params_IBMF_T0_seq_phase_diagram_eps0_1.txt"
-    # pos_par_fixed = 0
-    # pos_par_trans_1 = 3
-    # pos_par_trans_2 = 4
-    # eps = "0.000"
-    # every = 1
-    # add_to_the_end = 0
-    # dpar_fixed = 0
-    # shift_below_end = 0
-    # shift_above_end = 0
-    # dpar_trans = 0.004
-    
+    for N in N_list:
+        filein = f'IBMF_T0_seq_RRG_PD_Lotka_Volterra_transitions_av0_0.08_tol_1e-6_maxiter_10000_eps_0.000_N_{N}_c_3_damping_1.0_nseq_10.txt'
 
-    # GMF
-    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
-    filein = f'Lotka-Volterra_transition_epsilon_0.0_Partially_AsymGauss_lambda_1e-06_tol_1e-08_N_256_c_3.00_T_0.0.txt'
+        path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/IBMF"
+        fileout = f'params_IBMF_T0_seq_phase_diagram_eps0_N_{N}.txt'
+        pos_par_fixed = 0
+        pos_par_trans_1 = 3
+        pos_par_trans_2 = 4
 
-    path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/GMF"
-    fileout = "params_GMF_T0_seq_phase_diagram_eps0_1.txt"
-    pos_par_fixed = 0
-    pos_par_trans_1 = 3
-    pos_par_trans_2 = 4
-    eps = "0.000"
-    every = 1
-    add_to_the_end = 0
-    dpar_fixed = 0
-    shift_below_end = 0
-    shift_above_end = 0
-    dpar_trans = 0.004
-
-    
-    
-
-    # EPSILON = "1.0" (SYMMETRIC) params: (T, mu)
-
-    # IBMF
-    # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    # filein = 'IBMF_seq_RRG_PD_Lotka_Volterra_transitions_av0_0.08_lambda_1e-6_tol_1e-6_maxiter_10000_eps_1.000_sigma_0.000_N_1024_c_3_damping_1.0_nseq_10.txt'
-    # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/IBMF"
-    # fileout = "params_IBMF_seq_phase_diagram_sigma0_1.txt"
-    # pos_par_fixed = 0
-    # pos_par_trans_1 = 3
-    # pos_par_trans_2 = 4
-    # eps = "1.000"
-    # every = 1
-    # add_to_the_end = 0
-    # dpar_fixed = 0
-    # shift_below_end = 0
-    # shift_above_end = 0
-    # dpar_trans = 0.002
-
-    # GMF
-    # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
-    # filein = 'GMF_seq_RRG_PD_Lotka_Volterra_transitions_av0_0.08_lambda_1e-6_tol_1e-6_maxiter_10000_eps_1.000_sigma_0.000_N_1024_c_3_damping_1.0_nseq_10.txt'
-    # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/GMF"
-    # fileout = "params_GMF_seq_phase_diagram_sigma0_1.txt"
-    # pos_par_fixed = 0
-    # pos_par_trans_1 = 5
-    # pos_par_trans_2 = 6
-    # eps = "1.000"
-    # every = 1
-    # add_to_the_end = 0
-    # dpar_fixed = 0
-    # shift_below_end = 0
-    # shift_above_end = 0
-    # dpar_trans = 0.02
-    
-
-    print_params(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, pos_par_trans_1, 
-                 pos_par_trans_2, shift_below, shift_above, eps, seed_block, nsampl_each, 
-                 every, add_to_the_end, dpar_fixed, shift_below_end, shift_above_end)
-    
-
-    # print_params_ref_max(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, pos_par_trans_1, 
-    #                      pos_par_trans_2, shift_below, shift_above, eps, seed_block, nsampl_each, 
-    #                      every, dpar_trans)
+        print_params(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, 
+                    pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
+                    par_fixed_list, eps, seed_block, nsampl_each)
     
 
     return 0
