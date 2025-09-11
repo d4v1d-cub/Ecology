@@ -22,8 +22,9 @@ def find_transition(lines, position):
         line_split_below = lines[index + 1].split()
         key_below = float(line_split_below[0])
         if key_below == par_key:
+            num_samples_below = int(line_split_below[-1])
             num_below = int(line_split_below[position])
-            if num_below >= nsamples / 2 and num < nsamples / 2:
+            if num_below >= num_samples_below / 2 and num < nsamples / 2:
                 par_trans_below = float(line_split_below[1])
                 transitions[par_key].append((par_trans, par_trans_below))
         index += 1
@@ -64,7 +65,7 @@ def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
 def main():
     eps = "0.0"
     lda = "1e-06"
-    N = "1024"
+    N = "128"
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"

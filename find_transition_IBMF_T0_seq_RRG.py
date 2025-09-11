@@ -22,8 +22,9 @@ def find_transition(lines, position):
         key_below = float(line_split_below[0])
         if key_below == par_key:
             if not par_key in transition_found:
+                nsamples_below = int(line_split_below[-1])
                 num_below = int(line_split_below[position])
-                if num_below >= nsamples / 2 and num < nsamples / 2:
+                if num_below >= nsamples_below / 2 and num < nsamples / 2:
                     transition_found[par_key] = True
                     par_trans_below = float(line_split_below[1])
                     transitions[par_key] = (par_trans, par_trans_below)

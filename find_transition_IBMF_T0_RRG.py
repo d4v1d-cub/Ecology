@@ -26,8 +26,9 @@ def find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits):
         line_split_below = lines[index + 1].split()
         mu_below = float(line_split_below[0])
         if mu_below == mu and not mu in transition_found:
+            num_samples_below = int(line_split_below[-1])
             num_div_below = int(line_split_below[4])
-            if num_div_below >= nsamples / 2 and num_div < nsamples / 2:
+            if num_div_below >= num_samples_below / 2 and num_div < nsamples / 2:
                 transition_found[mu] = True
                 sigma_below = float(line_split_below[1])
                 fout.write(f"{mu:.{ndigits}f}\t{sigma:.{ndigits}f}\t{sigma_below:.{ndigits}f}\n")
