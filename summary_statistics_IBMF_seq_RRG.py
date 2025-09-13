@@ -81,13 +81,13 @@ def print_summary(path_in, path_out, lda, eps, sigma, N, c, avn0, tol, max_iter,
 
 
 def main():
-    eps = "1.000"
+    eps = "0.000"
     sigma = "0.000"
     avn0 = "0.08"
     lda = "1e-6"
     tol = "1e-6"
     max_iter = "10000"
-    N = "1024"
+    N = "2048"
     c = "3"
     damping = "1.0"
     nseq = "10"

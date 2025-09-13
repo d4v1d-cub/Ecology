@@ -85,7 +85,7 @@ def main():
     avn0 = "0.08"
     tol = "1e-6"
     max_iter = "10000"
-    N = "128"
+    N = "4096"
     c = "3"
     damping = "1.0"
     nseq = "10"

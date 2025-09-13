@@ -71,7 +71,7 @@ def main():
     lda = "1e-6"
     tol = "1e-6"
     max_iter = "10000"
-    N = "1024"
+    N = "2048"
     c = "3"
     damping = "1.0"
     nseq = "10"

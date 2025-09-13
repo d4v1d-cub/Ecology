@@ -116,7 +116,10 @@ def main():
                     pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
                     par_fixed_list, eps, seed_block, nsampl_each)
         
-
+    
+    # EPSILON = "1.0" (SYMMETRIC)  params: (mu, sigma)
+    
+    # epsilon = "1.000"
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
     # dpar_fixed = 0.001
     # par_fixed_start = 0.001

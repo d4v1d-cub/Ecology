@@ -19,7 +19,7 @@ def filter_files(path, eps, lda, tol_fixed_point, N, c, T):
     files_mu_sigma = []
 
     # Define the pattern for matching filenames
-    pattern = f'Lotka-Volterra_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_mu_*_sigma_*_T_{T}_Phase_Diagrama.txt'
+    pattern = f'Lotka-Volterra_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_mu_*_sigma_*_T_{T}_Phase_Diagram*.txt'
 
     # Iterate through the files in the specified directory
     for filename in os.listdir(path):
@@ -94,7 +94,7 @@ def print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits
 def main():
     eps = "0.0"
     lda = "1e-06"
-    N = "4096"
+    N = "2048"
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"

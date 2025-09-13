@@ -14,7 +14,7 @@ def find_transition(lines, position):
         nsamples = int(line_split[-1])
 
         if num >= nsamples / 2:
-            if not par_key in transition_found:
+            if not par_key in transition_found and par_trans > 0:
                 transitions[par_key] = (0, par_trans)
                 transition_found[par_key] = True
         
@@ -70,7 +70,7 @@ def main():
     avn0 = "0.08"
     tol = "1e-6"
     max_iter = "10000"
-    N = "128"
+    N = "1024"
     c = "3"
     damping = "1.0"
     nseq = "10"
