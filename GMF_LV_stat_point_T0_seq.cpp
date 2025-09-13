@@ -230,7 +230,7 @@ double var_cav_in(long e, int k, Tedge *edges){
 
 
 double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[], 
-                    double damping, double normfactor = 1e-14){
+                    double damping, double normfactor = 1e-14, double maximum=1e6){
     double delta = 0, delta_av, delta_chi_cav, h, den, av_new, 
            chi_cav_new;
 
@@ -245,19 +245,15 @@ double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[],
                 h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                 if (h > 0){
                     av_new = damping * h + (1 - damping) * edges[pos].cond_av[k];
+                    chi_cav_new = damping * edges[pos].var_cav[k] + (1 - damping) * edges[pos].chi_cav[k];
                 }else if (h < 0){
                     av_new = (1 - damping) * edges[pos].cond_av[k];
+                    chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
                 }
-                chi_cav_new = damping * edges[pos].var_cav[k] + (1 - damping) * edges[pos].chi_cav[k];
             }else{
                 edges[pos].var_cav_positive[k] = false;
-                h = edges[pos].fields_cav[k];
-                if (h > 0){
-                    av_new = damping * h + (1 - damping) * edges[pos].cond_av[k];
-                }else if (h < 0){
-                    av_new = (1 - damping) * edges[pos].cond_av[k];
-                }
-                chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
+                av_new = damping * maximum + (1 - damping) * edges[pos].cond_av[k];
+                chi_cav_new = damping * maximum + (1 - damping) * edges[pos].chi_cav[k];
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -266,7 +262,11 @@ double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[],
             }
 
             delta_av = fabs(av_new - edges[pos].cond_av[k]);
-            delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
+            if (edges[pos].var_cav_positive[k]){
+                delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
+            }else{
+                delta_chi_cav = 1;
+            }
             
             
             if (delta_av > delta){
@@ -333,18 +333,14 @@ double average(long N, Tnode *nodes, Tedge *edges, double normfactor = 1e-14){
             h = nodes[i].field * nodes[i].var;
             if (h > 0){
                 nodes[i].av = h;
+                nodes[i].chi = nodes[i].var;
             } else{
                 nodes[i].av = 0;
+                nodes[i].chi = 0;
             } 
-            nodes[i].chi = nodes[i].var;
         }else{
-            h = nodes[i].field;
-            if (h > 0){
-                nodes[i].av = h;
-            }else{
-                nodes[i].av = 0;
-            }
-            nodes[i].chi = nodes[i].var;
+            nodes[i].av = 0;
+            nodes[i].chi = 0;
         }
         
         av += nodes[i].av;

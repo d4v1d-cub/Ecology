@@ -164,11 +164,17 @@ double field_in(long i, Tnode *nodes){
 }
 
 
-bool comp_coefficients(double beta, double lambda, double **&coefficients, double maximum=1e10){
+bool comp_coefficients(double beta, double lambda, double **&coefficients, double *&gamma_vals, double maximum=1e10){
     bool gamma_diverges = false;
+    gamma_vals = new double[2];
     if (isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((1 + beta * lambda) / 2)) || 
         gsl_sf_gamma((1 + beta * lambda) / 2) > maximum){
         gamma_diverges = true;
+        gamma_vals[0] = sqrt(2 * M_PI / beta / lambda) * pow(beta * lambda / 2 / M_E, beta * lambda / 2);
+        gamma_vals[1] = sqrt(4 * M_PI / (1 + beta * lambda)) * pow((1 + beta * lambda) / 2 / M_E, (1 + beta * lambda) / 2);
+    }else{
+        gamma_vals[0] = gsl_sf_gamma(beta * lambda / 2);
+        gamma_vals[1] = gsl_sf_gamma((1 + beta * lambda) / 2);
     }
 
     coefficients = new double *[2];
@@ -197,7 +203,7 @@ bool comp_coefficients(double beta, double lambda, double **&coefficients, doubl
 }
 
 
-double find_divergence(double beta, double alpha, double hmax=100, double precision=1e-4, double maximum=1e10){
+double find_divergence_max(double beta, double alpha, double hmax=100, double precision=1e-4, double maximum=1e10){
     double val1, val2;
     val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * hmax * hmax / 2);
     val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * hmax * hmax / 2);
@@ -241,9 +247,41 @@ double denominator(double beta, double lambda, double hi, double *coefficients, 
 }
 
 
+double find_divergence_min(double beta, double lambda, double **coefficients, double hmin=-100, double precision=1e-4, double maximum=1e10){
+    double num, den;
+    num = numerator_av(beta, lambda, hmin, coefficients[1]);
+    den = denominator(beta, lambda, hmin, coefficients[0]);
+    
+    while (!(isnan(num) || isinf(num) || isnan(den) || isinf(den) || 
+             num > maximum || den > maximum || num < 0 || den < 0)){
+        hmin *= 2;
+        num = numerator_av(beta, lambda, hmin, coefficients[1]);
+        den = denominator(beta, lambda, hmin, coefficients[0]);   
+    }
+
+    double hmax = 0;
+    double h = (hmax + hmin) / 2;
+    while (hmax - hmin > precision){
+        num = numerator_av(beta, lambda, h, coefficients[1]);
+        den = denominator(beta, lambda, h, coefficients[0]); 
+        if (isnan(num) || isinf(num) || isnan(den) || isinf(den) || 
+             num > maximum || den > maximum || num < 0 || den < 0){
+            hmin = h;
+        }else{
+            hmax = h;
+        }
+        h = (hmax + hmin) / 2;
+    }
+
+    cerr << "Divergence found at h = " << hmin << endl;
+    cerr << "Last value to converge: " << hmax << endl;
+    return hmin;
+}
+
+
 double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol, 
-                    double hmax, double **coefficients, int iter, double damping, 
-                    double normfactor = 1e-14){
+                    double hmin, double hmax, double **coefficients, double *gamma_vals, 
+                    int iter, double damping, double normfactor = 1e-14){
     double var = 0, var_i;
     double av_new;
     for (long i = 0; i < N; i++){
@@ -251,11 +289,12 @@ double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol
             av_new = damping * nodes[i].field * (1 - 1.0 / beta / nodes[i].field / nodes[i].field + 
                                                  lambda / nodes[i].field / nodes[i].field) + 
                      (1 - damping) * nodes[i].av;                      
-        }else if (nodes[i].field < 0)
+        }else if (nodes[i].field < hmin)
         {
-            av_new = (1 - damping) * nodes[i].av;
-        }
-        else {
+            av_new = damping * lambda / fabs(nodes[i].field) + (1 - damping) * nodes[i].av;
+        }else if (nodes[i].field == 0){
+            av_new = damping * sqrt(2.0 / beta) * gamma_vals[1] / gamma_vals[0] + (1 - damping) * nodes[i].av;
+        }else {
             av_new = damping * numerator_av(beta, lambda, nodes[i].field, coefficients[1]) /
                      denominator(beta, lambda, nodes[i].field, coefficients[0], normfactor) +
                      (1 - damping) * nodes[i].av;
@@ -306,15 +345,17 @@ double average_sqr(long N, Tnode *nodes){
 
 
 int convergence(long N, double beta, double lambda, Tnode *nodes, double tol, 
-                 int max_iter, bool &divergence, double hmax, double **coefficients, 
-                 double damping, double maximum=1e10, int min_consecutive=5){
+                 int max_iter, bool &divergence, double hmin, double hmax, 
+                 double **coefficients, double *gamma_vals, double damping, 
+                 double maximum=1e10, int min_consecutive=5){
     double var = tol + 1;
     int iter = 0;
 
     comp_fields(N, nodes);
     int consecutive = 0;
     while (consecutive < min_consecutive && iter < max_iter){
-        var = new_averages(N, beta, lambda, nodes, tol, hmax, coefficients, iter, damping);
+        var = new_averages(N, beta, lambda, nodes, tol, hmin, hmax, coefficients, 
+                           gamma_vals, iter, damping);
         iter++;
         comp_fields(N, nodes);
         if (isinf(var) || isnan(var) || var > maximum){
@@ -398,16 +439,17 @@ int main(int argc, char *argv[]) {
         init_graph_from_input(nodes, N);
     }
 
-    double hmax = find_divergence(beta, (1 + beta * lambda) / 2);
-    double **coefficients;
-    comp_coefficients(beta, lambda, coefficients);
+    double hmax = find_divergence_max(beta, (1 + beta * lambda) / 2);
+    double **coefficients, *gamma_vals;
+    comp_coefficients(beta, lambda, coefficients, gamma_vals);
+    double hmin = find_divergence_min(beta, lambda, coefficients);
 
     init_avgs(N, nodes, avn_0);
 
     bool divergence = false;
 
     int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                           hmax, coefficients, damping);
+                           hmin, hmax, coefficients, gamma_vals, damping);
 
     print_results_short(iter, nodes, N, seed, max_iter, divergence);
     

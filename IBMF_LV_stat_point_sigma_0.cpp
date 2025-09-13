@@ -16,11 +16,18 @@ double field_in(double avg, int c, double mu){
 }
 
 
-bool comp_coefficients(double beta, double lambda, double **&coefficients, double maximum=1e10){
+bool comp_coefficients(double beta, double lambda, double **&coefficients, double *&gamma_vals, 
+                       double maximum=1e10){
     bool gamma_diverges = false;
+    gamma_vals = new double[2];
     if (isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((1 + beta * lambda) / 2)) || 
         gsl_sf_gamma((1 + beta * lambda) / 2) > maximum){
         gamma_diverges = true;
+        gamma_vals[0] = sqrt(2 * M_PI / beta / lambda) * pow(beta * lambda / 2 / M_E, beta * lambda / 2);
+        gamma_vals[1] = sqrt(4 * M_PI / (1 + beta * lambda)) * pow((1 + beta * lambda) / 2 / M_E, (1 + beta * lambda) / 2);
+    }else{
+        gamma_vals[0] = gsl_sf_gamma(beta * lambda / 2);
+        gamma_vals[1] = gsl_sf_gamma((1 + beta * lambda) / 2);
     }
 
     coefficients = new double *[2];
@@ -49,7 +56,7 @@ bool comp_coefficients(double beta, double lambda, double **&coefficients, doubl
 }
 
 
-double find_divergence(double beta, double alpha, double hmax=100, double precision=1e-4, double maximum=1e10){
+double find_divergence_max(double beta, double alpha, double hmax=100, double precision=1e-4, double maximum=1e10){
     double val1, val2;
     val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * hmax * hmax / 2);
     val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * hmax * hmax / 2);
@@ -92,20 +99,51 @@ double denominator(double beta, double lambda, double hi, double *coefficients, 
            + normfactor;
 }
 
+double find_divergence_min(double beta, double lambda, double **coefficients, double hmin=-100, double precision=1e-4, double maximum=1e10){
+    double num, den;
+    num = numerator_av(beta, lambda, hmin, coefficients[1]);
+    den = denominator(beta, lambda, hmin, coefficients[0]);
+    
+    while (!(isnan(num) || isinf(num) || isnan(den) || isinf(den) || 
+             num > maximum || den > maximum || num < 0 || den < 0)){
+        hmin *= 2;
+        num = numerator_av(beta, lambda, hmin, coefficients[1]);
+        den = denominator(beta, lambda, hmin, coefficients[0]);   
+    }
+
+    double hmax = 0;
+    double h = (hmax + hmin) / 2;
+    while (hmax - hmin > precision){
+        num = numerator_av(beta, lambda, h, coefficients[1]);
+        den = denominator(beta, lambda, h, coefficients[0]); 
+        if (isnan(num) || isinf(num) || isnan(den) || isinf(den) || 
+             num > maximum || den > maximum || num < 0 || den < 0){
+            hmin = h;
+        }else{
+            hmax = h;
+        }
+        h = (hmax + hmin) / 2;
+    }
+
+    cerr << "Divergence found at h = " << hmin << endl;
+    cerr << "Last value to converge: " << hmax << endl;
+    return hmin;
+}
 
 double new_average(double avg, double beta, double lambda, double mu, int c, 
-                   double hmax, double **coefficients, int iter, double damping, 
-                   double normfactor = 1e-14){
+                   double hmin, double hmax, double **coefficients, double *gamma_vals, 
+                   int iter, double damping, double normfactor = 1e-14){
     double field = field_in(avg, c, mu);
     double av_new;
     if (field > hmax){
         av_new = damping * field * (1 - 1.0 / beta / field / field + lambda / field / field) + 
                  (1 - damping) * avg;                      
-    }else if (field < 0)
+    }else if (field < hmin)
     {
-        av_new = (1 - damping) * avg;
-    }
-    else {
+        av_new = damping * lambda / fabs(field) + (1 - damping) * avg;
+    }else if (field == 0){
+        av_new = damping * sqrt(2.0 / beta) * gamma_vals[1] / gamma_vals[0] + (1 - damping) * avg;
+    }else {
         av_new = damping * numerator_av(beta, lambda, field, coefficients[1]) /
                  denominator(beta, lambda, field, coefficients[0], normfactor) +
                  (1 - damping) * avg;
@@ -120,15 +158,17 @@ double new_average(double avg, double beta, double lambda, double mu, int c,
 
 
 int convergence(double &avg, double beta, double lambda, double mu, int c, double tol, 
-                int max_iter, bool &divergence, double hmax, double **coefficients, 
-                double damping, double maximum=1e10, int min_consecutive=5){
+                int max_iter, bool &divergence, double hmin, double hmax, 
+                double **coefficients, double *gamma_vals, double damping, 
+                double maximum=1e10, int min_consecutive=5){
     double avg_new;
     double var = tol + 1;
     int iter = 0;
 
     int consecutive = 0;
     while (consecutive < min_consecutive && iter < max_iter){
-        avg_new = new_average(avg, beta, lambda, mu, c, hmax, coefficients, iter, damping);
+        avg_new = new_average(avg, beta, lambda, mu, c, hmin, hmax, coefficients, 
+                              gamma_vals, iter, damping);
         var = fabs(avg_new - avg);
         iter++;
         avg = avg_new;
@@ -171,14 +211,15 @@ int main(int argc, char *argv[]) {
     bool conv;
     bool divergence;
 
-    double hmax = find_divergence(beta, (1 + beta * lambda) / 2);
-    double **coefficients;
-    comp_coefficients(beta, lambda, coefficients);
+    double hmax = find_divergence_max(beta, (1 + beta * lambda) / 2);
+    double **coefficients, *gamma_vals;
+    comp_coefficients(beta, lambda, coefficients, gamma_vals);
+    double hmin = find_divergence_min(beta, lambda, coefficients);
 
     avg = avn_0;
     for (double mu = mu0; mu < muf + dmu / 2; mu += dmu) {
         iter = convergence(avg, beta, lambda, mu, c, tol, max_iter, divergence, 
-                           hmax, coefficients, damping);
+                           hmin, hmax, coefficients, gamma_vals, damping);
         field = field_in(avg, c, mu);
         if (divergence){
             cout << mu << "\t" << iter << "\t" << "diverges" << "\t" << avg << "\t" << field << "\t" << endl;

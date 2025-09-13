@@ -229,10 +229,18 @@ double var_cav_in(long e, int k, Tedge *edges){
 }
 
 
-bool comp_coefficients(double beta, double lambda, double **&coefficients){
+bool comp_coefficients(double beta, double lambda, double **&coefficients, double *&gamma_vals, 
+                       double maximum=1e10){
     bool gamma_diverges = false;
-    if (isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((1 + beta * lambda) / 2))){
+    gamma_vals = new double[2];
+    if (isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((1 + beta * lambda) / 2)) || 
+        gsl_sf_gamma((1 + beta * lambda) / 2) > maximum){
         gamma_diverges = true;
+        gamma_vals[0] = sqrt(2 * M_PI / beta / lambda) * pow(beta * lambda / 2 / M_E, beta * lambda / 2);
+        gamma_vals[1] = sqrt(4 * M_PI / (1 + beta * lambda)) * pow((1 + beta * lambda) / 2 / M_E, (1 + beta * lambda) / 2);
+    }else{
+        gamma_vals[0] = gsl_sf_gamma(beta * lambda / 2);
+        gamma_vals[1] = gsl_sf_gamma((1 + beta * lambda) / 2);
     }
 
     coefficients = new double *[3];
@@ -268,7 +276,7 @@ bool comp_coefficients(double beta, double lambda, double **&coefficients){
 }
 
 
-double find_divergence(double beta, double alpha, double hmax=100, double precision=1e-4, double maximum=1e10){
+double find_divergence_max(double beta, double alpha, double hmax=100, double precision=1e-4, double maximum=1e10){
     double val1, val2;
     val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * hmax * hmax / 2);
     val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * hmax * hmax / 2);
@@ -317,9 +325,47 @@ double denominator(double beta, double lambda, double hi_div_Q, double *coeffici
 }
 
 
+double find_divergence_min(double beta, double lambda, double **coefficients, double hmin=-100, double precision=1e-4, double maximum=1e10){
+    double num, num_q, den;
+    num = numerator_av(beta, lambda, hmin, coefficients[1]);
+    num_q = numerator_q_sqr(beta, lambda, hmin, coefficients[2]);
+    den = denominator(beta, lambda, hmin, coefficients[0]);
+    
+    while (!(isnan(num) || isinf(num) || isnan(num_q) || isinf(num_q) 
+             || isnan(den) || isinf(den) || num > maximum || num_q > maximum
+             || den > maximum || num < 0 || num_q < 0 || den < 0)){
+        hmin *= 2;
+        num = numerator_av(beta, lambda, hmin, coefficients[1]);
+        num_q = numerator_q_sqr(beta, lambda, hmin, coefficients[2]);
+        den = denominator(beta, lambda, hmin, coefficients[0]);   
+    }
+
+    double hmax = 0;
+    double h = (hmax + hmin) / 2;
+    while (hmax - hmin > precision){
+        num = numerator_av(beta, lambda, h, coefficients[1]);
+        num_q = numerator_q_sqr(beta, lambda, h, coefficients[2]);
+        den = denominator(beta, lambda, h, coefficients[0]); 
+        if (isnan(num) || isinf(num) || isnan(num_q) || isinf(num_q) 
+             || isnan(den) || isinf(den) || num > maximum || num_q > maximum
+             || den > maximum || num < 0 || num_q < 0 || den < 0){
+            hmin = h;
+        }else{
+            hmax = h;
+        }
+        h = (hmax + hmin) / 2;
+    }
+
+    cerr << "Divergence found at h = " << hmin << endl;
+    cerr << "Last value to converge: " << hmax << endl;
+    return hmin;
+}
+
+
 double new_averages(long M, double beta, double lambda, Tedge *edges, double tol, 
-                    double hmax, double **coefficients, int iter, long sequence[], double damping, 
-                    double normfactor = 1e-14){
+                    double hmin, double hmax, double **coefficients, double *gamma_vals, 
+                    int iter, long sequence[], double damping, 
+                    double normfactor=1e-14, double maximum=1e6){
     double delta = 0, delta_av, delta_chi_cav, Q, h, h_div_Q, den, av_new, av_new_not_damp, 
            q_sqr_new, chi_cav_new;
 
@@ -335,11 +381,20 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 h = edges[pos].fields_cav[k] * edges[pos].var_cav[k];
                 h_div_Q = h / Q;
                 if (h_div_Q > hmax){
-                    av_new = damping * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + (1 - damping) * edges[pos].cond_av[k];
-                    chi_cav_new = damping * edges[pos].var_cav[k] * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + (1 - damping) * edges[pos].chi_cav[k];
-                }else if (h_div_Q < 0){
-                    av_new = (1 - damping) * edges[pos].cond_av[k];
-                    chi_cav_new = damping * edges[pos].var_cav[k] + (1 - damping) * edges[pos].chi_cav[k];
+                    av_new = damping * h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q) + 
+                             (1 - damping) * edges[pos].cond_av[k];
+                    chi_cav_new = damping * edges[pos].var_cav[k] * (1 + 1.0 / beta / h_div_Q / h_div_Q - lambda / h_div_Q / h_div_Q) + 
+                                  (1 - damping) * edges[pos].chi_cav[k];
+                }else if (h_div_Q < hmin){
+                    av_new = damping * lambda * Q / fabs(h_div_Q) + (1 - damping) * edges[pos].cond_av[k];
+                    chi_cav_new = damping * edges[pos].var_cav[k] * lambda / h_div_Q / h_div_Q + 
+                                  (1 - damping) * edges[pos].chi_cav[k];
+                }else if(h_div_Q == 0){
+                    av_new = damping * Q * sqrt(2.0 / beta) * gamma_vals[1] / gamma_vals[0] + 
+                             (1 - damping) * edges[pos].cond_av[k];
+                    chi_cav_new = damping * edges[pos].var_cav[k] * (beta * lambda - 
+                                  2 * gamma_vals[1] / gamma_vals[0] * gamma_vals[1] / gamma_vals[0]) + 
+                                  (1 - damping) * edges[pos].chi_cav[k];
                 }else{
                     den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
                     av_new_not_damp = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
@@ -349,18 +404,8 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 }
             }else{
                 edges[pos].var_cav_positive[k] = false;
-                h = edges[pos].fields_cav[k];
-                if (h > hmax){
-                    av_new = damping * h * (1 - 1.0 / beta / h / h + lambda / h / h) + (1 - damping) * edges[pos].cond_av[k];
-                }else if (h < 0){
-                    av_new = (1 - damping) * edges[pos].cond_av[k];
-                }else{
-                    den = denominator(beta, lambda, h, coefficients[0], normfactor);
-                    av_new = damping * numerator_av(beta, lambda, h, coefficients[1]) / den + 
-                             (1 - damping) * edges[pos].cond_av[k];
-                }
-                
-                chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
+                av_new = damping * maximum + (1 - damping) * edges[pos].cond_av[k];
+                chi_cav_new = damping * maximum + (1 - damping) * edges[pos].chi_cav[k];
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -369,7 +414,12 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
             }
 
             delta_av = fabs(av_new - edges[pos].cond_av[k]);
-            delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
+            if (edges[pos].var_cav_positive[k]){
+                delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
+            }else{
+                delta_chi_cav = maximum;
+            }
+            
 
             if (delta_av > delta){
                 delta = delta_av;
@@ -426,7 +476,8 @@ double var_in(long i, Tnode *nodes, Tedge *edges){
 
 
 double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda, 
-               double hmax, double **coefficients, double normfactor = 1e-14){
+               double hmin, double hmax, double **coefficients, double *gamma_vals, 
+               double normfactor = 1e-14, double maximum = 1e10){
     double av = 0;
     double h, h_div_Q, Q, den, q_sqr_new;
     for (long i = 0; i < N; i++){
@@ -440,26 +491,22 @@ double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda,
             if (h_div_Q > hmax){
                 nodes[i].av = h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q);
                 nodes[i].chi = nodes[i].var;
-            } else if (h_div_Q < 0){
-                nodes[i].av = 0;
-                nodes[i].chi = nodes[i].var;
-            } else{
+            }else if (h_div_Q < hmin){
+                nodes[i].av = lambda * Q / fabs(h_div_Q);
+                nodes[i].chi = nodes[i].var * lambda / h_div_Q / h_div_Q;
+            }else if(h_div_Q == 0){
+                nodes[i].av = Q * sqrt(2.0 / beta) * gamma_vals[1] / gamma_vals[0];
+                nodes[i].chi = nodes[i].var * (beta * lambda - 
+                                  2 * gamma_vals[1] / gamma_vals[0] * gamma_vals[1] / gamma_vals[0]);
+            }else{
                 den = denominator(beta, lambda, h_div_Q, coefficients[0], normfactor);
                 nodes[i].av = Q * numerator_av(beta, lambda, h_div_Q, coefficients[1]) / den;
                 q_sqr_new = nodes[i].var * numerator_q_sqr(beta, lambda, h_div_Q, coefficients[2]) / den;
                 nodes[i].chi = beta * (q_sqr_new - nodes[i].av * nodes[i].av);
             }
         }else{
-            h = nodes[i].field;
-            if (h > hmax){
-                nodes[i].av = h * (1 - 1.0 / beta / h / h + lambda / h / h);
-            }else if (h < 0){
-                nodes[i].av = 0;
-            }else{
-                den = denominator(beta, lambda, h, coefficients[0], normfactor);
-                nodes[i].av = numerator_av(beta, lambda, h, coefficients[1]) / den;
-            }
-            nodes[i].chi = nodes[i].var;
+            nodes[i].av = maximum;
+            nodes[i].chi = maximum;
         }
         
         av += nodes[i].av;
@@ -539,8 +586,9 @@ double average_chi_cav_sqr(long M, Tedge *edges){
 
 
 int convergence(long M, double beta, double lambda, Tedge *edges, double tol, 
-                int max_iter, bool &divergence, double hmax, double **coefficients, 
-                long sequence[], double damping, double maximum=1e10, int min_consecutive=5){
+                int max_iter, bool &divergence, double hmin, double hmax, 
+                double **coefficients, double *gamma_vals, long sequence[], 
+                double damping, double maximum=1e10, int min_consecutive=5){
     double delta = tol + 1;
     int iter = 0;
 
@@ -553,7 +601,8 @@ int convergence(long M, double beta, double lambda, Tedge *edges, double tol,
 
     int consecutive = 0;
     while (consecutive < min_consecutive && iter < max_iter){
-        delta = new_averages(M, beta, lambda, edges, tol, hmax, coefficients, iter, sequence, damping);
+        delta = new_averages(M, beta, lambda, edges, tol, hmin, hmax, coefficients, 
+                             gamma_vals, iter, sequence, damping);
         iter++;
         if (isinf(delta) || isnan(delta) || delta > maximum){
             divergence = true;
@@ -720,9 +769,10 @@ int main(int argc, char *argv[]) {
     }
 
     
-    double hmax = find_divergence(beta, 1 + beta * lambda / 2);
-    double **coefficients;
-    comp_coefficients(beta, lambda, coefficients);
+    double hmax = find_divergence_max(beta, 1 + beta * lambda / 2);
+    double **coefficients, *gamma_vals;
+    comp_coefficients(beta, lambda, coefficients, gamma_vals);
+    double hmin = find_divergence_min(beta, lambda, coefficients);
 
     bool divergence;
     long sequence[M];
@@ -731,8 +781,9 @@ int main(int argc, char *argv[]) {
     produce_random_seq(seed_seq_init, M, sequence);
     init_avgs(M, edges, avn_0);
     int iter = convergence(M, beta, lambda, edges, tol, max_iter, divergence, 
-                           hmax, coefficients, sequence, damping);
-    double av = average(N, nodes, edges, beta, lambda, hmax, coefficients);
+                           hmin, hmax, coefficients, gamma_vals, sequence, damping);
+    double av = average(N, nodes, edges, beta, lambda, hmin, hmax, coefficients, 
+                        gamma_vals);
 
 
     bool same_fixed_point = true;
@@ -743,8 +794,10 @@ int main(int argc, char *argv[]) {
             produce_random_seq(seed_seq, M, sequence);
             init_avgs(M, edges, avn_0);
             iter = convergence(M, beta, lambda, edges, tol, max_iter, divergence, 
-                               hmax, coefficients, sequence, damping);
-            av = average(N, nodes, edges, beta, lambda, hmax, coefficients);
+                               hmin, hmax, coefficients, gamma_vals, sequence, 
+                               damping);
+            av = average(N, nodes, edges, beta, lambda, hmin, hmax, 
+                         coefficients, gamma_vals);
             same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
             seed_seq++;
         }
