@@ -94,7 +94,7 @@ def print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits
 def main():
     eps = "0.0"
     lda = "1e-06"
-    N = "2048"
+    N = "4096"
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"

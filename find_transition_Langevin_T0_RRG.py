@@ -14,22 +14,51 @@ def find_transition(lines, position):
 
         if num >= nsamples / 2 and par_trans > 0:
             if not par_key in transitions:
-                transitions[par_key] = [(0, par_trans)]
-        else:
-            if not par_key in transitions:
-                transitions[par_key] = []
+                transitions[par_key] = (0, par_trans)
         
-        line_split_below = lines[index + 1].split()
-        key_below = float(line_split_below[0])
-        if key_below == par_key:
-            num_samples_below = int(line_split_below[-1])
-            num_below = int(line_split_below[position])
-            if num_below >= num_samples_below / 2 and num < nsamples / 2:
-                par_trans_below = float(line_split_below[1])
-                transitions[par_key].append((par_trans, par_trans_below))
+        if not par_key in transitions:
+            line_split_below = lines[index + 1].split()
+            key_below = float(line_split_below[0])
+            if key_below == par_key:
+                num_samples_below = int(line_split_below[-1])
+                num_below = int(line_split_below[position])
+                if num_below >= num_samples_below / 2 and num < nsamples / 2:
+                    par_trans_below = float(line_split_below[1])
+                    transitions[par_key] = (par_trans, par_trans_below)
         index += 1
     return transitions
 
+
+def find_identify_transition(lines, position_1, position_2):
+    index = 0
+    transitions = {}
+    trans_type = {}
+    while index < len(lines) - 1:
+        line_split = lines[index].split()
+        par_key = float(line_split[0])
+        par_trans = float(line_split[1])
+
+        num_1 = int(line_split[position_1])
+        num_2 = int(line_split[position_2])
+        nsamples = int(line_split[-1])
+
+        
+        if not par_key in transitions: 
+            line_split_below = lines[index + 1].split()
+            key_below = float(line_split_below[0])
+            if key_below == par_key:
+                num_samples_below = int(line_split_below[-1])
+                num_1_below = int(line_split_below[position_1])
+                num_2_below = int(line_split_below[position_2])
+                if num_1_below >= num_samples_below / 2 and num_1 < nsamples / 2:
+                    par_trans_below = float(line_split_below[1])
+                    transitions[par_key] = (par_trans, par_trans_below)
+                    if num_1_below - num_2_below > num_2_below:
+                        trans_type[par_key] = 1
+                    else:
+                        trans_type[par_key] = 2
+        index += 1
+    return transitions, trans_type
 
 
 def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
@@ -44,19 +73,20 @@ def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
     fin.close()
 
     transitions_div = find_transition(lines, 3)
-    transitions_multiple_eq = find_transition(lines, 4)
+    transitions_multiple_eq, trans_type = find_identify_transition(lines, 4, 3)
     
     
     for mu in transitions_div:
-        for sigma_div, sigma_below_div in transitions_div[mu]:
-            fout_div.write(f"{mu:.{ndigits}f}\t{sigma_div:.{ndigits}f}\t{sigma_below_div:.{ndigits}f}\n")
+        sigma_div, sigma_below_div = transitions_div[mu]
+        fout_div.write(f"{mu:.{ndigits}f}\t{sigma_div:.{ndigits}f}\t{sigma_below_div:.{ndigits}f}\n")
      
     fout_div.close()
 
 
     for mu in transitions_multiple_eq:
-        for sigma, sigma_below in transitions_multiple_eq[mu]:
-            fout_mult.write(f"{mu:.{ndigits}f}\t{sigma:.{ndigits}f}\t{sigma_below:.{ndigits}f}\n")
+        sigma, sigma_below = transitions_multiple_eq[mu]
+        kind = trans_type[mu]
+        fout_mult.write(f"{mu:.{ndigits}f}\t{sigma:.{ndigits}f}\t{sigma_below:.{ndigits}f}\t{kind}\n")
      
     fout_mult.close()
 
@@ -65,7 +95,7 @@ def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
 def main():
     eps = "0.0"
     lda = "1e-06"
-    N = "1024"
+    N = "4096"
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"
