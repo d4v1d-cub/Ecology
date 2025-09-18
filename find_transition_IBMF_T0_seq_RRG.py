@@ -12,11 +12,6 @@ def find_transition(lines, position):
 
         num = int(line_split[position])
         nsamples = int(line_split[-1])
-
-        if num >= nsamples / 2:
-            if not par_key in transition_found and par_trans > 0:
-                transitions[par_key] = (0, par_trans)
-                transition_found[par_key] = True
         
         line_split_below = lines[index + 1].split()
         key_below = float(line_split_below[0])
@@ -43,17 +38,8 @@ def find_identify_transition(lines, position_1, position_2):
         par_trans = float(line_split[1])
 
         num_1 = int(line_split[position_1])
-        num_2 = int(line_split[position_2])
         nsamples = int(line_split[-1])
 
-        if num_1 >= nsamples / 2:
-            if not par_key in transition_found and par_trans > 0:
-                transitions[par_key] = (0, par_trans)
-                transition_found[par_key] = True
-                if num_1 - num_2 > num_2:
-                    trans_type[par_key] = 1
-                else:
-                    trans_type[par_key] = 2
         
         line_split_below = lines[index + 1].split()
         key_below = float(line_split_below[0])
@@ -109,7 +95,7 @@ def main():
     max_iter = "10000"
     N = "4096"
     c = "3"
-    damping = "1.0"
+    damping = "0.2"
     nseq = "10"
 
     path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"

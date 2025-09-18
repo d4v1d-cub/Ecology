@@ -12,9 +12,6 @@ def find_transition(lines, position):
         num = int(line_split[position])
         nsamples = int(line_split[-1])
 
-        if num >= nsamples / 2 and par_trans > 0:
-            if not par_key in transitions:
-                transitions[par_key] = (0, par_trans)
         
         if not par_key in transitions:
             line_split_below = lines[index + 1].split()
@@ -39,7 +36,6 @@ def find_identify_transition(lines, position_1, position_2):
         par_trans = float(line_split[1])
 
         num_1 = int(line_split[position_1])
-        num_2 = int(line_split[position_2])
         nsamples = int(line_split[-1])
 
         
