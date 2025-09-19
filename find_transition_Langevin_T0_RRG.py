@@ -91,7 +91,7 @@ def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
 def main():
     eps = "0.0"
     lda = "1e-06"
-    N = "4096"
+    N_list = ["128", "256", "512", "1024", "2048", "4096"]
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"
@@ -100,7 +100,8 @@ def main():
 
     ndigits = 3
 
-    find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits)
+    for N in N_list:
+        find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits)
 
     return 0
 

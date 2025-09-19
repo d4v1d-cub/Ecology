@@ -75,7 +75,7 @@ def get_all_vals(path, eps, lda, tol_fixed_point, N, c, T):
         av_time, samples_div, samples_multiple_eq, nsamples, found = summary_statistics(path, filename)
         if found:
             vals_list.append((mu, sigma, av_time, samples_div, samples_multiple_eq, nsamples))
-        print(f'Processed mu={mu}   sigma={sigma}')
+        print(f'Processed N={N}   mu={mu}   sigma={sigma}')
     return vals_list
 
 
@@ -94,7 +94,7 @@ def print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits
 def main():
     eps = "0.0"
     lda = "1e-06"
-    N = "4096"
+    N_list = ["128", "256", "512", "1024", "2048", "4096"]
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"
@@ -104,8 +104,8 @@ def main():
 
     ndigits = 3
 
-
-    print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits)
+    for N in N_list:
+        print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits)
     return 0
 
 

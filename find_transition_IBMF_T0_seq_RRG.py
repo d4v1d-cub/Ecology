@@ -93,7 +93,7 @@ def main():
     avn0 = "0.08"
     tol = "1e-6"
     max_iter = "10000"
-    N = "4096"
+    N_list = ["128", "256", "512", "1024", "2048", "4096"]
     c = "3"
     damping = "0.2"
     nseq = "10"
@@ -102,7 +102,8 @@ def main():
 
     ndigits = 3
 
-    find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, damping, nseq)
+    for N in N_list:
+        find_all_trans(path, eps, N, c, avn0, tol, max_iter, ndigits, damping, nseq)
 
     return 0
 

@@ -64,7 +64,7 @@ def get_all_vals(path, eps, N, c, avn0, tol, max_iter, damping, nseq):
         av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, nsamples, found = summary_statistics(path, filename)
         if found:
             vals_list.append((mu, sigma, av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, nsamples))
-        print(f'Processed  mu={mu}   sigma={sigma}')
+        print(f'Processed  N={N}    mu={mu}   sigma={sigma}')
     return vals_list
 
 
@@ -85,7 +85,7 @@ def main():
     avn0 = "0.08"
     tol = "1e-6"
     max_iter = "10000"
-    N = "4096"
+    N_list = ["128", "256", "512", "1024", "2048", "4096"]
     c = "3"
     damping = "0.2"
     nseq = "10"
@@ -95,7 +95,8 @@ def main():
 
     ndigits = 3
 
-    print_summary(path_in, path_out, eps, N, c, avn0, tol, max_iter, ndigits, damping, nseq)
+    for N in N_list:
+        print_summary(path_in, path_out, eps, N, c, avn0, tol, max_iter, ndigits, damping, nseq)
     return 0
 
 
