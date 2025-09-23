@@ -57,7 +57,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_print_less_seq.out",
-            "args": ["1", "0.08", "0.02", "1e-6", "1e-6", "10000", "1.0", "0.142", "0.0", "1", "5", "1e-2", "1.0", "1", "1024", "3", "1"],
+            "args": ["1", "0.08", "0.001", "1e-6", "1e-6", "10000", "1.0", "0.340", "0.0", "1", "5", "1e-2", "1.0", "1", "1024", "3", "1"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],
@@ -76,6 +76,32 @@
                 }
             ],
             "preLaunchTask": "C/C++: g++-11 IBMF stat print less seq",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: g++-11 IBMF stat seq",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/IBMF_LV_stat_point_seq.out",
+            "args": ["1", "0.08", "0.025", "1e-6", "1e-6", "10000", "1.0", "0.100", "0.0", "1", "5", "1e-2", "1.0", "1", "1024", "3", "1"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++-11 IBMF stat seq",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
@@ -265,7 +291,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_print_less_seq.out",
-            "args": ["1", "0.08", "0.007", "1e-6", "1e-6", "10000", "1.0", "0.322", "0.0", "1", "5", "1e-2", "1.0", "1", "1024", "3"],
+            "args": ["1", "0.08", "0.001", "1e-6", "1e-6", "10000", "1.0", "0.340", "0.0", "1", "5", "1e-2", "1.0", "1", "1024", "3"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}/Debug",
             "environment": [],

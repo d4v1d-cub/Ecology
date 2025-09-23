@@ -18,39 +18,30 @@ void init_ran(gsl_rng * &r, unsigned long s){
 }
 
 
+
 typedef struct{
-    vector <long> neighs;
-    vector <double> links_in;
-    double field; // average value of n in that node
-}Tnode;
+    long nodes_in[2]; // nodes inside the edge. nodes_in[i], with i={0, 1}.
+    double links[2]; // links[i], with i={0, 1}. links[i] is the one pointing to the variable in nodes[i]
+}Tedge;
 
 
-void init_nodes(Tnode *nodes, long N){
-    for (long i = 0; i < N; i++){
-        nodes[i].links_in = vector <double> ();
-        nodes[i].neighs = vector <long> ();
-    }
-}
 
-void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
+long init_graph_inside_RRG(Tedge *&edges, long N, int c, double eps,
                            double mu, double sigma, gsl_rng * r){
     // eps is the degree of symmetry of the graph
     if (N * c % 2 != 0){
         cout << "N*c must be even to create a random regular graph" << endl;
         exit(1);
     }else{
-        bool success = false;
         long M = N * c / 2;
         long pos_i, pos_j, i, j;
-        double aij, aji;
-        nodes = new Tnode[N];
+        double aij, aji; // aij is the coupling that node j sees from node i
+        edges = new Tedge[M];
 
-        while (!success)
-        {
-            init_nodes(nodes, N);
+        bool success = false;
+        while (!success){
 
             vector < long > copies = vector < long > (c * N);
-
             for (long i = 0; i < N; i++){
                 for (int k = 0; k < c; k++){
                     copies[i * c + k] = i;
@@ -68,47 +59,50 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
                     j = copies[pos_j];
                 }
                 copies.erase(copies.begin() + pos_j);
-                nodes[i].neighs.push_back(j);
-                nodes[j].neighs.push_back(i);
+
+                edges[e].nodes_in[0] = i;
+                edges[e].nodes_in[1] = j;
+
                 aij = mu + gsl_ran_gaussian(r, sigma);
                 if (gsl_rng_uniform_pos(r) < eps){
                     aji = aij;
                 }else{
                     aji = mu + gsl_ran_gaussian(r, sigma);
                 }
-                nodes[i].links_in.push_back(aji);
-                nodes[j].links_in.push_back(aij);
+                edges[e].links[0] = aji;
+                edges[e].links[1] = aij;
             }
-
+            
             pos_i = 0;
-            pos_j = 1;
             i = copies[pos_i];
+            pos_j = 1;
             j = copies[pos_j];
             if (i != j){
                 success = true;
-                nodes[i].neighs.push_back(j);
-                nodes[j].neighs.push_back(i);
+                edges[M - 1].nodes_in[0] = i;
+                edges[M - 1].nodes_in[1] = j;
+                
+
                 aij = mu + gsl_ran_gaussian(r, sigma);
                 if (gsl_rng_uniform_pos(r) < eps){
                     aji = aij;
                 }else{
                     aji = mu + gsl_ran_gaussian(r, sigma);
                 }
-                nodes[i].links_in.push_back(aji);
-                nodes[j].links_in.push_back(aij);
+                edges[M - 1].links[0] = aji;
+                edges[M - 1].links[1] = aij;
             }
         }
-    }    
+        return M;
+    }
 }
 
 
-void print_graph_IBMF(Tnode *nodes, long N, char *filegraph){
-    ofstream fgraph(filegraph);
-    for (long i = 0; i < N; i++){
-        fgraph << i << "\t" << nodes[i].neighs.size() << endl;
-        for (long j = 0; j < nodes[i].neighs.size(); j++){
-            fgraph << i << "\t" << nodes[i].neighs[j] << "\t" << nodes[i].links_in[j] << endl;
-        }
+void print_graph(Tedge *edges, long N, long M){
+    cout << N << "\t" << M << endl;
+    for (long e = 0; e < M; e++){
+        cout << edges[e].nodes_in[0] << "\t" << edges[e].nodes_in[1] << "\t" 
+             << edges[e].links[0] << "\t" << edges[e].links[1] << endl;
     }
 }
 
@@ -119,24 +113,18 @@ int main(int argc, char *argv[]) {
     double mu = atof(argv[3]);
     double sigma = atof(argv[4]);
 
-
-    Tnode *nodes;
-    double *avgs;
+    Tedge *edges;
     long N;
-    char gr_str[20];
-
-    sprintf(gr_str, "gr_inside_RRG");
+    
     N = atol(argv[5]);
     int c = atoi(argv[6]);
     gsl_rng * r;
 
     init_ran(r, seed);
 
-    init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+    long M = init_graph_inside_RRG(edges, N, c, eps, mu, sigma, r);
 
-    char filegraph[200];
-    sprintf(filegraph, "LV_Graph_for_IBMF_N_%li_c_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_seed_%li.txt", N, c, eps, mu, sigma, seed);
-    print_graph_IBMF(nodes, N, filegraph);
+    print_graph(edges, N, M);
 
     return 0;
 }
