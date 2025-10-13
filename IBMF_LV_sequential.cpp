@@ -1,0 +1,81 @@
+#include "IBMF_common.h"
+#include "IBMF_convergence_finite_T_seq.h"
+#include "IBMF_convergence_T0_seq.h"
+
+using namespace std;
+
+
+
+
+
+int main(int argc, char *argv[]) {
+    double avn_0 = 0.08;
+    bool random_init = false;
+    double dn = 0;
+    unsigned long id_0 = 0;
+    double T = 0.01;
+    double lambda = 1e-6;
+    double tol = 1e-6;
+    int max_iter = 10000;
+    unsigned long seed_seq = 1;
+    unsigned long num_seq = 5;
+    double tol_fixed_point = 1e-2;
+    double damping = 1.0;
+    bool print_avgs = true;
+    bool print_only_last = true;
+    bool gr_inside = true;
+    double eps = 1.0;
+    double mu = 0.2;
+    double sigma = 0.0;
+    long N = 1024;
+    double c_arg = 3.0;
+    unsigned long seed_graph = 1;
+    char graph_type[10];
+    sprintf(graph_type, "RRG");
+    char gr_str[100];
+    sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, int(round(c_arg)), seed_graph);
+
+    bool print_params = false;
+
+    parse_arguments(argc, argv, avn_0, random_init, dn, id_0, T, lambda, tol, max_iter,
+                    seed_seq, num_seq, tol_fixed_point, damping,
+                    print_avgs, print_only_last, gr_inside, eps, mu,
+                    sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params);
+    if (print_params) {
+        print_params_run(avn_0, random_init, dn, id_0, T, lambda, tol, max_iter,
+                         seed_seq, num_seq, tol_fixed_point, damping,
+                         print_avgs, print_only_last, gr_inside, eps, mu,
+                         sigma, seed_graph, N, graph_type, c_arg, gr_str);
+    }
+
+    gsl_set_error_handler_off();
+
+    Tnode *nodes;
+
+    create_graph(gr_inside, seed_graph, N, nodes, eps, mu, sigma, gr_str, graph_type, c_arg);
+
+    unsigned long seed_condinit = 0;
+    char fileout_base[300];
+
+    if (T == 0) {
+        sprintf(fileout_base, "IBMF_T0_seq_%s_Lotka_Volterra_final_av0_%.3lf_tol_%.1e_maxiter_%d_damping_%.2lf", 
+                              gr_str, avn_0, tol, max_iter, damping);
+        several_seq_IBMF_T0(gr_inside, seed_seq, seed_condinit, N, nodes, tol,
+                            max_iter, num_seq, tol_fixed_point,
+                            avn_0, damping, seed_graph,
+                            print_only_last, print_avgs,
+                            fileout_base, random_init, dn, id_0);
+    } else {
+        sprintf(fileout_base, "IBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_damping_%.2lf.txt", 
+                          gr_str, avn_0, T, lambda, tol, max_iter, damping);
+        several_seq_IBMF(gr_inside, seed_seq, seed_condinit, N, nodes, T, lambda, tol,
+                         max_iter, num_seq, tol_fixed_point,
+                         avn_0, damping, seed_graph,
+                         print_only_last, print_avgs,
+                         fileout_base, random_init, dn, id_0);
+    }
+    
+    
+    
+    return 0;
+}
