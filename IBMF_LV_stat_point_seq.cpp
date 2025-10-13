@@ -372,7 +372,7 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol,
 
 
 
-void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed, 
+void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed_graph, unsigned long seed_seq, 
                          int max_iter, bool divergence, bool same_fixed_point){
     long counter = 0;
     for (long i = 0; i < N; i++){
@@ -396,11 +396,11 @@ void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed,
     double av_sqr = average_sqr(N, nodes);
     if (divergence){
         cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed << "\t" << same_fixed_point << endl;
+                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq << "\t" << same_fixed_point << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed << "\t" << same_fixed_point << endl;
+                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq << "\t" << same_fixed_point << endl;
     }
 }
 
@@ -442,53 +442,70 @@ bool compare_fixed_points(Tnode *nodes, long N, double tol_fixed_point){
 }
 
 
+void print_avgs_to_file(Tnode *nodes, long N, char *fileavgs){
+    ofstream fav(fileavgs);
+    for (long i = 0; i < N; i++){
+        fav << i << "\t" << nodes[i].av << endl;
+    }
+    fav.close();
+    
+}
+
+
 
 int main(int argc, char *argv[]) {
-    unsigned long seed = atoi(argv[1]);
-    double avn_0 = atof(argv[2]);
-    double T = atof(argv[3]);
-    double lambda = atof(argv[4]);
-    double tol = atof(argv[5]);
-    int max_iter = atoi(argv[6]);
-    double eps = atof(argv[7]);
-    double mu = atof(argv[8]);
-    double sigma = atof(argv[9]);
-    unsigned long seed_seq_init = atoi(argv[10]);
-    unsigned long num_seq = atoi(argv[11]);
-    double tol_fixed_point = atof(argv[12]);
-    double damping = atof(argv[13]);
-    bool gr_inside = atoi(argv[14]);
+    double avn_0 = atof(argv[1]);
+    double T = atof(argv[2]);
+    double lambda = atof(argv[3]);
+    double tol = atof(argv[4]);
+    int max_iter = atoi(argv[5]);
+    double eps = atof(argv[6]);
+    double mu = atof(argv[7]);
+    double sigma = atof(argv[8]);
+    unsigned long seed_seq_init = atoi(argv[9]);
+    unsigned long num_seq = atoi(argv[10]);
+    double tol_fixed_point = atof(argv[11]);
+    double damping = atof(argv[12]);
+    bool print_avgs = atoi(argv[13]);
+    bool print_only_last = atoi(argv[14]);
+    bool gr_inside = atoi(argv[15]);
 
     gsl_set_error_handler_off();
 
     Tnode *nodes;
     double beta = 1.0 / T;
     long N;
-    char gr_str[20];
+    unsigned long seed_graph = 0;
+    char gr_str[50];
 
     if (gr_inside){
-        N = atol(argv[15]);
+        seed_graph = atoi(argv[16]);
+        N = atol(argv[17]);
         gsl_rng * r;
-        init_ran(r, seed);
-        if (argc > 17){
-            if (atoi(argv[17]) == 1){                
-                int c = atoi(argv[16]);
+        init_ran(r, seed_graph);
+        if (argc > 19){
+            if (atoi(argv[19]) == 1){                
+                int c = atoi(argv[18]);
                 init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-            }else if (atoi(argv[17]) == 2)
+                sprintf(gr_str, "gr_inside_RRG_N_%li_c_%d_seedgraph_%li", N, c, seed_graph);
+            }else if (atoi(argv[19]) == 2)
             {
-                double c = atof(argv[16]);
+                double c = atof(argv[18]);
                 init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
+                sprintf(gr_str, "gr_inside_ER_asym_N_%li_c_%.3lf_seedgraph_%li", N, c, seed_graph);
             }else{
                 cout << "Wrong value for the 14th argument. It must be 1 or 2." << endl;
                 exit(1);
             }
             
         }else{
-            int c = atoi(argv[16]);
+            int c = atoi(argv[18]);
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+            sprintf(gr_str, "gr_inside_RRG_N_%li_c_%d_seedgraph_%li", N, c, seed_graph);
         }
     }else{
         init_graph_from_input(nodes, N);
+        sprintf(gr_str, "%s", argv[17]);
     }
 
     double hmax = find_divergence_max(beta, (1 + beta * lambda) / 2);
@@ -500,25 +517,64 @@ int main(int argc, char *argv[]) {
 
     long sequence[N];
     bool divergence;
+
+    char fileavgs[300];
     
     
     divergence = false;
-    produce_random_seq(seed_seq_init, N, sequence);
+    unsigned long seed_seq = seed_seq_init;
+
+    produce_random_seq(seed_seq, N, sequence);
     init_avgs(N, nodes, avn_0);
     int iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
                            hmin, hmax, coefficients, gamma_vals, sequence, damping);
-    print_results_short(iter, nodes, N, seed_seq_init, max_iter, divergence, true);
-
-    set_av_prev(nodes, N);
-    bool same_fixed_point = true;
-    for (unsigned long seed_seq = seed_seq_init + 1; seed_seq < seed_seq_init + num_seq; seed_seq++){ 
-        produce_random_seq(seed_seq, N, sequence);
-        init_avgs(N, nodes, avn_0);
-        iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                           hmin, hmax, coefficients, gamma_vals, sequence, damping);
-        same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
-        print_results_short(iter, nodes, N, seed_seq, max_iter, divergence, same_fixed_point);
+    
+    
+    bool make_other_seqs = !print_only_last || (!divergence && iter < max_iter);
+    
+    if (!print_only_last || !make_other_seqs){
+        print_results_short(iter, nodes, N, seed_graph, seed_seq, max_iter, divergence, true);
+        if (print_avgs){
+            sprintf(fileavgs, "IBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_damping_%.2lf_seedseq_%li.txt", 
+                        gr_str, avn_0, T, lambda, tol, max_iter, eps, mu, sigma, damping, seed_seq);
+            print_avgs_to_file(nodes, N, fileavgs);
+        }
     }
+    seed_seq++;
+
+    if (make_other_seqs){
+        set_av_prev(nodes, N);
+        bool same_fixed_point = true;
+        while (seed_seq < seed_seq_init + num_seq){ 
+            produce_random_seq(seed_seq, N, sequence);
+            init_avgs(N, nodes, avn_0);
+            iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
+                            hmin, hmax, coefficients, gamma_vals, sequence, damping);
+            same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
+            seed_seq++;
+            if (!print_only_last){
+                print_results_short(iter, nodes, N, seed_graph, seed_seq - 1, max_iter, divergence, same_fixed_point);
+                if (print_avgs){
+                    sprintf(fileavgs, "IBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_damping_%.2lf_seedseq_%li.txt", 
+                                gr_str, avn_0, T, lambda, tol, max_iter, eps, mu, sigma, damping, seed_seq - 1);
+                    print_avgs_to_file(nodes, N, fileavgs);
+                }
+            }else{
+                if (!same_fixed_point || divergence || iter >= max_iter){
+                    break;
+                }
+            }
+        }
+        if (print_only_last){
+            print_results_short(iter, nodes, N, seed_graph, seed_seq-1, max_iter, divergence, same_fixed_point);
+            if (print_avgs){
+                sprintf(fileavgs, "IBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_eps_%.3lf_mu_%.3lf_sigma_%.3lf_damping_%.2lf_seedseq_%li.txt", 
+                            gr_str, avn_0, T, lambda, tol, max_iter, eps, mu, sigma, damping, seed_seq-1);
+                print_avgs_to_file(nodes, N, fileavgs);
+            }
+        }
+    }
+    
     
     
     return 0;
