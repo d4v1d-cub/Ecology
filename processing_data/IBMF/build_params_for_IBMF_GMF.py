@@ -84,7 +84,7 @@ def main():
 
     dpar_trans = 0.004
     shift_below = 0.02
-    shift_above = 0.04
+    shift_above = 0.008
     ndigits = 3
 
     eps = "0.000"
@@ -96,8 +96,8 @@ def main():
     # IBMF
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
     path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF"
-    N_list = [512, 2048]
-    dpar_fixed = 0.012
+    N_list = [128, 256, 512, 1024, 2048, 4096]
+    dpar_fixed = 0.003
     par_fixed_start = 0.000
     par_fixed_end = 0.354
     par_fixed_list = np.arange(par_fixed_start, par_fixed_end + dpar_fixed / 2, dpar_fixed)
