@@ -203,7 +203,7 @@ double average_sqr(long N, Tnode *nodes){
 
 void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed_graph, 
                          unsigned long seed_seq, unsigned long seed_initcond,
-                         int max_iter, bool divergence, bool same_fixed_point){
+                         int max_iter, bool divergence, bool same_fixed_point, size_t elapsed){
     long counter = 0;
     for (long i = 0; i < N; i++){
         if (!nodes[i].converged){
@@ -226,11 +226,13 @@ void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed_grap
     double av_sqr = average_sqr(N, nodes);
     if (divergence){
         cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << seed_initcond << "\t" << same_fixed_point << endl;
+                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
+                seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << seed_initcond << "\t" << same_fixed_point << endl;
+                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
+                seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
     }
 }
 

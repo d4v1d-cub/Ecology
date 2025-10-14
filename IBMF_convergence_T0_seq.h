@@ -2,6 +2,7 @@
 #define __IBMF_CONVERGENCE_T0_H_INCLUDED__
 
 #include "IBMF_common.h"
+#include <chrono>
 
 using namespace std;
 
@@ -83,15 +84,18 @@ void several_seq_IBMF_T0(bool seed_graph, unsigned long seed_seq_init, unsigned 
     divergence = false;
     unsigned long seed_seq = seed_seq_init;
 
+    auto start = std::chrono::high_resolution_clock::now();
     produce_random_seq(seed_seq, N, sequence);
     init_avgs(N, nodes, avn_0, random_init, dn, id_0);
     int iter = convergence(N, nodes, tol, max_iter, divergence, sequence, damping);
+    auto end = std::chrono::high_resolution_clock::now();
+    size_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     
     
     bool make_other_seqs = !print_only_last || (!divergence && iter < max_iter);
     
     if (!print_only_last || !make_other_seqs){
-        print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true);
+        print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
         if (print_avgs){
             sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
             print_avgs_to_file(nodes, N, fileavgs);
@@ -102,14 +106,17 @@ void several_seq_IBMF_T0(bool seed_graph, unsigned long seed_seq_init, unsigned 
     if (make_other_seqs){
         set_av_prev(nodes, N);
         bool same_fixed_point = true;
-        while (seed_seq < seed_seq_init + num_seq){ 
+        while (seed_seq < seed_seq_init + num_seq){
+            start = std::chrono::high_resolution_clock::now(); 
             produce_random_seq(seed_seq, N, sequence);
             init_avgs(N, nodes, avn_0, random_init, dn, id_0);
             iter = convergence(N, nodes, tol, max_iter, divergence, sequence, damping);
+            end = std::chrono::high_resolution_clock::now();
+            elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
             same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
             seed_seq++;
             if (!print_only_last){
-                print_results_short(iter, nodes, N, seed_graph, seed_seq - 1, seed_condinit, max_iter, divergence, same_fixed_point);
+                print_results_short(iter, nodes, N, seed_graph, seed_seq - 1, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
                 if (print_avgs){
                     sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq - 1);
                     print_avgs_to_file(nodes, N, fileavgs);
@@ -121,7 +128,7 @@ void several_seq_IBMF_T0(bool seed_graph, unsigned long seed_seq_init, unsigned 
             }
         }
         if (print_only_last){
-            print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit, max_iter, divergence, same_fixed_point);
+            print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
             if (print_avgs){
                 sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq-1);
                 print_avgs_to_file(nodes, N, fileavgs);
