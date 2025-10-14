@@ -67,74 +67,80 @@ int convergence(long N, Tnode *nodes, double tol, int max_iter, bool &divergence
 }
 
 
-void several_seq_IBMF_T0(bool seed_graph, unsigned long seed_seq_init, unsigned long seed_condinit, 
+void several_seq_IBMF_T0(bool seed_graph, unsigned long seed_seq_init, 
                          long N, Tnode *nodes, double tol,
                          int max_iter, unsigned long num_seq, double tol_fixed_point,
                          double avn_0, double damping, unsigned long seed, 
                          bool print_only_last, bool print_avgs, 
-                         char * fileout_base, bool random_init, double dn, unsigned long id_0){
+                         char * fileout_base, bool random_init, double dn, unsigned long id_0, int num_init_conds){
 
     long sequence[N];
 
     bool divergence;
 
     char fileavgs[300];
-    
-    
-    divergence = false;
-    unsigned long seed_seq = seed_seq_init;
 
-    auto start = std::chrono::high_resolution_clock::now();
+
+    divergence = false;
+    unsigned long seed_seq, seed_condinit;
+    bool make_other_tries;
+    int iter;
+    bool same_fixed_point = true;
+
+    seed_seq = seed_seq_init;
+    seed_condinit = id_0;
     produce_random_seq(seed_seq, N, sequence);
-    init_avgs(N, nodes, avn_0, random_init, dn, id_0);
-    int iter = convergence(N, nodes, tol, max_iter, divergence, sequence, damping);
+    init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit);
+    auto start = std::chrono::high_resolution_clock::now();
+    iter = convergence(N, nodes, tol, max_iter, divergence, sequence, damping);
     auto end = std::chrono::high_resolution_clock::now();
     size_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    
-    
-    bool make_other_seqs = !print_only_last || (!divergence && iter < max_iter);
-    
-    if (!print_only_last || !make_other_seqs){
+        
+    make_other_tries = !print_only_last || (!divergence && iter < max_iter);
+        
+    if (!make_other_tries){
         print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
         if (print_avgs){
             sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
             print_avgs_to_file(nodes, N, fileavgs);
         }
-    }
-    seed_seq++;
-
-    if (make_other_seqs){
+    }else{
         set_av_prev(nodes, N);
-        bool same_fixed_point = true;
-        while (seed_seq < seed_seq_init + num_seq){
-            start = std::chrono::high_resolution_clock::now(); 
-            produce_random_seq(seed_seq, N, sequence);
-            init_avgs(N, nodes, avn_0, random_init, dn, id_0);
-            iter = convergence(N, nodes, tol, max_iter, divergence, sequence, damping);
-            end = std::chrono::high_resolution_clock::now();
-            elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
-            seed_seq++;
-            if (!print_only_last){
-                print_results_short(iter, nodes, N, seed_graph, seed_seq - 1, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
-                if (print_avgs){
-                    sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq - 1);
-                    print_avgs_to_file(nodes, N, fileavgs);
+        bool cond = true;
+        while (seed_condinit < id_0 + num_init_conds && cond){
+            seed_seq = seed_seq_init;
+            while (seed_seq < seed_seq_init + num_seq && cond){
+                produce_random_seq(seed_seq, N, sequence);
+                init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit);
+                start = std::chrono::high_resolution_clock::now(); 
+                iter = convergence(N, nodes, tol, max_iter, divergence, sequence, damping);
+                end = std::chrono::high_resolution_clock::now();
+                size_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
+                if (!print_only_last){
+                    print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
+                    if (print_avgs){
+                        sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
+                        print_avgs_to_file(nodes, N, fileavgs);
+                    }
+                }else{
+                    if (!same_fixed_point || divergence || iter >= max_iter){
+                        cond = false;
+                    }
                 }
-            }else{
-                if (!same_fixed_point || divergence || iter >= max_iter){
-                    break;
-                }
+                seed_seq++;
             }
+            seed_condinit++;
         }
         if (print_only_last){
-            print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
+            print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit-1, max_iter, divergence, same_fixed_point, elapsed);
             if (print_avgs){
                 sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq-1);
                 print_avgs_to_file(nodes, N, fileavgs);
             }
         }
     }
+
 }
 
 #endif

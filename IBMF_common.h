@@ -314,7 +314,7 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long N, Tnode *&node
 
 
 void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, double &dn, 
-                     unsigned long &id_0, double &T, double &lambda, double &tol, 
+                     unsigned long &id_0, int &num_init_conds, double &T, double &lambda, double &tol, 
                      int &max_iter, unsigned long &seed_seq, unsigned long &num_seq,
                      double &tol_fixed_point, double &damping, bool &print_avgs,
                      bool &print_only_last, bool &gr_inside, double &eps, double &mu,
@@ -327,7 +327,7 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "The following list describes the command line arguments" << endl;
             cerr << "the structure is --arg_name  [data type]  ::  description" << endl;
             cerr << "--avn_0  [double]  ::  the initial average abundance" << endl;
-            cerr << "--random_init  [double]  [unsigned long]   ::  it expects a double (dn) and an unsigned long (id_0). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. Uses the seed 'id_0' for the random number generator. If not specified, the initial condition is n0 for all nodes" << endl;
+            cerr << "--random_init  [double]  [unsigned long]  [int]  ::  it expects a double (dn), an unsigned long (id_0), and an int (num_init_conds). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. The initial conditions are drawn for 'num_init_conds' different seeds of the random number generator, starting at 'id_0'. If --random_init is not included, the initial condition is n0 for all nodes" << endl;
             cerr << "-T  or --temp   [double]  ::  temperature" << endl;
             cerr << "--lambda  [double]   ::   immigration rate (default is zero)" << endl;
             cerr << "--tol  [double]   ::   tolerance for the convergence of the individual abundances" << endl;
@@ -360,6 +360,8 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             dn = atof(argv[arg_index]);
             arg_index++;
             id_0 = atol(argv[arg_index]);
+            arg_index++;
+            num_init_conds = atoi(argv[arg_index]);
             arg_index++;
         }else if (string(argv[arg_index]) == "-T" || string(argv[arg_index]) == "--temp"){
             arg_index++;
@@ -450,14 +452,14 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
 
 
 void print_params_run(double avn_0, bool random_init, double dn, 
-                     unsigned long id_0, double T, double lambda, double tol, 
+                     unsigned long id_0, int num_init_conds, double T, double lambda, double tol, 
                      int max_iter, unsigned long seed_seq, unsigned long num_seq,
                      double tol_fixed_point, double damping, bool print_avgs,
                      bool print_only_last, bool gr_inside, double eps, double mu,
                      double sigma, unsigned long seed_graph, long N, char * graph_type,
                      double c, char *input_graph_name){
     cerr << "Initial average abundance: " << avn_0 << endl;
-    cerr << "Random initial condition dn=" << dn << "   with seed " << id_0 << endl;
+    cerr << "Random initial condition dn=" << dn << "   extrated  " << num_init_conds << " times, with initial seed " << id_0 << endl;
     cerr << "Temperature: " << T << endl;
     cerr << "lambda: " << lambda << endl;
     cerr << "Tolerance for convergence: " << tol << endl;

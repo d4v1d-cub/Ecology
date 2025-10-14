@@ -13,6 +13,7 @@ int main(int argc, char *argv[]) {
     bool random_init = false;
     double dn = 0;
     unsigned long id_0 = 0;
+    int num_init_conds = 1;
     double T = 0.01;
     double lambda = 1e-6;
     double tol = 1e-6;
@@ -21,9 +22,9 @@ int main(int argc, char *argv[]) {
     unsigned long num_seq = 5;
     double tol_fixed_point = 1e-2;
     double damping = 1.0;
-    bool print_avgs = true;
-    bool print_only_last = true;
-    bool gr_inside = true;
+    bool print_avgs = false;
+    bool print_only_last = false;
+    bool gr_inside = false;
     double eps = 1.0;
     double mu = 0.2;
     double sigma = 0.0;
@@ -37,12 +38,14 @@ int main(int argc, char *argv[]) {
 
     bool print_params = false;
 
-    parse_arguments(argc, argv, avn_0, random_init, dn, id_0, T, lambda, tol, max_iter,
+    cout << fixed;
+
+    parse_arguments(argc, argv, avn_0, random_init, dn, id_0, num_init_conds, T, lambda, tol, max_iter,
                     seed_seq, num_seq, tol_fixed_point, damping,
                     print_avgs, print_only_last, gr_inside, eps, mu,
                     sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params);
     if (print_params) {
-        print_params_run(avn_0, random_init, dn, id_0, T, lambda, tol, max_iter,
+        print_params_run(avn_0, random_init, dn, id_0, num_init_conds, T, lambda, tol, max_iter,
                          seed_seq, num_seq, tol_fixed_point, damping,
                          print_avgs, print_only_last, gr_inside, eps, mu,
                          sigma, seed_graph, N, graph_type, c_arg, gr_str);
@@ -54,25 +57,24 @@ int main(int argc, char *argv[]) {
 
     create_graph(gr_inside, seed_graph, N, nodes, eps, mu, sigma, gr_str, graph_type, c_arg);
 
-    unsigned long seed_condinit = 0;
     char fileout_base[300];
 
     if (T == 0) {
-        sprintf(fileout_base, "IBMF_T0_seq_%s_Lotka_Volterra_final_av0_%.3lf_tol_%.1e_maxiter_%d_damping_%.2lf", 
-                              gr_str, avn_0, tol, max_iter, damping);
-        several_seq_IBMF_T0(gr_inside, seed_seq, seed_condinit, N, nodes, tol,
+        sprintf(fileout_base, "IBMF_T0_seq_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_seedinit0_%li_ninitseeds_%d_tol_%.1e_maxiter_%d_damping_%.2lf", 
+                              gr_str, avn_0, dn, id_0, num_init_conds, tol, max_iter, damping);
+        several_seq_IBMF_T0(gr_inside, seed_seq, N, nodes, tol,
                             max_iter, num_seq, tol_fixed_point,
                             avn_0, damping, seed_graph,
                             print_only_last, print_avgs,
-                            fileout_base, random_init, dn, id_0);
+                            fileout_base, random_init, dn, id_0, num_init_conds);
     } else {
-        sprintf(fileout_base, "IBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_damping_%.2lf.txt", 
-                          gr_str, avn_0, T, lambda, tol, max_iter, damping);
-        several_seq_IBMF(gr_inside, seed_seq, seed_condinit, N, nodes, T, lambda, tol,
+        sprintf(fileout_base, "IBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_seedinit0_%li_ninitseeds_%d_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_damping_%.2lf.txt", 
+                          gr_str, avn_0, dn, id_0, num_init_conds, T, lambda, tol, max_iter, damping);
+        several_seq_IBMF(gr_inside, seed_seq, N, nodes, T, lambda, tol,
                          max_iter, num_seq, tol_fixed_point,
                          avn_0, damping, seed_graph,
                          print_only_last, print_avgs,
-                         fileout_base, random_init, dn, id_0);
+                         fileout_base, random_init, dn, id_0, num_init_conds);
     }
     
     
