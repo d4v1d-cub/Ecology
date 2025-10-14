@@ -67,10 +67,10 @@ int convergence(long N, Tnode *nodes, double tol, int max_iter, bool &divergence
 }
 
 
-void several_seq_IBMF_T0(bool seed_graph, unsigned long seed_seq_init, 
+void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init, 
                          long N, Tnode *nodes, double tol,
                          int max_iter, unsigned long num_seq, double tol_fixed_point,
-                         double avn_0, double damping, unsigned long seed, 
+                         double avn_0, double damping, 
                          bool print_only_last, bool print_avgs, 
                          char * fileout_base, bool random_init, double dn, unsigned long id_0, int num_init_conds){
 
