@@ -112,10 +112,10 @@ def main():
     damping = "1.0"
     nseq = "1"
 
-    # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
-    # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
-    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
+    path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    # path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
+    # path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
 
     ndigits = 3
 
