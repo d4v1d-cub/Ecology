@@ -197,6 +197,21 @@ int convergence(long N, double beta, double lambda, Tnode *nodes, double tol,
 }
 
 
+size_t IBMF_single_try(unsigned long seed_seq, long N, Tnode *nodes, double beta, double lambda, double tol,
+                       int max_iter, double avn_0, double damping, bool random_init, double dn, 
+                       unsigned long seed_condinit, long sequence[], bool &divergence, int &iter, 
+                       double hmin, double hmax, double **coefficients, double *gamma_vals){
+    produce_random_seq(seed_seq, N, sequence);
+    init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit);
+    auto start = std::chrono::high_resolution_clock::now();
+    iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
+                       hmin, hmax, coefficients, gamma_vals, sequence, damping);
+    auto end = std::chrono::high_resolution_clock::now();
+    size_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    return elapsed;
+}
+
+
 void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init, 
                       long N, Tnode *nodes, double T, double lambda, double tol,
                       int max_iter, unsigned long num_seq, double tol_fixed_point,
@@ -224,35 +239,58 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
 
     seed_seq = seed_seq_init;
     seed_condinit = id_0;
-    produce_random_seq(seed_seq, N, sequence);
-    init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit);
-    auto start = std::chrono::high_resolution_clock::now();
-    iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                       hmin, hmax, coefficients, gamma_vals, sequence, damping);
-    auto end = std::chrono::high_resolution_clock::now();
-    size_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    size_t elapsed = IBMF_single_try(seed_seq, N, nodes, beta, lambda, tol, max_iter, avn_0, 
+                                     damping, random_init, dn, seed_condinit, sequence, divergence, 
+                                     iter, hmin, hmax, coefficients, gamma_vals);
         
-    make_other_tries = !print_only_last || (!divergence && iter < max_iter);
-        
-    if (!make_other_tries){
+    if (!print_only_last){
         print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
         if (print_avgs){
             sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
             print_avgs_to_file(nodes, N, fileavgs);
         }
-    }else{
+    }else if(divergence || iter >= max_iter){
+        print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
+        if (print_avgs){
+            sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
+            print_avgs_to_file(nodes, N, fileavgs);
+        }
+    }
+
+    make_other_tries = !print_only_last || (!divergence && iter < max_iter);
+    
+    if (make_other_tries){
         set_av_prev(nodes, N);
         bool cond = true;
+
+        seed_seq = seed_seq_init + 1;
+        while (seed_seq < seed_seq_init + num_seq && cond){
+            elapsed = IBMF_single_try(seed_seq, N, nodes, beta, lambda, tol, max_iter, avn_0, 
+                                      damping, random_init, dn, seed_condinit, sequence, divergence, 
+                                      iter, hmin, hmax, coefficients, gamma_vals);
+            same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
+            if (!print_only_last){
+                print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
+                if (print_avgs){
+                    sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
+                    print_avgs_to_file(nodes, N, fileavgs);
+                }
+            }else{
+                if (!same_fixed_point || divergence || iter >= max_iter){
+                    cond = false;
+                }
+            }
+            seed_seq++;
+        }
+        
+        seed_condinit++;
+
         while (seed_condinit < id_0 + num_init_conds && cond){
             seed_seq = seed_seq_init;
             while (seed_seq < seed_seq_init + num_seq && cond){
-                produce_random_seq(seed_seq, N, sequence);
-                init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit);
-                start = std::chrono::high_resolution_clock::now(); 
-                iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                                   hmin, hmax, coefficients, gamma_vals, sequence, damping);
-                end = std::chrono::high_resolution_clock::now();
-                size_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                elapsed = IBMF_single_try(seed_seq, N, nodes, beta, lambda, tol, max_iter, avn_0, 
+                                          damping, random_init, dn, seed_condinit, sequence, divergence, 
+                                          iter, hmin, hmax, coefficients, gamma_vals);
                 same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
                 if (!print_only_last){
                     print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
@@ -269,6 +307,7 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
             }
             seed_condinit++;
         }
+
         if (print_only_last){
             print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit-1, max_iter, divergence, same_fixed_point, elapsed);
             if (print_avgs){

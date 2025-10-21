@@ -101,8 +101,8 @@ def main():
     damping = "1.0"
     nseq = "1"
 
-    # path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    # path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
 
     ndigits = 3
 
