@@ -10,7 +10,7 @@ def filter_files(path, T, lda, eps, avn0, dn, ninitconds, tol, max_iter, damping
     files_mu_sigma = []
 
     # Define the pattern for matching filenames
-    pattern = f'IBMF_seq_ER_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_*_sigma_*_N_*_c_*_damping_{damping}_nseq_{nseq}.txt'
+    pattern = f'IBMF_seq_ER_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_*_sigma_*_N_*_c_*_damping_{damping}_nseq_{nseq}_Dariah.txt'
 
     # Iterate through the files in the specified directory
     for filename in os.listdir(path):
@@ -80,7 +80,7 @@ def get_all_vals(path, T, lda, eps, avn0, dn, ninitconds, tol, max_iter, damping
 
 
 def print_summary(path_in, path_out, T, lda, eps, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits):
-    fout = open(f'{path_out}/IBMF_seq_directed_ER_summary_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_damping_{damping}_nseq_{nseq}.txt', 'w')
+    fout = open(f'{path_out}/IBMF_seq_directed_ER_summary_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_damping_{damping}_nseq_{nseq}_Dariah.txt', 'w')
     fout.write("# N  c  mu  sigma  av_time  av_div  samples_div  prob_div  error_prob  av_m  error_av_m  runtime(s)  std_runtime(s) nsamples\n")
     vals_list = get_all_vals(path_in, T, lda, eps, avn0, dn, ninitconds, tol, max_iter, damping, nseq)
     for vals in vals_list:
