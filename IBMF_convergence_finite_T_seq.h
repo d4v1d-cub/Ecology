@@ -246,13 +246,13 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
     if (!print_only_last){
         print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
         if (print_avgs){
-            sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
+            sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
             print_avgs_to_file(nodes, N, fileavgs);
         }
     }else if(divergence || iter >= max_iter){
         print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
         if (print_avgs){
-            sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
+            sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
             print_avgs_to_file(nodes, N, fileavgs);
         }
     }
@@ -272,7 +272,7 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
             if (!print_only_last){
                 print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
                 if (print_avgs){
-                    sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
+                    sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
                     print_avgs_to_file(nodes, N, fileavgs);
                 }
             }else{
@@ -295,7 +295,7 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
                 if (!print_only_last){
                     print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
                     if (print_avgs){
-                        sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq);
+                        sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
                         print_avgs_to_file(nodes, N, fileavgs);
                     }
                 }else{
@@ -311,7 +311,7 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
         if (print_only_last){
             print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit-1, max_iter, divergence, same_fixed_point, elapsed);
             if (print_avgs){
-                sprintf(fileavgs, "%s_seedseq_%li.txt", fileout_base, seed_seq-1);
+                sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
                 print_avgs_to_file(nodes, N, fileavgs);
             }
         }

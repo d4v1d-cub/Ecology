@@ -48,6 +48,21 @@ void init_graph_from_input(Tnode *&nodes, long &N){
 }
 
 
+void init_graph_from_input_inverse(Tnode *&nodes, long &N){
+    long M;
+    scanf("%ld %ld", &N, &M);
+    nodes = new Tnode[N];
+    long i, j;
+    double aij, aji;
+    for (long e = 0; e < M; e++){
+        scanf("%ld %ld %lf %lf", &i, &j, &aji, &aij);
+        nodes[i].neighs.push_back(j);
+        nodes[j].neighs.push_back(i);
+        nodes[i].links_in.push_back(aji);
+        nodes[j].links_in.push_back(aij);
+    }
+}
+
 void init_nodes(Tnode *nodes, long N){
     for (long i = 0; i < N; i++){
         nodes[i].links_in = vector <double> ();
@@ -287,7 +302,7 @@ void print_avgs_to_file(Tnode *nodes, long N, char *fileavgs){
 
 void create_graph(bool gr_inside, unsigned long seed_graph, long N, Tnode *&nodes, 
                   double eps, double mu, double sigma, char * gr_str, char * graph_type, 
-                  double c_arg){
+                  double c_arg, bool alpha_inverse){
     if (gr_inside){
         gsl_rng * r;
         init_ran(r, seed_graph);
@@ -308,7 +323,11 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long N, Tnode *&node
         }
 
     }else{
-        init_graph_from_input(nodes, N);
+        if (alpha_inverse){
+            init_graph_from_input_inverse(nodes, N);
+        }else{
+            init_graph_from_input(nodes, N);
+        }
     }
 }
 
@@ -319,35 +338,36 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
                      double &tol_fixed_point, double &damping, bool &print_avgs,
                      bool &print_only_last, bool &gr_inside, double &eps, double &mu,
                      double &sigma, unsigned long &seed_graph, long &N, char * graph_type,
-                     double &c, char *input_graph_name, bool &print_params){
+                     double &c, char *input_graph_name, bool &print_params, bool &alpha_inverse){
     int arg_index = 1;
     while (arg_index < argc){
         if (string(argv[arg_index]) == "-h" || string(argv[arg_index]) == "--help"){
             cerr << "Usage: " << argv[0] << endl;
             cerr << "The following list describes the command line arguments" << endl;
-            cerr << "the structure is --arg_name  [data type]  ::  description" << endl;
-            cerr << "--avn_0  [double]  ::  the initial average abundance" << endl;
-            cerr << "--random_init  [double]  [unsigned long]  [int]  ::  it expects a double (dn), an unsigned long (id_0), and an int (num_init_conds). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. The initial conditions are drawn for 'num_init_conds' different seeds of the random number generator, starting at 'id_0'. If --random_init is not included, the initial condition is n0 for all nodes" << endl;
-            cerr << "-T  or --temp   [double]  ::  temperature" << endl;
-            cerr << "--lambda  [double]   ::   immigration rate (default is zero)" << endl;
-            cerr << "--tol  [double]   ::   tolerance for the convergence of the individual abundances" << endl;
-            cerr << "--max_iter   [int]   ::   maximum number of iterations" << endl;
-            cerr << "--seed_seq   [unsigned long]   ::   initial seed to generate the update sequence" << endl;
-            cerr << "--num_seq   [int]   ::   number of different sequences to try" << endl;
-            cerr << "--tol_fp   [double]   ::   maximum allowed difference between individual abundances to determine that two fixed points are equal" << endl;
-            cerr << "--damping   [double]   :: damping for the convergence process. Setting it to 1 means no damping" << endl;
+            cerr << "the structure is --arg_name  [data_type: default]  ::  description" << endl;
+            cerr << "--avn_0  [double: 0.08]  ::  the initial average abundance" << endl;
+            cerr << "--random_init  [double: 0]  [unsigned long: 1]  [int: 1]  ::  it expects a double (dn), an unsigned long (id_0), and an int (num_init_conds). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. The initial conditions are drawn for 'num_init_conds' different seeds of the random number generator, starting at 'id_0'. If --random_init is not included, the initial condition is n0 for all nodes" << endl;
+            cerr << "-T  or --temp   [double: 0.01]  ::  temperature" << endl;
+            cerr << "--lambda  [double: 1e-6]   ::   immigration rate (default is zero)" << endl;
+            cerr << "--tol  [double: 1e-6]   ::   tolerance for the convergence of the individual abundances" << endl;
+            cerr << "--max_iter   [int: 10000]   ::   maximum number of iterations" << endl;
+            cerr << "--seed_seq   [unsigned long: 1]   ::   initial seed to generate the update sequence" << endl;
+            cerr << "--num_seq   [int: 1]   ::   number of different sequences to try" << endl;
+            cerr << "--tol_fp   [double: 1e-2]   ::   maximum allowed difference between individual abundances to determine that two fixed points are equal" << endl;
+            cerr << "--damping   [double: 1.0]   :: damping for the convergence process. Setting it to 1 means no damping" << endl;
             cerr << "--print_avgs   ::   if this flag is added to the arguments, the program will print individual average abundances" << endl;
             cerr << "--print_only_last  ::  if this flag is added to the arguments, the program prints only the information obtained by running the convergence process with the last sequence (with seed 'seed_seq+num_seq-1')" << endl;
             cerr << "--gr_inside  ::  it this flag is added to the arguments, the program will generate the interaction graph. If not, it will expect the graph from standard input" << endl;
-            cerr << "--eps   [double]  ::   level of asymmetry in the graph (only needed if --gr_inside is set)" << endl;
-            cerr << "--mu  [double]   ::   average strength of the interactions (only needed if --gr_inside is set)" << endl;
-            cerr << "--sigma  [double]  ::  standard deviation of the interactions (only needed if --gr_inside is set)" << endl;
-            cerr << "--seed_graph  [unsigned long]  ::  seed for the generation of the graph  (only needed if --gr_inside is set)" << endl;
-            cerr << "-N or --size  [long]  ::  number of species in the system  (only needed if --gr_inside is set)" << endl;
-            cerr << "-c or --connect  [int or double, depending on graph type]  ::  average connectivity of the interaction graph  (only needed if --gr_inside is set)" << endl;
-            cerr << "--graph_type  [string]  ::  if graph_type=RRG, the program generates a random regular graph. If graph_type=ER, it generates an Erdos-Renyi graph (only needed if --gr_inside is set)" << endl;
+            cerr << "--eps   [double: 1.0]  ::   level of asymmetry in the graph (only needed if --gr_inside is set)" << endl;
+            cerr << "--mu  [double: 0.2]   ::   average strength of the interactions (only needed if --gr_inside is set)" << endl;
+            cerr << "--sigma  [double: 0.0]  ::  standard deviation of the interactions (only needed if --gr_inside is set)" << endl;
+            cerr << "--seed_graph  [unsigned long: 1]  ::  seed for the generation of the graph  (only needed if --gr_inside is set)" << endl;
+            cerr << "-N or --size  [long: 1024]  ::  number of species in the system  (only needed if --gr_inside is set)" << endl;
+            cerr << "-c or --connect  [int or double, depending on graph type: 3]  ::  average connectivity of the interaction graph  (only needed if --gr_inside is set)" << endl;
+            cerr << "--graph_type  [string: RRG]  ::  if graph_type=RRG, the program generates a random regular graph. If graph_type=ER, it generates an Erdos-Renyi graph (only needed if --gr_inside is set)" << endl;
             cerr << "--input_graph_name  [string]  ::  name of the input graph to insert in the output files (only needed if --gr_inside is not set and --print_avgs is set)" << endl;
             cerr << "--print_params  ::  if this flag is added to the arguments, the program will print the parameters used for the run" << endl;
+            cerr << "--alpha_inverse  ::  the program will read the input graph assuming that the interactions are given in the inverse order (is makes sense only if --gr_inside is not set)." << endl;
             exit(0);
         }
         if (string(argv[arg_index]) == "--avn_0"){
@@ -443,6 +463,9 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
         }else if (string(argv[arg_index]) == "--print_params"){
             print_params = true;
             arg_index++;
+        }else if (string(argv[arg_index]) == "--alpha_inverse"){
+            alpha_inverse = true;
+            arg_index++;
         }else{
             cerr << "Unknown argument: " << argv[arg_index] << endl;
             exit(1);
@@ -457,7 +480,7 @@ void print_params_run(double avn_0, bool random_init, double dn,
                      double tol_fixed_point, double damping, bool print_avgs,
                      bool print_only_last, bool gr_inside, double eps, double mu,
                      double sigma, unsigned long seed_graph, long N, char * graph_type,
-                     double c, char *input_graph_name){
+                     double c, char *input_graph_name, bool alpha_inverse){
     cerr << "Initial average abundance: " << avn_0 << endl;
     cerr << "Random initial condition dn=" << dn << "   extrated  " << num_init_conds << " times, with initial seed " << id_0 << endl;
     cerr << "Temperature: " << T << endl;
@@ -468,17 +491,32 @@ void print_params_run(double avn_0, bool random_init, double dn,
     cerr << "Number of different sequences to try: " << num_seq << endl;
     cerr << "Tolerance to determine if two fixed points are equal: " << tol_fixed_point << endl;
     cerr << "Damping for the convergence process: " << damping << endl;
-    cerr << "The program will print individual average abundances" << endl;
-    cerr << "The program will print only the information obtained by running the convergence process with the last sequence" << endl;
-    cerr << "The program will generate the interaction graph" << endl;
-    cerr << "Level of asymmetry in the graph: " << eps << endl;
-    cerr << "Average strength of the interactions: " << mu << endl;
-    cerr << "Standard deviation of the interactions: " << sigma << endl;
-    cerr << "Seed for the generation of the graph: " << seed_graph << endl;
-    cerr << "Number of species in the system: " << N << endl;
-    cerr << "Average connectivity of the interaction graph: " << c << endl;
-    cerr << "Type of graph to generate: " << graph_type << endl;
-    cerr << "Name of the input graph to insert in the output files: " << input_graph_name << endl;
+    if (print_avgs){
+        cerr << "The program will print individual average abundances" << endl;
+    }else{
+        cerr << "The program will not print individual average abundances" << endl;
+    }
+    if (print_only_last){
+        cerr << "The program will print only the information obtained by running the convergence process with the last sequence" << endl;
+    }else{
+        cerr << "The program will print the information obtained by running the convergence process with all sequences and initial conditions" << endl;
+    }
+    if (gr_inside){
+        cerr << "The program will generate the interaction graph" << endl;
+        cerr << "Level of asymmetry in the graph: " << eps << endl;
+        cerr << "Average strength of the interactions: " << mu << endl;
+        cerr << "Standard deviation of the interactions: " << sigma << endl;
+        cerr << "Seed for the generation of the graph: " << seed_graph << endl;
+        cerr << "Number of species in the system: " << N << endl;
+        cerr << "Average connectivity of the interaction graph: " << c << endl;
+        cerr << "Type of graph to generate: " << graph_type << endl;
+    }else{
+        cerr << "The program will read the interaction graph from standard input" << endl;      
+        cerr << "Name of the input graph to insert in the output files: " << input_graph_name << endl;
+        if (alpha_inverse){
+            cerr << "The program will read the input graph assuming that the interactions are given in the inverse order" << endl;
+        }
+    }
 }
 
 
