@@ -1,6 +1,16 @@
 #ifndef __IBMF_CONVERGENCE_FINITE_T_H_INCLUDED__
 #define __IBMF_CONVERGENCE_FINITE_T_H_INCLUDED__
 
+/**
+ * @file IBMF_convergence_finite_T_seq.h
+ * @brief Implementation of finite-temperature IBMF convergence
+ * 
+ * This file implements the convergence algorithm for the Individual Based Mean Field
+ * approach at finite temperature (T>0). At finite T, the stationary solution involves
+ * confluent hypergeometric functions that arise from the Fokker-Planck equation.
+ * The implementation handles both the analytical solution using special functions
+ * and asymptotic approximations when numerical evaluation becomes unstable.
+ */
 
 #include "IBMF_common.h"
 #include <chrono>
@@ -8,10 +18,25 @@
 using namespace std;
 
 
+/**
+ * @brief Compute coefficients for the finite temperature IBMF solution
+ * @param beta Inverse temperature (1/T)
+ * @param lambda Immigration rate
+ * @param coefficients Output matrix of coefficients for the hypergeometric functions
+ * @param gamma_vals Output array of gamma function values
+ * @param maximum Maximum allowed value before switching to asymptotic form
+ * @return True if gamma functions diverge and asymptotic form is used
+ * 
+ * The stationary solution at finite T involves ratios of confluent hypergeometric
+ * functions with coefficients determined by beta and lambda. This function computes
+ * these coefficients, handling both the regular case and the asymptotic approximation
+ * when the gamma functions become too large to evaluate directly.
+ */
 bool comp_coefficients(double beta, double lambda, double **&coefficients, double *&gamma_vals, 
                        double maximum=1e10){
     bool gamma_diverges = false;
     gamma_vals = new double[2];
+    // Check if gamma functions can be evaluated directly
     if (isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((1 + beta * lambda) / 2)) || 
         gsl_sf_gamma((1 + beta * lambda) / 2) > maximum){
         gamma_diverges = true;

@@ -2,10 +2,23 @@
 #include "IBMF_convergence_finite_T_seq.h"
 #include "IBMF_convergence_T0_seq.h"
 
+/**
+ * @file IBMF_LV_sequential.cpp
+ * @brief Main program for Individual Based Mean Field analysis of Lotka-Volterra dynamics
+ * 
+ * This program implements the IBMF approach for analyzing the stationary states
+ * of generalized Lotka-Volterra dynamics on sparse interaction networks. The method
+ * can handle both zero and finite temperature cases, with optional immigration.
+ * 
+ * Key features:
+ * - Supports both random regular graphs (RRG) and Erdős-Rényi (ER) networks
+ * - Handles symmetric and asymmetric interactions
+ * - Implements both T=0 and T>0 solutions
+ * - Includes damping for improved convergence
+ * - Multiple initial conditions and update sequences for robustness
+ */
+
 using namespace std;
-
-
-
 
 
 int main(int argc, char *argv[]) {

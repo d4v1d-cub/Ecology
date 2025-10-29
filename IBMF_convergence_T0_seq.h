@@ -1,11 +1,36 @@
 #ifndef __IBMF_CONVERGENCE_T0_H_INCLUDED__
 #define __IBMF_CONVERGENCE_T0_H_INCLUDED__
 
+/**
+ * @file IBMF_convergence_T0_seq.h
+ * @brief Implementation of zero-temperature IBMF convergence
+ * 
+ * This file implements the convergence algorithm for the Individual Based Mean Field
+ * approach at zero temperature (T=0). At T=0, the stationary solution reduces to
+ * a simpler form where species abundances are directly proportional to their local fields
+ * when positive, and zero otherwise.
+ */
+
 #include "IBMF_common.h"
 #include <chrono>
 
 using namespace std;
 
+/**
+ * @brief Update node abundances using zero-temperature IBMF equations
+ * @param N Number of species
+ * @param nodes Array of species nodes
+ * @param tol Convergence tolerance
+ * @param iter Current iteration number
+ * @param sequence Array defining update order
+ * @param damping Damping factor for updates (1.0 = no damping)
+ * @param normfactor Small number to prevent division by zero
+ * @return Maximum change in abundance across all nodes
+ * 
+ * At T=0, the update rule is:
+ * n_i = max(0, 1 - sum_j a_ij n_j)
+ * with optional damping to aid convergence
+ */
 double new_averages(long N, Tnode *nodes, double tol, int iter, long sequence[],
                     double damping, double normfactor = 1e-14){
     double var = 0, var_i;

@@ -1,18 +1,34 @@
 #ifndef __IBMF_COMMON_H_INCLUDED__
 #define __IBMF_COMMON_H_INCLUDED__
 
+/**
+ * @file IBMF_common.h
+ * @brief Common utilities and data structures for Individual Based Mean Field (IBMF) analysis
+ * of Generalized Lotka-Volterra dynamics on sparse graphs.
+ * 
+ * This file implements the core functionality for analyzing species interactions
+ * in ecological networks using the IBMF approach. The implementation focuses on
+ * finding stationary solutions to the local Fokker-Planck equation that describes
+ * the species abundance dynamics.
+ */
+
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
 #include <vector>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_sf_hyperg.h>
-#include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_randist.h>    // For random number generation
+#include <gsl/gsl_sf_hyperg.h>  // For hypergeometric functions
+#include <gsl/gsl_sf_gamma.h>   // For gamma functions
 #include "math.h"
 #include <cmath>
 
 using namespace std;
 
+/**
+ * @brief Initialize the GSL random number generator
+ * @param r Reference to the random number generator
+ * @param s Seed for the random number generator
+ */
 void init_ran(gsl_rng * &r, unsigned long s){
     const gsl_rng_type * T;
     gsl_rng_env_setup();
@@ -21,18 +37,59 @@ void init_ran(gsl_rng * &r, unsigned long s){
     gsl_rng_set(r, s);
 }
 
-
+/**
+ * @brief Node structure representing a species in the ecosystem
+ * 
+ * This structure contains all information needed to represent a species
+ * in the IBMF approximation of the Lotka-Volterra dynamics:
+ * - Network topology (neighbors and interaction strengths)
+ * - Current state (field and abundance)
+ * - Convergence information
+ */
 typedef struct{
-    vector <long> neighs;
-    vector <double> links_in;
-    double field; // average value of n in that node
-    bool converged; // whether the node converged or not
-    double av;
-    double av_prev_fixed_point;
+    vector <long> neighs;         ///< Indices of neighboring species
+    vector <double> links_in;     ///< Interaction strengths of incoming links
+    double field;               ///< Local field (average abundance) at this node
+    bool converged;             ///< Whether node has reached convergence
+    double av;                  ///< Current average abundance
+    double av_prev_fixed_point; ///< Previous fixed point for comparison
 }Tnode;
 
 
+/**
+ * @brief Initialize interaction network from standard input
+ * @param nodes Reference to array of nodes representing species
+ * @param N Number of species (nodes) in the network
+ * 
+ * Expected input format:
+ * N M          // Number of nodes and edges
+ * i j aij aji  // Edge data: nodes i,j and their interaction strengths
+ * ...          // (M lines of edge data)
+ */
 void init_graph_from_input(Tnode *&nodes, long &N){
+    long M;  // Number of edges
+    scanf("%ld %ld", &N, &M);
+    nodes = new Tnode[N];
+    long i, j;
+    double aij, aji;  // Interaction strengths
+    for (long e = 0; e < M; e++){
+        scanf("%ld %ld %lf %lf", &i, &j, &aij, &aji);
+        nodes[i].neighs.push_back(j);
+        nodes[j].neighs.push_back(i);
+        nodes[i].links_in.push_back(aji);  // Note: aji is incoming to i
+        nodes[j].links_in.push_back(aij);  // aij is incoming to j
+    }
+}
+
+/**
+ * @brief Initialize interaction network from input with inverse interaction order
+ * @param nodes Reference to array of nodes representing species
+ * @param N Number of species (nodes) in the network
+ * 
+ * Similar to init_graph_from_input but swaps the interpretation of aij and aji
+ * in the input format to support different conventions in input data.
+ */
+void init_graph_from_input_inverse(Tnode *&nodes, long &N){
     long M;
     scanf("%ld %ld", &N, &M);
     nodes = new Tnode[N];
@@ -42,27 +99,19 @@ void init_graph_from_input(Tnode *&nodes, long &N){
         scanf("%ld %ld %lf %lf", &i, &j, &aij, &aji);
         nodes[i].neighs.push_back(j);
         nodes[j].neighs.push_back(i);
-        nodes[i].links_in.push_back(aji);
-        nodes[j].links_in.push_back(aij);
+        nodes[i].links_in.push_back(aij);  // Note: aij is incoming to i
+        nodes[j].links_in.push_back(aji);  // aji is incoming to j
     }
 }
 
-
-void init_graph_from_input_inverse(Tnode *&nodes, long &N){
-    long M;
-    scanf("%ld %ld", &N, &M);
-    nodes = new Tnode[N];
-    long i, j;
-    double aij, aji;
-    for (long e = 0; e < M; e++){
-        scanf("%ld %ld %lf %lf", &i, &j, &aji, &aij);
-        nodes[i].neighs.push_back(j);
-        nodes[j].neighs.push_back(i);
-        nodes[i].links_in.push_back(aji);
-        nodes[j].links_in.push_back(aij);
-    }
-}
-
+/**
+ * @brief Initialize empty node vectors for a network
+ * @param nodes Array of nodes to initialize
+ * @param N Number of nodes to initialize
+ * 
+ * Creates empty neighbor and interaction strength vectors for each node.
+ * Called before building network structure to ensure clean initialization.
+ */
 void init_nodes(Tnode *nodes, long N){
     for (long i = 0; i < N; i++){
         nodes[i].links_in = vector <double> ();
@@ -70,15 +119,34 @@ void init_nodes(Tnode *nodes, long N){
     }
 }
 
+/**
+ * @brief Generate a Random Regular Graph (RRG) with specified parameters
+ * @param nodes Reference to array of nodes to store the generated network
+ * @param N Number of species (nodes)
+ * @param c Degree (number of interactions) per node
+ * @param eps Symmetry parameter (0-1) - probability of symmetric interactions
+ * @param mu Mean interaction strength
+ * @param sigma Standard deviation of interaction strengths
+ * @param r Random number generator
+ * 
+ * Creates a random c-regular graph where each species interacts with exactly c others.
+ * Interaction strengths are drawn from N(mu,sigma²). When eps=1, interactions are
+ * symmetric (aij=aji). When eps=0, they are fully independent.
+ * 
+ * The algorithm uses the configuration model:
+ * 1. Create c "stubs" for each node
+ * 2. Randomly pair stubs to form edges
+ * 3. Generate interaction strengths for each edge
+ */
 void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
                            double mu, double sigma, gsl_rng * r){
-    // eps is the degree of symmetry of the graph
+    // Ensure valid parameters for RRG construction
     if (N * c % 2 != 0){
         cerr << "N*c must be even to create a random regular graph" << endl;
         exit(1);
     }else{
         bool success = false;
-        long M = N * c / 2;
+        long M = N * c / 2;  // Total number of edges
         long pos_i, pos_j, i, j;
         double aij, aji;
         nodes = new Tnode[N];
@@ -188,16 +256,33 @@ void init_avgs(long N, Tnode *nodes, double avn_0, bool random_init, double dn, 
 }
 
 
+/**
+ * @brief Calculate the local field at a node
+ * @param i Index of the node
+ * @param nodes Array of all nodes
+ * @return Value of the local field h_i = 1 - sum_j a_ij n_j
+ * 
+ * The local field determines the dynamics of species i through the
+ * Lotka-Volterra equations. At steady state, positive fields indicate
+ * survival while negative fields lead to extinction.
+ */
 double field_in(long i, Tnode *nodes){
     double field = 0;
     for (long j = 0; j < nodes[i].neighs.size(); j++){
         field += nodes[i].links_in[j] * nodes[nodes[i].neighs[j]].av;
     }
-    return 1 - field;
+    return 1 - field;  // 1 is the carrying capacity
 }
 
-
-
+/**
+ * @brief Calculate mean abundance across all species
+ * @param N Number of species
+ * @param nodes Array of nodes
+ * @return Average abundance <n>
+ * 
+ * The mean abundance is a key observable that characterizes
+ * the overall state of the ecosystem.
+ */
 double average(long N, Tnode *nodes){
     double av = 0;
     for (long i = 0; i < N; i++){
@@ -206,6 +291,15 @@ double average(long N, Tnode *nodes){
     return av / N;
 }
 
+/**
+ * @brief Calculate mean squared abundance
+ * @param N Number of species
+ * @param nodes Array of nodes
+ * @return Average squared abundance <n²>
+ * 
+ * Used together with average() to compute abundance fluctuations
+ * and characterize the distribution of species abundances.
+ */
 double average_sqr(long N, Tnode *nodes){
     double av_sqr = 0;
     for (long i = 0; i < N; i++){
