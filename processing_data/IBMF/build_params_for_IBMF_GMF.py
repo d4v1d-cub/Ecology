@@ -83,8 +83,8 @@ def print_params_ref_max(path_in, filein, path_out, fileout, dpar_trans, pos_par
 def main():
 
     dpar_trans = 0.004
-    shift_below = -0.012
-    shift_above = 0.036
+    shift_below = 0.008
+    shift_above = 0.008
     ndigits = 3
 
     eps = "0.000"
@@ -95,8 +95,9 @@ def main():
 
     # IBMF
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF"
-    N_list = [128, 256, 512, 1024]
+    # path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF"
+    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results"
+    N_list = [128, 256, 512, 1024, 2048, 4096]
     dpar_fixed = 0.003
     par_fixed_start = 0.000
     par_fixed_end = 0.354
@@ -105,7 +106,9 @@ def main():
         par_fixed_list[i] = round(par_fixed_list[i], ndigits)
 
     for N in N_list:
-        filein = f'IBMF_T0_seq_RRG_PD_Lotka_Volterra_transitions_mult_av0_0.08_tol_1e-6_maxiter_10000_eps_0.000_N_{N}_c_3_damping_1.0_nseq_10.txt'
+        # filein = f'IBMF_T0_seq_RRG_PD_Lotka_Volterra_transitions_mult_av0_0.08_tol_1e-6_maxiter_10000_eps_0.000_N_{N}_c_3_damping_1.0_nseq_10.txt'
+        filein = f'Lotka-Volterra_transition_mult_epsilon_0.0_Partially_AsymGauss_lambda_1e-06_tol_1e-08_N_{N}_c_3.00_T_0.0.txt'
+
 
         path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Scripts/Dresden/IBMF"
         fileout = f'params_IBMF_T0_seq_dif_init_conds_eps0_N_{N}.txt'
