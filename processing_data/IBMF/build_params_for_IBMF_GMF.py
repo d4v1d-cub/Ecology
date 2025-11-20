@@ -123,14 +123,14 @@ def print_params_ref_max(path_in, filein, path_out, fileout, dpar_trans, pos_par
 
 def main():
 
-    dpar_trans = 0.004
-    shift_below = 0.020
-    shift_above = 0.020
-    ndigits = 3
+    # dpar_trans = 0.004
+    # shift_below = 0.020
+    # shift_above = 0.020
+    # ndigits = 3
 
-    eps = "1.000"
-    seed_block = "1"
-    nsampl_each = "10000"
+    # eps = "0.000"
+    # seed_block = "1"
+    # nsampl_each = "10000"
 
     # EPSILON = "0.0" (ASYMMETRIC)  params: (mu, sigma)
 
@@ -193,6 +193,17 @@ def main():
     #                          par_fixed_list, eps, seed_block, nsampl_each)
         
     
+
+    dpar_trans = 0.002
+    shift_below = 0.020
+    shift_above = 0.020
+    ndigits = 3
+
+    eps = "1.000"
+    seed_block = "1"
+    nsampl_each = "10000"
+
+
     # EPSILON = "1.0" (SYMMETRIC)  params: (mu, sigma)
     
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
