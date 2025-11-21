@@ -75,13 +75,13 @@ def get_all_vals(path, lda, eps, sigma, N, c, avn0, dn, ninitconds, tol, max_ite
     # Find all files that match the pattern
     sorted_data = filter_files(path, lda, eps, sigma, N, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq)
     vals_list = []
-    for filename, mu, sigma in sorted_data:
+    for filename, T, mu in sorted_data:
         av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, \
         runtime_conv, std_runtime_conv, nsamples, found = summary_statistics(path, filename)
         if found:
-            vals_list.append((mu, sigma, av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, 
+            vals_list.append((T, mu, av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, 
                               runtime_conv, std_runtime_conv, nsamples))
-        print(f'Processed  N={N}    mu={mu}   sigma={sigma}')
+        print(f'Processed  N={N}    T={T}   mu={mu}')
     return vals_list
 
 
