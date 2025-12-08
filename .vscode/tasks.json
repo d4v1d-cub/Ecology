@@ -2,8 +2,8 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 IBMF sequential",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ IBMF sequential",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -25,8 +25,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 IBMF sigma0",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ IBMF sigma0",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -49,8 +49,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 IBMF2 stat print less",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ IBMF2 stat print less",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -73,8 +73,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 IBMF2 sigma0",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ IBMF2 sigma0",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -97,8 +97,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 GMF stat print less",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ GMF stat print less",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -121,8 +121,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 GMF stat print less seq",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ GMF stat print less seq",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -145,8 +145,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 GMF sigma0",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ GMF sigma0",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -169,8 +169,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 GMF T0",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ GMF T0",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -193,8 +193,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 GMF T0 seq",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ GMF T0 seq",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -217,8 +217,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 FP single var",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ FP single var",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -241,8 +241,8 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++-11 FP single var avoid div",
-            "command": "/usr/bin/g++-11",
+            "label": "C/C++: g++ FP single var avoid div",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",

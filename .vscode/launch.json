@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "C/C++: g++-11 IBMF sequential",
+            "name": "C/C++: g++ IBMF sequential",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_sequential.out",
@@ -44,11 +44,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 IBMF sequential",
+            "preLaunchTask": "C/C++: g++ IBMF sequential",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         // {
-        //     "name": "C/C++: g++-11 IBMF stat",
+        //     "name": "C/C++: g++ IBMF stat",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF_LV_stat_point.out",
@@ -70,11 +70,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF stat",
+        //     "preLaunchTask": "C/C++: g++ IBMF stat",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 IBMF stat print less",
+        //     "name": "C/C++: g++ IBMF stat print less",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF_LV_stat_point_print_less.out",
@@ -96,11 +96,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF stat print less",
+        //     "preLaunchTask": "C/C++: g++ IBMF stat print less",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 IBMF stat print less seq",
+        //     "name": "C/C++: g++ IBMF stat print less seq",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF_LV_stat_point_print_less_seq.out",
@@ -122,11 +122,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF stat print less seq",
+        //     "preLaunchTask": "C/C++: g++ IBMF stat print less seq",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 IBMF stat seq",
+        //     "name": "C/C++: g++ IBMF stat seq",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF_LV_stat_point_seq.out",
@@ -148,11 +148,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF stat seq",
+        //     "preLaunchTask": "C/C++: g++ IBMF stat seq",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         {
-            "name": "C/C++: g++-11 IBMF sigma0",
+            "name": "C/C++: g++ IBMF sigma0",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_sigma_0.out",
@@ -174,11 +174,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 IBMF sigma0",
+            "preLaunchTask": "C/C++: g++ IBMF sigma0",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 IBMF T0",
+            "name": "C/C++: g++ IBMF T0",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF_LV_stat_point_T0.out",
@@ -200,11 +200,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 IBMF T0",
+            "preLaunchTask": "C/C++: g++ IBMF T0",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         // {
-        //     "name": "C/C++: g++-11 IBMF T0 seq",
+        //     "name": "C/C++: g++ IBMF T0 seq",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF_LV_stat_point_T0_seq.out",
@@ -226,11 +226,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF T0 seq",
+        //     "preLaunchTask": "C/C++: g++ IBMF T0 seq",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 IBMF T0 lambda",
+        //     "name": "C/C++: g++ IBMF T0 lambda",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF_LV_stat_point_T0_lambda.out",
@@ -252,11 +252,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF T0 lambda",
+        //     "preLaunchTask": "C/C++: g++ IBMF T0 lambda",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         {
-            "name": "C/C++: g++-11 IBMF2 stat print less",
+            "name": "C/C++: g++ IBMF2 stat print less",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF2_LV_stat_point_print_less.out",
@@ -278,11 +278,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 IBMF2 stat print less",
+            "preLaunchTask": "C/C++: g++ IBMF2 stat print less",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 IBMF2 sigma0",
+            "name": "C/C++: g++ IBMF2 sigma0",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/IBMF2_LV_stat_point_sigma_0.out",
@@ -304,11 +304,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 IBMF2 sigma0",
+            "preLaunchTask": "C/C++: g++ IBMF2 sigma0",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 GMF stat print less",
+            "name": "C/C++: g++ GMF stat print less",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_print_less.out",
@@ -330,11 +330,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 GMF stat print less",
+            "preLaunchTask": "C/C++: g++ GMF stat print less",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 GMF stat print less seq",
+            "name": "C/C++: g++ GMF stat print less seq",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_print_less_seq.out",
@@ -356,11 +356,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 GMF stat print less seq",
+            "preLaunchTask": "C/C++: g++ GMF stat print less seq",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 GMF sigma0",
+            "name": "C/C++: g++ GMF sigma0",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_sigma_0.out",
@@ -382,11 +382,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 GMF sigma0",
+            "preLaunchTask": "C/C++: g++ GMF sigma0",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 GMF T0",
+            "name": "C/C++: g++ GMF T0",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_T0.out",
@@ -408,11 +408,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 GMF T0",
+            "preLaunchTask": "C/C++: g++ GMF T0",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 GMF T0 seq",
+            "name": "C/C++: g++ GMF T0 seq",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/GMF_LV_stat_point_T0_seq.out",
@@ -434,11 +434,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 GMF T0 seq",
+            "preLaunchTask": "C/C++: g++ GMF T0 seq",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 FP single var",
+            "name": "C/C++: g++ FP single var",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/FokkerPlanck_single_var.out",
@@ -460,11 +460,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 FP single var",
+            "preLaunchTask": "C/C++: g++ FP single var",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: g++-11 FP single var avoid div",
+            "name": "C/C++: g++ FP single var avoid div",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/Debug/FokkerPlanck_svar_avoiddiv.out",
@@ -486,11 +486,11 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++-11 FP single var avoid div",
+            "preLaunchTask": "C/C++: g++ FP single var avoid div",
             "miDebuggerPath": "/usr/bin/gdb"
         }//,
         // {
-        //     "name": "C/C++: g++-11 IBMF2 stat",
+        //     "name": "C/C++: g++ IBMF2 stat",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF2_pert_LV_stat_point.out",
@@ -512,11 +512,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF2 stat",
+        //     "preLaunchTask": "C/C++: g++ IBMF2 stat",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 IBMF3 stat print less",
+        //     "name": "C/C++: g++ IBMF3 stat print less",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF3_LV_stat_point_print_less.out",
@@ -538,11 +538,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF3 stat print less",
+        //     "preLaunchTask": "C/C++: g++ IBMF3 stat print less",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 IBMF3 sigma0",
+        //     "name": "C/C++: g++ IBMF3 sigma0",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/IBMF3_LV_stat_point_sigma_0.out",
@@ -564,11 +564,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 IBMF3 sigma0",
+        //     "preLaunchTask": "C/C++: g++ IBMF3 sigma0",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 PBMF stat ansatz",
+        //     "name": "C/C++: g++ PBMF stat ansatz",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz.out",
@@ -590,11 +590,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 PBMF stat ansatz",
+        //     "preLaunchTask": "C/C++: g++ PBMF stat ansatz",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 PBMF stat ansatz print less",
+        //     "name": "C/C++: g++ PBMF stat ansatz print less",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz_print_less.out",
@@ -616,11 +616,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 PBMF stat ansatz print less",
+        //     "preLaunchTask": "C/C++: g++ PBMF stat ansatz print less",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 from m to mhat PBMF",
+        //     "name": "C/C++: g++ from m to mhat PBMF",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/from_m_to_mhat_PBMF.out",
@@ -642,11 +642,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 from m to mhat PBMF",
+        //     "preLaunchTask": "C/C++: g++ from m to mhat PBMF",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 from mhat to Psingle PBMF",
+        //     "name": "C/C++: g++ from mhat to Psingle PBMF",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/from_mhat_to_Psingle_PBMF.out",
@@ -668,11 +668,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 from mhat to Psingle PBMF",
+        //     "preLaunchTask": "C/C++: g++ from mhat to Psingle PBMF",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 check solution PBMF",
+        //     "name": "C/C++: g++ check solution PBMF",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/check_solution_PBMF.out",
@@ -694,11 +694,11 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 check solution PBMF",
+        //     "preLaunchTask": "C/C++: g++ check solution PBMF",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // },
         // {
-        //     "name": "C/C++: g++-11 PBMF sigma0",
+        //     "name": "C/C++: g++ PBMF sigma0",
         //     "type": "cppdbg",
         //     "request": "launch",
         //     "program": "${fileDirname}/Debug/PBMF_LV_stat_point_ansatz_sigma_0.out",
@@ -720,7 +720,7 @@
         //             "ignoreFailures": true
         //         }
         //     ],
-        //     "preLaunchTask": "C/C++: g++-11 PBMF sigma0",
+        //     "preLaunchTask": "C/C++: g++ PBMF sigma0",
         //     "miDebuggerPath": "/usr/bin/gdb"
         // }
     ],
