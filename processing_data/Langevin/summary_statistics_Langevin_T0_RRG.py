@@ -54,12 +54,15 @@ def summary_statistics(path, filename):
         for line in all_lines:
             if not line.startswith('#'):
                 line_split = line.split()
-                av_time += float(line_split[3])
-                if line_split[8] == "1":
-                    samples_div += 1
-                if line_split[10] == "1" or line_split[8] == "1":
-                    samples_multiple_eq += 1
-                nsamples += 1
+                try:
+                    av_time += float(line_split[3])
+                    if line_split[8] == "1":
+                        samples_div += 1
+                    if line_split[10] == "1" or line_split[8] == "1":
+                        samples_multiple_eq += 1
+                    nsamples += 1
+                except (IndexError, ValueError):
+                    print(f"Skipping line due to error: {line.strip()}")
         av_time /= nsamples
         return av_time, samples_div, samples_multiple_eq, nsamples, True
     else:
@@ -92,15 +95,19 @@ def print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits
 
 
 def main():
-    eps = "0.0"
+    eps = "0.5"
     lda = "1e-06"
     N_list = ["128", "256", "512", "1024", "2048", "4096"]
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"
 
-    path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/AllData/T0/"
-    path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
+    # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/AllData/T0/"
+    # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
+
+    path_in = "/mnt/d/Research/Ecology/Langevin/Results/AllData/T0"
+    path_out = "/mnt/d/Research/Ecology/Langevin/Results"
+
 
     ndigits = 3
 

@@ -89,14 +89,16 @@ def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
 
 
 def main():
-    eps = "0.0"
+    eps = "0.5"
     lda = "1e-06"
-    N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    # N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    N_list = ["1024", "4096"]
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"
 
-    path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
+    # path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
+    path = "/mnt/d/Research/Ecology/Langevin/Results"
 
     ndigits = 3
 

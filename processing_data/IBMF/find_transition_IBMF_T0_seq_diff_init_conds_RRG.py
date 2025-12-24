@@ -90,19 +90,22 @@ def find_all_trans(path, T, lda, eps, N, c, avn0, dn, ninitconds, tol, max_iter,
 def main():
     T = "0.000"
     lda = "0.000"
-    eps = "0.000"
+    eps = "0.500"
     avn0 = "0.5"
     dn = "0.5"
     ninitconds = "10"
     tol = "1e-6"
     max_iter = "10000"
-    N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    # N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    N_list = ["1024", "4096"]
     c = "3"
     damping = "0.2"
     nseq = "1"
 
     # path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
     path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    path = "/mnt/d/Research/Ecology/Results/IBMF/"
+
 
     ndigits = 3
 

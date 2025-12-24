@@ -37,21 +37,22 @@ def summary_statistics(path, filename):
         runtime_conv_sqr = 0.0
         for line in all_lines:
             line_split = line.split()
-            if len(line_split) < 11:  # Skip lines that do not have enough data
-                continue
-            av_time += int(line_split[0])
-            av_num_div += int(line_split[4])
-            if line_split[1] != "1":
-                samples_div_m += 1
-            else:
-                runtime_conv += float(line_split[10])
-                runtime_conv_sqr += float(line_split[10]) * float(line_split[10])
-            if line_split[9] != "1":
-                samples_multiple_eq += 1
-            if int(line_split[5]) > 0:
-                samples_with_deaths += 1
-            av_m += float(line_split[2])
-            av_m_sqr += float(line_split[2]) * float(line_split[2])
+            try:
+                av_time += int(line_split[0])
+                av_num_div += int(line_split[4])
+                if line_split[1] != "1":
+                    samples_div_m += 1
+                else:
+                    runtime_conv += float(line_split[10])
+                    runtime_conv_sqr += float(line_split[10]) * float(line_split[10])
+                if line_split[9] != "1":
+                    samples_multiple_eq += 1
+                if int(line_split[5]) > 0:
+                    samples_with_deaths += 1
+                av_m += float(line_split[2])
+                av_m_sqr += float(line_split[2]) * float(line_split[2])
+            except (IndexError, ValueError):
+                print(f"Skipping line due to error: {line.strip()}")
         av_time /= len(all_lines)
         av_num_div /= len(all_lines)
         av_m /= len(all_lines)
@@ -61,6 +62,8 @@ def summary_statistics(path, filename):
             runtime_conv /= (len(all_lines) - samples_div_m)
             runtime_conv_sqr /= (len(all_lines) - samples_div_m)
             std_runtime_conv = np.sqrt(abs(runtime_conv_sqr - runtime_conv * runtime_conv))
+            runtime_conv = f"{runtime_conv:.6f}"
+            std_runtime_conv = f"{std_runtime_conv:.6f}"
         else:
             runtime_conv = "nodata"
             std_runtime_conv = "nodata"
@@ -94,29 +97,34 @@ def print_summary(path_in, path_out, T, lda, eps, N, c, avn0, dn, ninitconds, to
     for vals in vals_list:
         mu, sigma, av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, \
         runtime_conv, std_runtime_conv, nsamples = vals
-        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {av_num_div:.6f} {samples_div_m} {samples_multiple_eq} {samples_with_deaths} {av_m:.6f} {std_av_m:.6f} {runtime_conv:.6f} {std_runtime_conv:.6f} {nsamples}\n")
+        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {av_num_div:.6f} {samples_div_m} {samples_multiple_eq} {samples_with_deaths} {av_m:.6f} {std_av_m:.6f} {runtime_conv} {std_runtime_conv} {nsamples}\n")
     fout.close()
 
 
 def main():
     T = "0.000"
     lda = "0.000"
-    eps = "0.000"
+    eps = "0.500"
     avn0 = "0.5"
     dn = "0.5"
     ninitconds = "10"
     tol = "1e-6"
     max_iter = "10000"
-    N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    # N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    N_list = ["1024", "4096"]
     c = "3"
     damping = "0.2"
     nseq = "1"
 
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
     # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
-    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    # path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
+    # path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    path_in = "/mnt/d/Research/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
+    path_out = "/mnt/d/Research/Ecology/Results/IBMF/"
 
+    
+    
     ndigits = 3
 
     for N in N_list:
