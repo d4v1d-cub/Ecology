@@ -35,6 +35,7 @@ def summary_statistics(path, filename):
         av_m_sqr = 0.0
         runtime_conv = 0.0
         runtime_conv_sqr = 0.0
+        numlines = 0
         for line in all_lines:
             line_split = line.split()
             try:
@@ -51,16 +52,17 @@ def summary_statistics(path, filename):
                     samples_with_deaths += 1
                 av_m += float(line_split[2])
                 av_m_sqr += float(line_split[2]) * float(line_split[2])
+                numlines += 1
             except (IndexError, ValueError):
                 print(f"Skipping line due to error: {line.strip()}")
-        av_time /= len(all_lines)
-        av_num_div /= len(all_lines)
-        av_m /= len(all_lines)
-        av_m_sqr /= len(all_lines)
+        av_time /= numlines
+        av_num_div /= numlines
+        av_m /= numlines
+        av_m_sqr /= numlines
         std_av_m = np.sqrt(abs(av_m_sqr - av_m * av_m))
-        if (len(all_lines) - samples_div_m) > 0:
-            runtime_conv /= (len(all_lines) - samples_div_m)
-            runtime_conv_sqr /= (len(all_lines) - samples_div_m)
+        if (numlines - samples_div_m) > 0:
+            runtime_conv /= (numlines - samples_div_m)
+            runtime_conv_sqr /= (numlines - samples_div_m)
             std_runtime_conv = np.sqrt(abs(runtime_conv_sqr - runtime_conv * runtime_conv))
             runtime_conv = f"{runtime_conv:.6f}"
             std_runtime_conv = f"{std_runtime_conv:.6f}"
@@ -68,7 +70,7 @@ def summary_statistics(path, filename):
             runtime_conv = "nodata"
             std_runtime_conv = "nodata"
         return av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m, std_av_m, \
-               runtime_conv, std_runtime_conv, len(all_lines), True
+               runtime_conv, std_runtime_conv, numlines, True
     else:
         print(f"No data found in file {filename}. Returning zeros.")
         return 0.0, 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, False
@@ -104,14 +106,13 @@ def print_summary(path_in, path_out, T, lda, eps, N, c, avn0, dn, ninitconds, to
 def main():
     T = "0.000"
     lda = "0.000"
-    eps = "0.500"
+    eps = "0.000"
     avn0 = "0.5"
     dn = "0.5"
     ninitconds = "10"
     tol = "1e-6"
     max_iter = "10000"
-    # N_list = ["128", "256", "512", "1024", "2048", "4096"]
-    N_list = ["1024", "4096"]
+    N_list = ["8192", "16384", "32768", "65536", "131072", "262144", "524288"]
     c = "3"
     damping = "0.2"
     nseq = "1"
