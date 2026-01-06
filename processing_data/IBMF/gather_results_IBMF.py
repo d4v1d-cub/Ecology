@@ -23,7 +23,7 @@ def filter_files(path, pattern, pos_N=28, pos_eps=22, pos_mu=24, pos_sigma=26):
         if fnmatch.fnmatch(filename, pattern):
             # Extract the unique strings from the filename
             parts = filename.split('_') 
-            files.append((filename, int(parts[pos_N]), int(parts[pos_eps]), float(parts[pos_mu]), float(parts[pos_sigma])))
+            files.append((filename, int(parts[pos_N]), float(parts[pos_eps]), float(parts[pos_mu]), float(parts[pos_sigma])))
     sorted_data = sorted(files, key=lambda x: (x[1], x[2], x[3], x[4]))  # Sort by mu value
     return sorted_data
 
@@ -31,7 +31,7 @@ def filter_files(path, pattern, pos_N=28, pos_eps=22, pos_mu=24, pos_sigma=26):
 def get_all_files(path, pattern_beginning, seed0, ngr_batch, ngr_total, pos_N=28, pos_eps=22, pos_mu=24, pos_sigma=26):
     files = []
     for seed in range(seed0, ngr_total, ngr_batch):
-        pattern = f'{pattern_beginning}_seedblock_{seed}_nsampl_${ngr_batch}.txt'
+        pattern = f'{pattern_beginning}_seedblock_{seed}_nsampl_{ngr_batch}.txt'
         files_seed0 = filter_files(path, pattern, pos_N, pos_eps, pos_mu, pos_sigma)
         files.extend(files_seed0)
     return files
@@ -61,14 +61,15 @@ def read_previous_data(file_prev_data):
     return lines
 
 
-def gather(path_to_files, path_out, path_previous_data, T, lda, avn0, dn, ninitconds, tol, max_iter, c, damping, nseq, seed0, ngr_batch, ngr_total):
+def gather(path_to_files, path_out, path_previous_data, T, lda, avn0, dn, ninitconds, tol, 
+           max_iter, c, damping, nseq, seed0, ngr_batch, ngr_total, ndigits=3):
     pattern_beginning = f'IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_*_mu_*_sigma_*_N_*_c_{c}_damping_{damping}_nseq_{nseq}'    
     files = get_all_files(path_to_files, pattern_beginning, seed0, ngr_batch, ngr_total)
     grouped_files = group_files_by_params(files)
     for key, file_list in grouped_files.items():
         N, eps, mu, sigma = key
-        fout = open(f'{path_out}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_{mu}_sigma_{sigma}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', "w")
-        file_prev_data = f'{path_previous_data}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_{mu}_sigma_{sigma}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt'
+        fout = open(f'{path_out}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps:.{ndigits}f}_mu_{mu:.{ndigits}f}_sigma_{sigma:.{ndigits}f}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', "w")
+        file_prev_data = f'{path_previous_data}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps:.{ndigits}f}_mu_{mu:.{ndigits}f}_sigma_{sigma:.{ndigits}f}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt'
         lines_prev = read_previous_data(file_prev_data)
         if len(lines_prev) > 0:
             for line in lines_prev:
@@ -107,7 +108,7 @@ def main():
 
     path_to_files = "./"
     path_out = './ToDownload'
-    path_previous_data = '../Saved'
+    path_previous_data = '../../../Saved/IBMF/PhaseDiagram/'
 
     seed0 = 1
     ngr_total = 10000
