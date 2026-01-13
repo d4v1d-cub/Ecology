@@ -60,7 +60,8 @@ def find_identify_transition(lines, position_1, position_2):
 def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
     fout_div = open(f'{path}/Lotka-Volterra_transition_div_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_T_{T}.txt', 'w')
     fout_mult = open(f'{path}/Lotka-Volterra_transition_mult_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_T_{T}.txt', 'w')
-    
+    fout_deaths = open(f'{path}/Lotka-Volterra_transition_deaths_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_T_{T}.txt', 'w')
+   
     fin = open(f'{path}/Lotka-Volterra_summary_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_T_{T}.txt', 'r')
     fin.readline()  # Skip header line
 
@@ -70,6 +71,7 @@ def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
 
     transitions_div = find_transition(lines, 3)
     transitions_multiple_eq, trans_type = find_identify_transition(lines, 4, 3)
+    transitions_deaths = find_transition(lines, 5)
     
     
     for mu in transitions_div:
@@ -87,18 +89,25 @@ def find_all_trans(path, eps, lda, tol_fixed_point, N, c, T, ndigits):
     fout_mult.close()
 
 
+    for mu in transitions_deaths:
+        sigma_deaths, sigma_below_deaths = transitions_deaths[mu]
+        fout_deaths.write(f"{mu:.{ndigits}f}\t{sigma_deaths:.{ndigits}f}\t{sigma_below_deaths:.{ndigits}f}\n")
+    
+    fout_deaths.close()
+
 
 def main():
-    eps = "0.5"
+    eps = "0.0"
     lda = "1e-06"
-    # N_list = ["128", "256", "512", "1024", "2048", "4096"]
-    N_list = ["1024", "4096"]
+    N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    # N_list = ["1024", "4096"]
     c = "3.00"
     T = "0.0"
     tol_fixed_point = "1e-08"
 
     # path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
-    path = "/mnt/d/Research/Ecology/Langevin/Results"
+    # path = "/mnt/d/Research/Ecology/Langevin/Results"
+    path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results/"
 
     ndigits = 3
 

@@ -50,6 +50,7 @@ def summary_statistics(path, filename):
         av_time = 0.0
         samples_div = 0
         samples_multiple_eq = 0
+        samples_deaths = 0
         nsamples = 0
         for line in all_lines:
             if not line.startswith('#'):
@@ -60,14 +61,16 @@ def summary_statistics(path, filename):
                         samples_div += 1
                     if line_split[10] == "1" or line_split[8] == "1":
                         samples_multiple_eq += 1
+                    if float(line_split[6]) > 1 or float(line_split[7]) > 1:
+                        samples_deaths += 1
                     nsamples += 1
                 except (IndexError, ValueError):
                     print(f"Skipping line due to error: {line.strip()}")
         av_time /= nsamples
-        return av_time, samples_div, samples_multiple_eq, nsamples, True
+        return av_time, samples_div, samples_multiple_eq, samples_deaths, nsamples, True
     else:
         print(f"No data found in file {filename}. Returning zeros.")
-        return 0.0, 0, 0, 0, False
+        return 0.0, 0, 0, 0, 0, False
 
 
 def get_all_vals(path, eps, lda, tol_fixed_point, N, c, T):
@@ -75,9 +78,9 @@ def get_all_vals(path, eps, lda, tol_fixed_point, N, c, T):
     sorted_data = filter_files(path, eps, lda, tol_fixed_point, N, c, T)
     vals_list = []
     for filename, mu, sigma in sorted_data:
-        av_time, samples_div, samples_multiple_eq, nsamples, found = summary_statistics(path, filename)
+        av_time, samples_div, samples_multiple_eq, samples_deaths, nsamples, found = summary_statistics(path, filename)
         if found:
-            vals_list.append((mu, sigma, av_time, samples_div, samples_multiple_eq, nsamples))
+            vals_list.append((mu, sigma, av_time, samples_div, samples_multiple_eq, samples_deaths, nsamples))
         print(f'Processed N={N}   mu={mu}   sigma={sigma}')
     return vals_list
 
@@ -86,16 +89,16 @@ def get_all_vals(path, eps, lda, tol_fixed_point, N, c, T):
 
 def print_summary(path_in, path_out, eps, lda, tol_fixed_point, N, c, T, ndigits):
     fout = open(f'{path_out}/Lotka-Volterra_summary_epsilon_{eps}_Partially_AsymGauss_lambda_{lda}_tol_{tol_fixed_point}_N_{N}_c_{c}_T_{T}.txt', 'w')
-    fout.write("#mu sigma av_time samples_div samples_mult_eq nsamples\n")
+    fout.write("#mu sigma av_time samples_div samples_mult_eq samples_deaths nsamples\n")
     vals_list = get_all_vals(path_in, eps, lda, tol_fixed_point, N, c, T)
     for vals in vals_list:
-        mu, sigma, av_time, samples_div, samples_multiple_eq, nsamples = vals
-        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {samples_div} {samples_multiple_eq} {nsamples}\n")
+        mu, sigma, av_time, samples_div, samples_multiple_eq, samples_deaths, nsamples = vals
+        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {samples_div} {samples_multiple_eq} {samples_deaths} {nsamples}\n")
     fout.close()
 
 
 def main():
-    eps = "0.5"
+    eps = "0.0"
     lda = "1e-06"
     N_list = ["128", "256", "512", "1024", "2048", "4096"]
     c = "3.00"
@@ -105,9 +108,11 @@ def main():
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/AllData/T0/"
     # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
 
-    path_in = "/mnt/d/Research/Ecology/Langevin/Results/AllData/T0"
-    path_out = "/mnt/d/Research/Ecology/Langevin/Results"
+    # path_in = "/mnt/d/Research/Ecology/Langevin/Results/AllData/T0"
+    # path_out = "/mnt/d/Research/Ecology/Langevin/Results"
 
+    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results/AllData/T0/"
+    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results/"
 
     ndigits = 3
 

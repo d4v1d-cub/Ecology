@@ -63,7 +63,8 @@ def find_identify_transition(lines, position_1, position_2):
 def find_all_trans(path, T, lda, eps, N, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits):
     fout_div = open(f'{path}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_transitions_div_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
     fout_mult = open(f'{path}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_transitions_mult_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
-    
+    fout_deaths = open(f'{path}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_transitions_deaths_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
+
     fin = open(f'{path}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_summary_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'r')
     fin.readline()  # Skip header line
 
@@ -72,6 +73,7 @@ def find_all_trans(path, T, lda, eps, N, c, avn0, dn, ninitconds, tol, max_iter,
 
     transitions_m = find_transition(lines, 4)
     transitions_multiple_eq, trans_type = find_identify_transition(lines, 5, 4)
+    transitions_deaths = find_transition(lines, 6)
     
     for mu in transitions_m:
         sigma_m, sigma_below_m = transitions_m[mu]
@@ -83,28 +85,33 @@ def find_all_trans(path, T, lda, eps, N, c, avn0, dn, ninitconds, tol, max_iter,
         sigma_multiple_eq, sigma_below_multiple_eq = transitions_multiple_eq[mu]
         kind = trans_type[mu]
         fout_mult.write(f"{mu:.{ndigits}f}\t{sigma_multiple_eq:.{ndigits}f}\t{sigma_below_multiple_eq:.{ndigits}f}\t{kind}\n")
-    
+
     fout_mult.close()
 
+    for mu in transitions_deaths:
+        sigma_deaths, sigma_below_deaths = transitions_deaths[mu]
+        fout_deaths.write(f"{mu:.{ndigits}f}\t{sigma_deaths:.{ndigits}f}\t{sigma_below_deaths:.{ndigits}f}\n")
+    
+    fout_deaths.close()
 
 def main():
     T = "0.000"
     lda = "0.000"
-    eps = "0.500"
+    eps = "0.000"
     avn0 = "0.5"
     dn = "0.5"
     ninitconds = "10"
     tol = "1e-6"
     max_iter = "10000"
-    # N_list = ["128", "256", "512", "1024", "2048", "4096"]
-    N_list = ["1024", "4096"]
+    N_list = ["128", "256", "512", "1024", "2048", "4096"]
+    # N_list = ["1024", "4096"]
     c = "3"
     damping = "0.2"
     nseq = "1"
 
     # path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
     path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    path = "/mnt/d/Research/Ecology/Results/IBMF/"
+    # path = "/mnt/d/Research/Ecology/Results/IBMF/"
 
 
     ndigits = 3
