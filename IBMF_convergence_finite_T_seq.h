@@ -250,7 +250,8 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
     comp_coefficients(beta, lambda, coefficients, gamma_vals);
     double hmin = find_divergence_min(beta, lambda, coefficients);
 
-    long sequence[N];
+    long *sequence;
+    sequence = new long[N];
     bool divergence;
 
     char fileavgs[300];
@@ -341,6 +342,7 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
             }
         }
     }
+    delete [] sequence;
 }
 
 #endif

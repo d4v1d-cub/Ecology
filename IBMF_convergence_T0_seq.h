@@ -112,7 +112,8 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
                          bool print_only_last, bool print_avgs, 
                          char * fileout_base, bool random_init, double dn, unsigned long id_0, int num_init_conds){
 
-    long sequence[N];
+    long *sequence;
+    sequence = new long[N];
 
     bool divergence;
 
@@ -206,6 +207,7 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
             }
         }
     }
+    delete [] sequence;
 
 }
 
