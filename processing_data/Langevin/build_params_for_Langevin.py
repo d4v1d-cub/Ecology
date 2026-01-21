@@ -137,46 +137,19 @@ def main():
     
     # EPSILON = "0.0" (ASYMMETRIC)  params: (mu, sigma)
 
-    # dpar_trans = 0.004
-    # shift_below = 0.01
-    # shift_above = 0.01
-    # ndigits = 3
-
-    # # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
-    # # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/Langevin"
-    # path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results"
-    # path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Scripts/Dresden/Langevin"
-    # N_list = [128, 256, 512, 1024, 2048, 4096]
-    # dpar_fixed = 0.03
-    # par_fixed_start = -0.270
-    # par_fixed_end = -0.030
-    # par_fixed_list = np.arange(par_fixed_start, par_fixed_end + dpar_fixed / 2, dpar_fixed)
-    # for i in range(len(par_fixed_list)):
-    #     par_fixed_list[i] = round(par_fixed_list[i], ndigits)
-
-    # for N in N_list:
-    #     filein = f'Lotka-Volterra_transition_div_epsilon_0.0_Partially_AsymGauss_lambda_1e-06_tol_1e-08_N_{N}_c_3.00_T_0.0.txt'
-
-    #     fileout = f'params_Langevin_T0_phase_diagram_eps0_N_{N}.txt'
-    #     pos_par_fixed = 0
-    #     pos_par_trans_1 = 1
-    #     pos_par_trans_2 = 2
-
-    #     print_params(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, 
-    #                 pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
-    #                 par_fixed_list)
-        
-
-    # EPSILON = "0.0" (ASYMMETRIC)  params: (mu, sigma)  BIGGER N
-
-    dpar_trans = 0.01
+    dpar_trans = 0.004
+    shift_below = -0.004
+    shift_above = -0.002
     ndigits = 3
 
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
     # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/Langevin"
-    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results"
-    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Scripts/Dresden/Langevin"
-    N_list = [8192, 16384, 32768]
+    # path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results"
+    # path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Scripts/Dresden/Langevin"
+    path_in = "/mnt/d/Research/Ecology/Langevin/Results/"
+    path_out = "/mnt/d/Research/Ecology/Scripts/Dresden/Langevin"
+    # N_list = [128, 256, 512, 1024, 2048, 4096]
+    N_list = [8192]
     dpar_fixed = 0.03
     par_fixed_start = -0.330
     par_fixed_end = 0.360
@@ -184,16 +157,46 @@ def main():
     for i in range(len(par_fixed_list)):
         par_fixed_list[i] = round(par_fixed_list[i], ndigits)
 
-    filein = f'Lotka-Volterra_transition_div_epsilon_0.0_Partially_AsymGauss_lambda_1e-06_tol_1e-08_N_4096_c_3.00_T_0.0.txt'
-    
     for N in N_list:
+        filein = f'Lotka-Volterra_transition_div_epsilon_0.0_Partially_AsymGauss_lambda_1e-06_tol_1e-08_N_{N}_c_3.00_T_0.0.txt'
+
         fileout = f'params_Langevin_T0_phase_diagram_eps0_N_{N}.txt'
         pos_par_fixed = 0
         pos_par_trans_1 = 1
         pos_par_trans_2 = 2
 
-        print_params_search_below_line(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, 
-                    pos_par_trans_1, pos_par_trans_2, par_fixed_list)
+        print_params(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, 
+                    pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
+                    par_fixed_list)
+        
+
+    # EPSILON = "0.0" (ASYMMETRIC)  params: (mu, sigma)  BIGGER N
+
+    # dpar_trans = 0.01
+    # ndigits = 3
+
+    # # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
+    # # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Scripts/Dresden/Langevin"
+    # path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results"
+    # path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Scripts/Dresden/Langevin"
+    # N_list = [8192, 16384, 32768]
+    # dpar_fixed = 0.03
+    # par_fixed_start = -0.330
+    # par_fixed_end = 0.360
+    # par_fixed_list = np.arange(par_fixed_start, par_fixed_end + dpar_fixed / 2, dpar_fixed)
+    # for i in range(len(par_fixed_list)):
+    #     par_fixed_list[i] = round(par_fixed_list[i], ndigits)
+
+    # filein = f'Lotka-Volterra_transition_div_epsilon_0.0_Partially_AsymGauss_lambda_1e-06_tol_1e-08_N_4096_c_3.00_T_0.0.txt'
+    
+    # for N in N_list:
+    #     fileout = f'params_Langevin_T0_phase_diagram_eps0_N_{N}.txt'
+    #     pos_par_fixed = 0
+    #     pos_par_trans_1 = 1
+    #     pos_par_trans_2 = 2
+
+    #     print_params_search_below_line(path_in, filein, path_out, fileout, dpar_trans, pos_par_fixed, 
+    #                 pos_par_trans_1, pos_par_trans_2, par_fixed_list)
         
 
     # EPSILON = "0.5" (PARTIALLY ASYMMETRIC)  params: (mu, sigma)
