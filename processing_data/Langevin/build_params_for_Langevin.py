@@ -149,7 +149,7 @@ def main():
     path_in = "/mnt/d/Research/Ecology/Langevin/Results/"
     path_out = "/mnt/d/Research/Ecology/Scripts/Dresden/Langevin"
     # N_list = [128, 256, 512, 1024, 2048, 4096]
-    N_list = [8192]
+    N_list = [16384, 32768]
     dpar_fixed = 0.03
     par_fixed_start = -0.330
     par_fixed_end = 0.360
