@@ -14,6 +14,7 @@
  */
 
 #include "IBMF_common_popdyn.h"
+#include <functional>
 #include <chrono>
 
 using namespace std;
@@ -170,14 +171,30 @@ double get_single_average(double field, double av, double beta, double lambda, d
     return av_new;
 }
 
-void new_averages_RRG(long S, double beta, double lambda, Tnode *nodes, double tol, 
-                        double hmin, double hmax, double **coefficients, double *gamma_vals, 
-                        int iter, double damping, int c, double mu, double sigma, 
-                        gsl_rng * r, double normfactor = 1e-14){
+
+template <typename... Args>
+int connectivity_ER(double av_c, gsl_rng * r, Args... args){
+    return gsl_ran_poisson(r, av_c);
+}
+
+
+template <typename... Args> 
+int connectivity_RRG(double av_c, Args... args){
+    return int(round(av_c));
+}
+
+
+template <typename Func>
+void new_averages(long S, double beta, double lambda, Tnode *nodes, double tol, 
+                  double hmin, double hmax, double **coefficients, double *gamma_vals, 
+                  int iter, double damping, double av_c, double mu, double sigma, 
+                  gsl_rng * r, Func draw_connectivity, double normfactor = 1e-14){
     double av_new;
     long pos;
+    int c;
     for (long i = 0; i < S; i++){
         pos = gsl_rng_uniform_int(r, S);
+        c = draw_connectivity(av_c, r);
         nodes[pos].field = field_in_pop(S, nodes, c, mu, sigma, r);
         
         av_new = get_single_average(nodes[pos].field, nodes[pos].av, beta, lambda, damping, hmin, hmax, coefficients, 
@@ -191,98 +208,19 @@ void new_averages_RRG(long S, double beta, double lambda, Tnode *nodes, double t
 }
 
 
-void new_averages_ER(long S, double beta, double lambda, Tnode *nodes, double tol, 
-                        double hmin, double hmax, double **coefficients, double *gamma_vals, 
-                        int iter, double damping, double av_c, double mu, double sigma, 
-                        gsl_rng * r, double normfactor = 1e-14){
-    double av_new;
-    long pos;
-    int c;
-    for (long i = 0; i < S; i++){
-        pos = gsl_rng_uniform_int(r, S);
-        c = gsl_ran_poisson(r, av_c);
-        nodes[pos].field = field_in_pop(S, nodes, c, mu, sigma, r);
-        av_new = get_single_average(nodes[pos].field, nodes[pos].av, beta, lambda, damping, hmin, hmax, coefficients, 
-            gamma_vals, normfactor);
-
-        if (isnan(av_new) || isinf(av_new)){
-            cerr << "Error: av_new is nan or inf at site i=" << pos << "   iter=" << iter << endl;
-        }
-        nodes[pos].av = av_new;
-    }
-}
-
-
-int convergence_RRG(long S, double beta, double lambda, Tnode *nodes, double tol, 
-                 int max_iter, bool &divergence, double hmin, double hmax, double **coefficients,
-                 double *gamma_vals, double damping, int c, double mu, double sigma, 
-                 gsl_rng * r, double maximum=1e10, int min_consecutive=5){
-    double var = tol + 1, av_pop, av_sqr_pop, av_pop_new, av_sqr_pop_new;
-    int iter = 0;
-
-    int consecutive = 0;
-    av_pop = average(S, nodes);
-    av_sqr_pop = average_sqr(S, nodes);
-    while (consecutive < min_consecutive && iter < max_iter){
-        new_averages_RRG(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
-                         iter, damping, c, mu, sigma, r);
-        iter++;
-        av_pop_new = average(S, nodes);
-        av_sqr_pop_new = average_sqr(S, nodes);
-        var = max(fabs(av_pop_new - av_pop), fabs(av_sqr_pop_new - av_sqr_pop));
-        if (isinf(var) || isnan(var) || var > maximum){
-            divergence = true;
-            return iter;
-        }
-        if (var < tol){
-            consecutive++;
-        }else{
-            consecutive = 0;
-        }
-    }
-
-    divergence = false;
-    return iter;
-}
-
-
-void measure_observables_RRG(long S, double beta, double lambda, Tnode *nodes, double tol, 
-                             bool &divergence, double hmin, double hmax, double **coefficients,
-                             double *gamma_vals, double damping, int c, double mu, double sigma, 
-                             gsl_rng * r, int N_measurements, double &av_pop, double &av_sqr_pop, 
-                             double maximum=1e10){
-    av_pop = 0;
-    av_sqr_pop = 0;
-
-    int consecutive = 0;
-    av_pop = average(S, nodes);
-    av_sqr_pop = average_sqr(S, nodes);
-    for (int i = 0; i < N_measurements; i++){
-        new_averages_RRG(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
-                         i, damping, c, mu, sigma, r);
-        av_pop += average(S, nodes);
-        av_sqr_pop += average_sqr(S, nodes);
-    }
-
-    av_pop /= S;
-    av_sqr_pop /= S;
-}
-
-
-
-int convergence_ER(long S, double beta, double lambda, Tnode *nodes, double tol, 
+template <typename Func>
+int convergence(long S, double beta, double lambda, Tnode *nodes, double tol, 
                  int max_iter, bool &divergence, double hmin, double hmax, double **coefficients,
                  double *gamma_vals, double damping, double av_c, double mu, double sigma, 
-                 gsl_rng * r, double maximum=1e10, int min_consecutive=5){
+                 gsl_rng * r, Func draw_connectivity, double maximum=1e10, int min_consecutive=5){
     double var = tol + 1, av_pop, av_sqr_pop, av_pop_new, av_sqr_pop_new;
     int iter = 0;
-
     int consecutive = 0;
     av_pop = average(S, nodes);
     av_sqr_pop = average_sqr(S, nodes);
     while (consecutive < min_consecutive && iter < max_iter){
-        new_averages_ER(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
-                         iter, damping, av_c, mu, sigma, r);
+        new_averages_RRG(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
+                         iter, damping, av_c, mu, sigma, r, draw_connectivity);
         iter++;
         av_pop_new = average(S, nodes);
         av_sqr_pop_new = average_sqr(S, nodes);
@@ -303,11 +241,12 @@ int convergence_ER(long S, double beta, double lambda, Tnode *nodes, double tol,
 }
 
 
-void measure_observables_ER(long S, double beta, double lambda, Tnode *nodes, double tol, 
+template <typename Func>
+void measure_observables(long S, double beta, double lambda, Tnode *nodes, double tol, 
                              bool &divergence, double hmin, double hmax, double **coefficients,
                              double *gamma_vals, double damping, double av_c, double mu, double sigma, 
                              gsl_rng * r, int N_measurements, double &av_pop, double &av_sqr_pop, 
-                             double maximum=1e10){
+                             Func draw_connectivity, double maximum=1e10){
     av_pop = 0;
     av_sqr_pop = 0;
 
@@ -316,7 +255,7 @@ void measure_observables_ER(long S, double beta, double lambda, Tnode *nodes, do
     av_sqr_pop = average_sqr(S, nodes);
     for (int i = 0; i < N_measurements; i++){
         new_averages_RRG(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
-                         i, damping, av_c, mu, sigma, r);
+                         i, damping, av_c, mu, sigma, r, draw_connectivity);
         av_pop += average(S, nodes);
         av_sqr_pop += average_sqr(S, nodes);
     }
@@ -326,27 +265,40 @@ void measure_observables_ER(long S, double beta, double lambda, Tnode *nodes, do
 }
 
 
-size_t IBMF_single_try(unsigned long seed_seq, long N, Tnode *nodes, double beta, double lambda, double tol,
-                       int max_iter, double avn_0, double damping, bool random_init, double dn, 
-                       unsigned long seed_condinit, long sequence[], bool &divergence, int &iter, 
-                       double hmin, double hmax, double **coefficients, double *gamma_vals){
-    produce_random_seq(seed_seq, N, sequence);
-    init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit);
+
+size_t IBMF(long S, Tnode *nodes, double beta, double lambda, double tol,
+            int max_iter, double avn_0, double damping, bool random_init, double dn, 
+            unsigned long seed_condinit, bool &divergence, int &iter, 
+            double hmin, double hmax, double **coefficients, double *gamma_vals, 
+            double av_c, double mu, double sigma, gsl_rng * r, char * graph_type, 
+            unsigned long seed_choose){
+    init_avgs(S, nodes, avn_0, random_init, dn, seed_condinit);
+    init_ran(r, seed_choose);
     auto start = std::chrono::high_resolution_clock::now();
-    iter = convergence(N, beta, lambda, nodes, tol, max_iter, divergence, 
-                       hmin, hmax, coefficients, gamma_vals, sequence, damping);
+    if (graph_type == string("RRG")) {
+        iter = convergence(S, beta, lambda, nodes, tol, max_iter, divergence, hmin, hmax, 
+                           coefficients, gamma_vals, damping, av_c, mu, sigma, r, 
+                           connectivity_RRG);
+    }else if (graph_type == string("ER")){
+        iter = convergence(S, beta, lambda, nodes, tol, max_iter, divergence, hmin, hmax, 
+                           coefficients, gamma_vals, damping, av_c, mu, sigma, r, 
+                           connectivity_ER);
+    }else{
+        cerr << "graph_type must be RRG or ER" << endl;
+        exit(1);
+    }
     auto end = std::chrono::high_resolution_clock::now();
     size_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     return elapsed;
 }
 
 
-void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init, 
-                      long N, Tnode *nodes, double T, double lambda, double tol,
-                      int max_iter, unsigned long num_seq, double tol_fixed_point,
-                      double avn_0, double damping, 
-                      bool print_only_last, bool print_avgs, 
-                      char * fileout_base, bool random_init, double dn, unsigned long id_0, int num_init_conds){
+void run_IBMF(unsigned long seed_choose, long S, Tnode *nodes, double T, double lambda, 
+              double tol, int max_iter, double avn_0, double damping, 
+              bool print_only_last, bool print_avgs, char * fileout_base, 
+              bool random_init, double dn, unsigned long id_0, int num_init_conds, 
+              double av_c, double mu, double sigma, gsl_rng * r, char * graph_type){
+    
     double beta = 1.0 / T;
 
     double hmax = find_divergence_max(beta, (1 + beta * lambda) / 2);
@@ -354,15 +306,12 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
     comp_coefficients(beta, lambda, coefficients, gamma_vals);
     double hmin = find_divergence_min(beta, lambda, coefficients);
 
-    long *sequence;
-    sequence = new long[N];
     bool divergence;
 
     char fileavgs[300];
     
     
     divergence = false;
-    unsigned long seed_seq, seed_condinit;
     bool make_other_tries;
     int iter;
     bool same_fixed_point = true;
@@ -373,80 +322,11 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
                                      damping, random_init, dn, seed_condinit, sequence, divergence, 
                                      iter, hmin, hmax, coefficients, gamma_vals);
         
-    if (!print_only_last){
-        print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
-        if (print_avgs){
-            sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-            print_avgs_to_file(nodes, N, fileavgs);
-        }
-    }else if(divergence || iter >= max_iter){
-        print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
-        if (print_avgs){
-            sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-            print_avgs_to_file(nodes, N, fileavgs);
-        }
+    print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
+    if (print_avgs){
+        sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+        print_avgs_to_file(nodes, N, fileavgs);
     }
-
-    make_other_tries = !print_only_last || (!divergence && iter < max_iter);
-    
-    if (make_other_tries){
-        set_av_prev(nodes, N);
-        bool cond = true;
-
-        seed_seq = seed_seq_init + 1;
-        while (seed_seq < seed_seq_init + num_seq && cond){
-            elapsed = IBMF_single_try(seed_seq, N, nodes, beta, lambda, tol, max_iter, avn_0, 
-                                      damping, random_init, dn, seed_condinit, sequence, divergence, 
-                                      iter, hmin, hmax, coefficients, gamma_vals);
-            same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
-            if (!print_only_last){
-                print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
-                if (print_avgs){
-                    sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-                    print_avgs_to_file(nodes, N, fileavgs);
-                }
-            }else{
-                if (!same_fixed_point || divergence || iter >= max_iter){
-                    cond = false;
-                }
-            }
-            seed_seq++;
-        }
-        
-        seed_condinit++;
-
-        while (seed_condinit < id_0 + num_init_conds && cond){
-            seed_seq = seed_seq_init;
-            while (seed_seq < seed_seq_init + num_seq && cond){
-                elapsed = IBMF_single_try(seed_seq, N, nodes, beta, lambda, tol, max_iter, avn_0, 
-                                          damping, random_init, dn, seed_condinit, sequence, divergence, 
-                                          iter, hmin, hmax, coefficients, gamma_vals);
-                same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
-                if (!print_only_last){
-                    print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
-                    if (print_avgs){
-                        sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-                        print_avgs_to_file(nodes, N, fileavgs);
-                    }
-                }else{
-                    if (!same_fixed_point || divergence || iter >= max_iter){
-                        cond = false;
-                    }
-                }
-                seed_seq++;
-            }
-            seed_condinit++;
-        }
-
-        if (print_only_last){
-            print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit-1, max_iter, divergence, same_fixed_point, elapsed);
-            if (print_avgs){
-                sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
-                print_avgs_to_file(nodes, N, fileavgs);
-            }
-        }
-    }
-    delete [] sequence;
 }
 
 #endif
