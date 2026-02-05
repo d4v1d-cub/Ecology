@@ -8,8 +8,8 @@
             "args": [//"--print_params",
                      "--avn_0", "0.5", 
                      "--random_init", "0.5", "1", "2",
-                     "--temp", "0.000", 
-                     "--lambda", "0.000", 
+                     "--temp", "0.001", 
+                     "--lambda", "1e-6", 
                      "--tol", "1e-6", 
                      "--max_iter", "10000", 
                      "--seed_seq", "1", 
@@ -21,9 +21,9 @@
                      "--gr_inside",
                      "--eps", "0.0", 
                      "--mu", "0.300", 
-                     "--sigma", "0.090",
+                     "--sigma", "0.000",
                      "--seed_graph", "1", 
-                     "-N", "1048576", 
+                     "-N", "4096", 
                      "-c", "3",
                      "--graph_type", "RRG"
                     ],
@@ -45,6 +45,49 @@
                 }
             ],
             "preLaunchTask": "C/C++: g++ IBMF sequential",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: g++ IBMF popdyn",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/IBMF_LV_popdyn.out",
+            "args": ["--print_params",
+                     "--avn_0", "0.5", 
+                     "--random_init", "0.5", "1",
+                     "--temp", "0.000", 
+                     "--lambda", "0.000", 
+                     "--tol", "1e-8", 
+                     "--max_iter", "10000", 
+                     "--damping", "0.2",
+                    //  "--print_avgs",
+                     "--print_every", "100",
+                     "--mu", "0.000", 
+                     "--sigma", "0.000",
+                     "-S", "100000", 
+                     "-c", "3",
+                     "--graph_type", "RRG",
+                     "--N_meas", "5",
+                     "--seed", "1"
+                    ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ IBMF popdyn",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         // {

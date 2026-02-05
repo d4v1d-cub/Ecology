@@ -172,16 +172,6 @@ double get_single_average(double field, double av, double beta, double lambda, d
 }
 
 
-template <typename... Args>
-int connectivity_ER(double av_c, gsl_rng * r, Args... args){
-    return gsl_ran_poisson(r, av_c);
-}
-
-
-template <typename... Args> 
-int connectivity_RRG(double av_c, Args... args){
-    return int(round(av_c));
-}
 
 
 template <typename Func>
@@ -212,15 +202,19 @@ template <typename Func>
 int convergence(long S, double beta, double lambda, Tnode *nodes, double tol, 
                  int max_iter, bool &divergence, double hmin, double hmax, double **coefficients,
                  double *gamma_vals, double damping, double av_c, double mu, double sigma, 
-                 gsl_rng * r, Func draw_connectivity, double maximum=1e10, int min_consecutive=5){
+                 gsl_rng * r, Func draw_connectivity, int print_every, 
+                 double maximum=1e10, int min_consecutive=5){
     double var = tol + 1, av_pop, av_sqr_pop, av_pop_new, av_sqr_pop_new;
     int iter = 0;
     int consecutive = 0;
     av_pop = average(S, nodes);
     av_sqr_pop = average_sqr(S, nodes);
+    if (print_every > 0){
+        cerr << "# iteration   av(n)   av(n^2)   delta" << endl;
+    }
     while (consecutive < min_consecutive && iter < max_iter){
-        new_averages_RRG(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
-                         iter, damping, av_c, mu, sigma, r, draw_connectivity);
+        new_averages(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
+                     iter, damping, av_c, mu, sigma, r, draw_connectivity);
         iter++;
         av_pop_new = average(S, nodes);
         av_sqr_pop_new = average_sqr(S, nodes);
@@ -234,6 +228,14 @@ int convergence(long S, double beta, double lambda, Tnode *nodes, double tol,
         }else{
             consecutive = 0;
         }
+
+        av_pop = av_pop_new;
+        av_sqr_pop = av_sqr_pop_new;
+
+        if (print_every > 0 && iter % print_every == 0){
+            cerr << iter << "\t" << av_pop << "\t" << av_sqr_pop << "\t" << var << endl;
+        }
+
     }
 
     divergence = false;
@@ -245,23 +247,25 @@ template <typename Func>
 void measure_observables(long S, double beta, double lambda, Tnode *nodes, double tol, 
                              bool &divergence, double hmin, double hmax, double **coefficients,
                              double *gamma_vals, double damping, double av_c, double mu, double sigma, 
-                             gsl_rng * r, int N_measurements, double &av_pop, double &av_sqr_pop, 
-                             Func draw_connectivity, double maximum=1e10){
+                             gsl_rng * r, int N_measurements, double &av_pop, double &av_sqr_pop,
+                             double &av_counter_dead, Func draw_connectivity, double maximum=1e10){
     av_pop = 0;
     av_sqr_pop = 0;
+    av_counter_dead = 0;
+    
 
     int consecutive = 0;
-    av_pop = average(S, nodes);
-    av_sqr_pop = average_sqr(S, nodes);
     for (int i = 0; i < N_measurements; i++){
-        new_averages_RRG(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
-                         i, damping, av_c, mu, sigma, r, draw_connectivity);
+        new_averages(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
+                     i, damping, av_c, mu, sigma, r, draw_connectivity);
         av_pop += average(S, nodes);
         av_sqr_pop += average_sqr(S, nodes);
+        av_counter_dead += count_dead(S, nodes);
     }
 
-    av_pop /= S;
-    av_sqr_pop /= S;
+    av_pop /= N_measurements;
+    av_sqr_pop /= N_measurements;
+    av_counter_dead /= N_measurements;
 }
 
 
@@ -270,19 +274,27 @@ size_t IBMF(long S, Tnode *nodes, double beta, double lambda, double tol,
             int max_iter, double avn_0, double damping, bool random_init, double dn, 
             unsigned long seed_condinit, bool &divergence, int &iter, 
             double hmin, double hmax, double **coefficients, double *gamma_vals, 
-            double av_c, double mu, double sigma, gsl_rng * r, char * graph_type, 
-            unsigned long seed_choose){
+            double av_c, double mu, double sigma, char * graph_type, 
+            unsigned long seed_choose, int N_measurements, double &av_pop,
+            double &av_sqr_pop, double &av_counter_dead, int print_every){
+    gsl_rng * r;
     init_avgs(S, nodes, avn_0, random_init, dn, seed_condinit);
     init_ran(r, seed_choose);
     auto start = std::chrono::high_resolution_clock::now();
     if (graph_type == string("RRG")) {
         iter = convergence(S, beta, lambda, nodes, tol, max_iter, divergence, hmin, hmax, 
                            coefficients, gamma_vals, damping, av_c, mu, sigma, r, 
-                           connectivity_RRG);
+                           connectivity_RRG, print_every);
+        measure_observables(S, beta, lambda, nodes, tol, divergence, hmin, hmax, coefficients, 
+                            gamma_vals, damping, av_c, mu, sigma, r, N_measurements, av_pop, 
+                            av_sqr_pop, av_counter_dead, connectivity_RRG);
     }else if (graph_type == string("ER")){
         iter = convergence(S, beta, lambda, nodes, tol, max_iter, divergence, hmin, hmax, 
                            coefficients, gamma_vals, damping, av_c, mu, sigma, r, 
-                           connectivity_ER);
+                           connectivity_ER, print_every);
+        measure_observables(S, beta, lambda, nodes, tol, divergence, hmin, hmax, coefficients, 
+                            gamma_vals, damping, av_c, mu, sigma, r, N_measurements, av_pop, 
+                            av_sqr_pop, av_counter_dead, connectivity_ER);
     }else{
         cerr << "graph_type must be RRG or ER" << endl;
         exit(1);
@@ -293,12 +305,12 @@ size_t IBMF(long S, Tnode *nodes, double beta, double lambda, double tol,
 }
 
 
-void run_IBMF(unsigned long seed_choose, long S, Tnode *nodes, double T, double lambda, 
-              double tol, int max_iter, double avn_0, double damping, 
-              bool print_only_last, bool print_avgs, char * fileout_base, 
-              bool random_init, double dn, unsigned long id_0, int num_init_conds, 
-              double av_c, double mu, double sigma, gsl_rng * r, char * graph_type){
-    
+void run_IBMF_finite_T(unsigned long seed_choose, long S, Tnode *nodes, double T, double lambda, 
+                       double tol, int max_iter, double avn_0, double damping, 
+                       int print_every, bool print_avgs, char * fileout_base, 
+                       bool random_init, double dn, unsigned long id_0, double av_c, double mu, 
+                       double sigma, char * graph_type, int N_measurements){
+
     double beta = 1.0 / T;
 
     double hmax = find_divergence_max(beta, (1 + beta * lambda) / 2);
@@ -312,20 +324,18 @@ void run_IBMF(unsigned long seed_choose, long S, Tnode *nodes, double T, double 
     
     
     divergence = false;
-    bool make_other_tries;
     int iter;
-    bool same_fixed_point = true;
 
-    seed_seq = seed_seq_init;
-    seed_condinit = id_0;
-    size_t elapsed = IBMF_single_try(seed_seq, N, nodes, beta, lambda, tol, max_iter, avn_0, 
-                                     damping, random_init, dn, seed_condinit, sequence, divergence, 
-                                     iter, hmin, hmax, coefficients, gamma_vals);
-        
-    print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
+    double av_pop, av_sqr_pop, av_counter_dead;
+    size_t elapsed = IBMF(S, nodes, beta, lambda, tol, max_iter, avn_0, damping, random_init,
+                          dn, id_0, divergence, iter, hmin, hmax, coefficients, gamma_vals, av_c, 
+                          mu, sigma, graph_type, seed_choose, N_measurements, 
+                          av_pop, av_sqr_pop, av_counter_dead, print_every);
+    print_results_short(iter, nodes, S, id_0, max_iter, divergence, elapsed, 
+                        av_counter_dead, av_pop, av_sqr_pop);
     if (print_avgs){
-        sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-        print_avgs_to_file(nodes, N, fileavgs);
+        sprintf(fileavgs, "%s.txt", fileout_base);
+        print_avgs_to_file(nodes, S, fileavgs);
     }
 }
 

@@ -129,32 +129,28 @@ double average_sqr(long S, Tnode *nodes){
     return av_sqr / S;
 }
 
-
-
-void print_results_short(int iter, Tnode *nodes, long S, unsigned long seed_graph, 
-                         unsigned long seed_seq, unsigned long seed_initcond,
-                         int max_iter, bool divergence, size_t elapsed, 
-                         double av_counter_dead, double av, double av_sqr){
-
+long count_dead(long S, Tnode *nodes){
     long counter_dead = 0;
     for (long i = 0; i < S; i++){
         if (nodes[i].field <= 0){
             counter_dead++;
         }
     }
+    return counter_dead;
+}
 
 
-    double av = average(S, nodes);
-    double av_sqr = average_sqr(S, nodes);
+
+void print_results_short(int iter, Tnode *nodes, long S, unsigned long seed_initcond,
+                         int max_iter, bool divergence, size_t elapsed, 
+                         double av_counter_dead, double av, double av_sqr){
     if (divergence){
         cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / S) << "\t" << 
-                counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
-                seed_initcond << "\t" << double(elapsed) / 1000 << endl;
+                av_counter_dead << "\t"  << seed_initcond << "\t" << double(elapsed) / 1000 << endl;
     }else{
         bool conv = iter < max_iter;
         cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / S) << "\t" << 
-                counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
-                seed_initcond << "\t" << double(elapsed) / 1000 << endl;
+                av_counter_dead << "\t"  << seed_initcond << "\t" << double(elapsed) / 1000 << endl;
     }
 }
 
@@ -174,10 +170,11 @@ void print_avgs_to_file(Tnode *nodes, long N, char *fileavgs){
 
 
 void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, double &dn, 
-                     unsigned long &id_0, int &num_init_conds, double &T, double &lambda, double &tol, 
+                     unsigned long &id_0, double &T, double &lambda, double &tol, 
                      int &max_iter, double &damping, bool &print_avgs,
-                     bool &print_only_last, double &mu,
-                     double &sigma, long &S, double &c, char * graph_type, bool &print_params){
+                     int &print_every, double &mu,
+                     double &sigma, long &S, double &c, char * graph_type,
+                     int &N_measurements, unsigned long &seed_choose, bool &print_params){
     int arg_index = 1;
     while (arg_index < argc){
         if (string(argv[arg_index]) == "-h" || string(argv[arg_index]) == "--help"){
@@ -185,19 +182,21 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "The following list describes the command line arguments" << endl;
             cerr << "the structure is --arg_name  [data_type: default]  ::  description" << endl;
             cerr << "--avn_0  [double: 0.08]  ::  the initial average abundance" << endl;
-            cerr << "--random_init  [double: 0]  [unsigned long: 1]  [int: 1]  ::  it expects a double (dn), an unsigned long (id_0), and an int (num_init_conds). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. The initial conditions are drawn for 'num_init_conds' different seeds of the random number generator, starting at 'id_0'. If --random_init is not included, the initial condition is n0 for all nodes" << endl;
+            cerr << "--random_init  [double: 0]  [unsigned long: 1]  ::  it expects a double (dn) and an unsigned long (id_0). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. The initial conditions are drawn using the seed 'id_0' for the random number generator. If --random_init is not included, the initial condition is n0 for all nodes" << endl;
             cerr << "-T  or --temp   [double: 0.01]  ::  temperature" << endl;
             cerr << "--lambda  [double: 1e-6]   ::   immigration rate (default is zero)" << endl;
             cerr << "--tol  [double: 1e-6]   ::   tolerance for the convergence of the individual abundances" << endl;
             cerr << "--max_iter   [int: 10000]   ::   maximum number of iterations" << endl;
             cerr << "--damping   [double: 1.0]   :: damping for the convergence process. Setting it to 1 means no damping" << endl;
             cerr << "--print_avgs   ::   if this flag is added to the arguments, the program will print individual average abundances" << endl;
-            cerr << "--print_only_last  ::  if this flag is added to the arguments, the program prints only the information obtained by running the convergence process with the last sequence (with seed 'seed_seq+num_seq-1')" << endl;
+            cerr << "--print_every [int: 0]  ::  if this argument is added, the program prints the history of the convergence process to the standard error every 'print_every' iterations. If it is non-positive, the program will not print the history" << endl;
             cerr << "--mu  [double: 0.2]   ::   average strength of the interactions" << endl;
             cerr << "--sigma  [double: 0.0]  ::  standard deviation of the interactions" << endl;
             cerr << "-S or --size  [long: 1024]  ::  number of species in the population" << endl;
             cerr << "-c or --connect  [int or double, depending on graph type: 3]  ::  average connectivity of the interaction graph " << endl;
             cerr << "--graph_type  [string: RRG]  ::  if graph_type=RRG, the program generates a random regular graph. If graph_type=ER, it generates an Erdos-Renyi graph" << endl;
+            cerr << "--N_meas  [int: 5]  ::  number of measurements after convergence. The population is updated between consecutive measures" << endl; 
+            cerr << "--seed  [unsigned long: 1]  ::  seed for the random number generator that updates the population" << endl; 
             cerr << "--print_params  ::  if this flag is added to the arguments, the program will print the parameters used for the run" << endl;
             exit(0);
         }
@@ -211,8 +210,6 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             dn = atof(argv[arg_index]);
             arg_index++;
             id_0 = atol(argv[arg_index]);
-            arg_index++;
-            num_init_conds = atoi(argv[arg_index]);
             arg_index++;
         }else if (string(argv[arg_index]) == "-T" || string(argv[arg_index]) == "--temp"){
             arg_index++;
@@ -237,8 +234,9 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
         }else if (string(argv[arg_index]) == "--print_avgs"){
             print_avgs = true;
             arg_index++;
-        }else if (string(argv[arg_index]) == "--print_only_last"){
-            print_only_last = true;
+        }else if (string(argv[arg_index]) == "--print_every"){
+            arg_index++;
+            print_every = atoi(argv[arg_index]);
             arg_index++;
         }else if (string(argv[arg_index]) == "--mu"){
             arg_index++;
@@ -264,6 +262,14 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
                 exit(1);
             }
             arg_index++;
+        }else if (string(argv[arg_index]) == "--N_meas"){
+            arg_index++;
+            N_measurements = atoi(argv[arg_index]);
+            arg_index++;
+        }else if (string(argv[arg_index]) == "--seed"){
+            arg_index++;
+            seed_choose = atol(argv[arg_index]);
+            arg_index++;
         }else if (string(argv[arg_index]) == "--print_params"){
             print_params = true;
             arg_index++;
@@ -276,34 +282,45 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
 
 
 void print_params_run(double avn_0, bool random_init, double dn, 
-                     unsigned long id_0, int num_init_conds, double T, double lambda, double tol, 
+                     unsigned long id_0, double T, double lambda, double tol, 
                      int max_iter, double damping, bool print_avgs,
-                     bool print_only_last, double eps, double mu,
-                     double sigma, long S, double c, char * graph_type){
-    cerr << "Initial average abundance: " << avn_0 << endl;
-    cerr << "Random initial condition dn=" << dn << "   extrated  " << num_init_conds << " times, with initial seed " << id_0 << endl;
-    cerr << "Temperature: " << T << endl;
-    cerr << "lambda: " << lambda << endl;
-    cerr << "Tolerance for convergence: " << tol << endl;
-    cerr << "Maximum number of iterations: " << max_iter << endl;
-    cerr << "Damping for the convergence process: " << damping << endl;
+                     int print_every, double mu,
+                     double sigma, long S, double c, char * graph_type, 
+                     int N_measurements, unsigned long seed_choose){
+    cerr << "# Initial average abundance: " << avn_0 << endl;
+    cerr << "# Random initial condition dn=" << dn << " with initial seed " << id_0 << endl;
+    cerr << "# Temperature: " << T << endl;
+    cerr << "# lambda: " << lambda << endl;
+    cerr << "# Tolerance for convergence: " << tol << endl;
+    cerr << "# Maximum number of iterations: " << max_iter << endl;
+    cerr << "# Damping for the convergence process: " << damping << endl;
     if (print_avgs){
-        cerr << "The program will print individual average abundances" << endl;
+        cerr << "# The program will print individual average abundances" << endl;
     }else{
-        cerr << "The program will not print individual average abundances" << endl;
+        cerr << "# The program will not print individual average abundances" << endl;
     }
-    if (print_only_last){
-        cerr << "The program will print only the information obtained by running the convergence process with the last sequence" << endl;
+    if (print_every > 0){
+        cerr << "# The program will print the history of the convergence process to the standard error every "  << print_every << " iterations" << endl;
     }else{
-        cerr << "The program will print the information obtained by running the convergence process with all sequences and initial conditions" << endl;
+        cerr << "# The program will not print the history of the convergence process to the standard error" << endl;
     }
-    cerr << "Level of asymmetry in the graph: " << eps << endl;
-    cerr << "Average strength of the interactions: " << mu << endl;
-    cerr << "Standard deviation of the interactions: " << sigma << endl;
-    cerr << "Number of species in the population: " << S << endl;
-    cerr << "Average connectivity of the interaction graph: " << c << endl;
-    cerr << "Type of graph to generate: " << graph_type << endl;
-    
+    cerr << "# Average strength of the interactions: " << mu << endl;
+    cerr << "# Standard deviation of the interactions: " << sigma << endl;
+    cerr << "# Number of species in the population: " << S << endl;
+    cerr << "# Average connectivity of the interaction graph: " << c << endl;
+    cerr << "# Type of graph to generate: " << graph_type << endl;
+    cerr << "# Number of measurements after convergence: " << N_measurements << endl;
+    cerr << "# Seed for the random number generator used to update the population: " << seed_choose << endl;
+}
+
+
+int connectivity_ER(double av_c, gsl_rng * r){
+    return gsl_ran_poisson(r, av_c);
+}
+
+
+int connectivity_RRG(double av_c, gsl_rng * r){
+    return int(round(av_c));
 }
 
 
