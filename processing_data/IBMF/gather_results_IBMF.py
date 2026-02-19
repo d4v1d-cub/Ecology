@@ -96,7 +96,6 @@ def gather_all_ngrbatch(path_to_files, path_out, path_previous_data, T, lda, avn
 def main():
     T = "0.000"
     lda = "0.000"
-    eps = "0.000"
     avn0 = "0.5"
     dn = "0.5"
     ninitconds = "10"

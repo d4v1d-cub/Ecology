@@ -54,22 +54,20 @@ def main():
     # EPSILON = "0.0" (ASYMMETRIC)  mu=0.000  large N  params: (mu, sigma)
 
     dpar_trans = 0.004
-    shift_below = 0.004
-    shift_above = 0.004
+    shift_below = 0.000
+    shift_above = 0.000
     ndigits = 3
 
     eps = "0.000"
     mu = "0.000"
     seed0 = 1
     nsampl_each = {}
-    for N in [128, 256, 512, 1024, 2048, 4096, 8192]:
+    for N in [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288]:
         nsampl_each[N] = 10000
-    nsampl_each[16384] = 5000
-    nsampl_each[32768] = 2000
-    nsampl_each[65536] = 1000
-    nsampl_each[131072] = 500
-    nsampl_each[262144] = 200
-    nsampl_each[524288] = 100
+    nsampl_each[1048576] = 1000
+    nsampl_each[2097152] = 500
+    nsampl_each[4194304] = 200
+    nsampl_each[8388608] = 100
 
     nsampl_total = 10000
 
@@ -78,7 +76,7 @@ def main():
     par_fixed_list = [round(float(mu), ndigits)]
 
     filein_mult = f'IBMF_seq_RRG_T_0.000_lambda_0.000_PD_Lotka_Volterra_transitions_mult_av0_0.5_dn_0.5_ninitconds_10_tol_1e-6_maxiter_10000_eps_{eps}_mu_{mu}_c_3_damping_0.2_nseq_1.txt'
-    path_out = "/mnt/d/Research/Ecology/Scripts/Dresden/IBMF"
+    path_out = "/mnt/d/Research/Ecology/Scripts/Lecce/IBMF"
     fileout = f'params_IBMF_T0_seq_largeN_eps0_1.txt'
     pos_par_fixed = 1
     pos_par_trans_1 = 2

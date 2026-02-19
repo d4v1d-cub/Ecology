@@ -113,17 +113,17 @@ def main():
     tol = "1e-6"
     max_iter = "10000"
     # N_list = ["1024", "2048", "4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288"]
-    N_list = ["1024", "2048", "4096", "8192", "16384", "32768"]
+    N_list = ["1048576", "2097152", "4194304", "8388608"]
     c = "3"
     damping = "0.2"
     nseq = "1"
 
     # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
     # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
-    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    # path_in = "/mnt/d/Research/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
-    # path_out = "/mnt/d/Research/Ecology/Results/IBMF/"
+    # path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
+    # path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    path_in = "/mnt/d/Research/Ecology/Results/IBMF/AllData/PhaseDiagram/T0/"
+    path_out = "/mnt/d/Research/Ecology/Results/IBMF/"
 
     
     
