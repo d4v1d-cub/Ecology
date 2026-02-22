@@ -55,7 +55,7 @@ def main():
 
     dpar_trans = 0.004
     shift_below = 0.000
-    shift_above = 0.000
+    shift_above = -0.002
     ndigits = 3
 
     eps = "0.000"
@@ -67,7 +67,7 @@ def main():
     nsampl_each[1048576] = 1000
     nsampl_each[2097152] = 500
     nsampl_each[4194304] = 200
-    nsampl_each[8388608] = 100
+    nsampl_each[8388608] = 200
 
     nsampl_total = 10000
 
@@ -77,7 +77,7 @@ def main():
 
     filein_mult = f'IBMF_seq_RRG_T_0.000_lambda_0.000_PD_Lotka_Volterra_transitions_mult_av0_0.5_dn_0.5_ninitconds_10_tol_1e-6_maxiter_10000_eps_{eps}_mu_{mu}_c_3_damping_0.2_nseq_1.txt'
     path_out = "/mnt/d/Research/Ecology/Scripts/Lecce/IBMF"
-    fileout = f'params_IBMF_T0_seq_largeN_eps0_1.txt'
+    fileout = f'params_IBMF_T0_seq_largeN_eps0_2.txt'
     pos_par_fixed = 1
     pos_par_trans_1 = 2
     pos_par_trans_2 = 3
