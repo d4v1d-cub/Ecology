@@ -19,7 +19,6 @@
 #include <gsl/gsl_randist.h>    // For random number generation
 #include <gsl/gsl_sf_hyperg.h>  // For hypergeometric functions
 #include <gsl/gsl_sf_gamma.h>   // For gamma functions
-#include "math.h"
 #include <cmath>
 
 using namespace std;
