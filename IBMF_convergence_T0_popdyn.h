@@ -50,7 +50,7 @@ void new_averages(long S, Tnode *nodes, double tol, int iter, double damping, do
             av_new = (1 - damping) * nodes[pos].av;               
         }
 
-        if (isnan(av_new) || isinf(av_new)){
+        if (std::isnan(av_new) || std::isinf(av_new)){
             cerr << "Error: av_new is nan or inf at site i=" << pos << "   iter=" << iter << endl;
         }
 
@@ -78,7 +78,7 @@ int convergence(long S, Tnode *nodes, double tol, int max_iter, bool &divergence
         av_pop_new = average(S, nodes);
         av_sqr_pop_new = average_sqr(S, nodes);
         var = max(fabs(av_pop_new - av_pop), fabs(av_sqr_pop_new - av_sqr_pop));
-        if (isinf(var) || isnan(var) || var > maximum){
+        if (std::isinf(var) || std::isnan(var) || var > maximum){
             divergence = true;
             return iter;
         }
