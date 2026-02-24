@@ -210,7 +210,7 @@ int convergence(long S, double beta, double lambda, Tnode *nodes, double tol,
     av_pop = average(S, nodes);
     av_sqr_pop = average_sqr(S, nodes);
     if (print_every > 0){
-        cerr << "# iteration   av(n)   av(n^2)   delta" << endl;
+        cerr << "# iteration   av(n)   av(n^2)   sqrt(av(n^2) - av(n)^2)   delta" << endl;
     }
     while (consecutive < min_consecutive && iter < max_iter){
         new_averages(S, beta, lambda, nodes, tol, hmin, hmax, coefficients, gamma_vals,
@@ -233,7 +233,7 @@ int convergence(long S, double beta, double lambda, Tnode *nodes, double tol,
         av_sqr_pop = av_sqr_pop_new;
 
         if (print_every > 0 && iter % print_every == 0){
-            cerr << iter << "\t" << av_pop << "\t" << av_sqr_pop << "\t" << var << endl;
+            cerr << iter << "\t" << av_pop << "\t" << av_sqr_pop << "\t" << sqrt(av_sqr_pop - av_pop*av_pop) << "\t" << var << endl;
         }
 
     }
