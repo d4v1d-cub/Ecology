@@ -71,19 +71,27 @@ def gather(path_to_files, path_out, path_previous_data, T, lda, avn0, dn, ninitc
         fout = open(f'{path_out}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps:.{ndigits}f}_mu_{mu:.{ndigits}f}_sigma_{sigma:.{ndigits}f}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', "w")
         file_prev_data = f'{path_previous_data}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps:.{ndigits}f}_mu_{mu:.{ndigits}f}_sigma_{sigma:.{ndigits}f}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt'
         lines_prev = read_previous_data(file_prev_data)
+        graph_seeds = []
+        counter = 0
         if len(lines_prev) > 0:
             for line in lines_prev:
-                fout.write(line)
-        ngraphs_prev = len(lines_prev)
+                gseed = int(line.split()[6])
+                if gseed not in graph_seeds:
+                    graph_seeds.append(gseed)
+                    fout.write(line)
+                    counter += 1
         lines_to_print = []
         for filein in file_list:
             lines = read_file(path_to_files, filein)
             lines_to_print.extend(lines)
-        ngraphs = len(lines_to_print) + ngraphs_prev
             
         for line in lines_to_print:
-            fout.write(line)
-        print(f'Wrote file for N={N}, eps={eps}, mu={mu}, sigma={sigma}, ngraphs={ngraphs}')
+            gseed = int(line.split()[6])
+            if gseed not in graph_seeds:
+                graph_seeds.append(gseed)
+                fout.write(line)
+                counter += 1
+        print(f'Wrote file for N={N}, eps={eps}, mu={mu}, sigma={sigma}, ngraphs={counter}')
         fout.close()
 
 
