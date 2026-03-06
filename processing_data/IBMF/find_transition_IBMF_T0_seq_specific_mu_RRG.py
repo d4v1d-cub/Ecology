@@ -2,6 +2,59 @@ __author__ = 'david'
 
 import os
 import fnmatch
+import numpy as np
+from scipy.optimize import curve_fit
+
+
+def sigmoid(x, a, b):
+    return 1.0 / (1.0 + np.exp(-a * (x - b)))
+
+
+def fit_sigmoid(sigma_data, fraction_data, error_in_fraction, maxfev=10000):
+    try:
+        popt, pcov = curve_fit(sigmoid, sigma_data, fraction_data, sigma=error_in_fraction, 
+                               maxfev=maxfev, bounds=([0, 0], [np.inf, np.inf]))
+        error_parameters = np.sqrt(np.diag(pcov))
+        return popt, error_parameters
+    except RuntimeError:
+        print("Error: Sigmoid fit did not converge.")
+        return None
+
+
+
+def find_transition_fit(lines, position):
+    sigma_data = {}
+    fraction_data = {}
+    error_in_fraction_list = {}
+    for line in lines:
+        line_split = line.split()
+        par_key = float(line_split[0])
+        par_trans = float(line_split[1])
+
+        num = int(line_split[position])
+        nsamples = int(line_split[-1])
+        fraction = num / nsamples
+        error_in_fraction = np.sqrt(fraction * (1 - fraction) / nsamples)
+        if par_key not in sigma_data:
+            sigma_data[par_key] = []
+            fraction_data[par_key] = []
+            error_in_fraction_list[par_key] = []
+        if error_in_fraction > 0:
+            sigma_data[par_key].append(par_trans)
+            fraction_data[par_key].append(fraction)
+            error_in_fraction_list[par_key].append(error_in_fraction)
+    transitions = {}
+    for par_key in sigma_data:
+        popt, error_parameters = fit_sigmoid(sigma_data[par_key], fraction_data[par_key], error_in_fraction_list[par_key])
+        if popt is not None and popt[1] > 0 and error_parameters[1] < np.inf:
+            _, b = popt
+            _, error_b = error_parameters
+            transitions[par_key] = (b - error_b, b + error_b)
+        else:
+            print(f"Could not fit sigmoid for par_key {par_key}.")
+    return transitions
+
+
 
 
 def find_transition(lines, position):
@@ -116,6 +169,29 @@ def find_all_trans(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter
     fout_mult.close()
 
 
+def find_all_trans_fit(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits, 
+                   pos_mu=0, pos_N=24, ndigits_sigma=6):
+    fout_div = open(f'{path}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_transitions_div_fit_sigmoid_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_{mu}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
+    fout_mult = open(f'{path}/IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_transitions_mult_fit_sigmoid_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_{mu}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
+    
+    pattern = f'IBMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_summary_av0_{avn0}_dn_{dn}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_*_c_{c}_damping_{damping}_nseq_{nseq}.txt'
+    files_sorted = filter_files(path, pattern, pos_N)
+
+    for filename, N in files_sorted:
+        lines_mu = read_file_specific_mu(path, filename, mu, pos_mu)
+        transitions_m = find_transition_fit(lines_mu, 4)
+        transitions_multiple_eq = find_transition_fit(lines_mu, 5)
+        for mu_key in transitions_m:
+           sigma_m, sigma_below_m = transitions_m[mu_key]
+           fout_div.write(f"{int(N)}\t{mu_key:.{ndigits}f}\t{sigma_m:.{ndigits_sigma}f}\t{sigma_below_m:.{ndigits_sigma}f}\n") 
+        for mu_key in transitions_multiple_eq:
+            sigma_multiple_eq, sigma_below_multiple_eq = transitions_multiple_eq[mu_key]
+            fout_mult.write(f"{int(N)}\t{mu_key:.{ndigits}f}\t{sigma_multiple_eq:.{ndigits_sigma}f}\t{sigma_below_multiple_eq:.{ndigits_sigma}f}\n")
+    
+    fout_div.close()
+    fout_mult.close()
+
+
 def main():
     T = "0.000"
     lda = "0.000"
@@ -130,13 +206,14 @@ def main():
     nseq = "1"
 
     path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    path = "/mnt/d/Research/Ecology/Results/IBMF/"
+    # path = "/mnt/d/Research/Ecology/Results/IBMF/"
 
 
     ndigits = 3
     mu = "0.000"
 
-    find_all_trans(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
+    # find_all_trans(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
+    find_all_trans_fit(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
 
     return 0
 
