@@ -46,9 +46,9 @@ def find_transition_fit(lines, position):
     transitions = {}
     for par_key in sigma_data:
         popt, error_parameters = fit_sigmoid(sigma_data[par_key], fraction_data[par_key], error_in_fraction_list[par_key])
-        if popt is not None and popt[1] > 0 and error_parameters[1] < np.inf:
-            _, b = popt
-            _, error_b = error_parameters
+        _, b = popt
+        _ , error_b = error_parameters
+        if popt is not None and b > 0 and error_b < np.inf:
             transitions[par_key] = (b - error_b, b + error_b)
         else:
             print(f"Could not fit sigmoid for par_key {par_key}.")
