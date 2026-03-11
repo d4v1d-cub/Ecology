@@ -205,15 +205,15 @@ def main():
     damping = "0.2"
     nseq = "1"
 
-    path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
-    # path = "/mnt/d/Research/Ecology/Results/IBMF/"
+    # path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+    path = "/mnt/d/Research/Ecology/Results/IBMF/"
 
 
     ndigits = 3
-    mu = "0.000"
+    mu = "0.270"
 
-    # find_all_trans(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
-    find_all_trans_fit(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
+    find_all_trans(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
+    # find_all_trans_fit(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
 
     return 0
 

@@ -196,8 +196,8 @@ def main():
     tol_fixed_point = "1e-08"
 
     # path = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Langevin/Results/"
-    # path = "/mnt/d/Research/Ecology/Langevin/Results"
-    path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results/"
+    path = "/mnt/d/Research/Ecology/Langevin/Results"
+    # path = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Langevin/Results/"
 
     ndigits = 3
 
