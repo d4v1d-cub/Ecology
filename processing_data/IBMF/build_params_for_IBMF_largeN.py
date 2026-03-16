@@ -117,6 +117,37 @@ def main():
     # print_params_largeN(path_in, filein_mult, path_out, fileout, dpar_trans, pos_par_fixed, 
     #                     pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
     #                     eps, seed0, nsampl_each, nsampl_total, pos_N)
+
+
+
+    dpar_trans = 0.008
+    shift_below = 0.000
+    shift_above = -0.002
+
+    eps = "0.000"
+    mu = "0.000"
+    seed0 = 1
+    nsampl_each = {}
+    nsampl_each[8388608] = 100
+
+    nsampl_total = 10000
+
+    # IBMF
+    # path_in = "/mnt/d/Research/Ecology/Results/IBMF/"
+    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+
+    filein_mult = f'IBMF_seq_RRG_T_0.000_lambda_0.000_PD_Lotka_Volterra_transitions_div_av0_0.5_dn_0.5_ninitconds_10_tol_1e-6_maxiter_10000_eps_{eps}_mu_{mu}_c_3_damping_0.2_nseq_1.txt'
+    # path_out = "/mnt/d/Research/Ecology/Scripts/Lecce/IBMF"
+    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Scripts/Lecce/IBMF"
+    fileout = f'params_IBMF_T0_seq_largeN_eps0_1.txt'
+    pos_par_fixed = 1
+    pos_par_trans_1 = 2
+    pos_par_trans_2 = 3
+    pos_N = 0
+
+    print_params_largeN(path_in, filein_mult, path_out, fileout, dpar_trans, pos_par_fixed, 
+                        pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
+                        eps, seed0, nsampl_each, nsampl_total, pos_N)
     
 
 
@@ -151,27 +182,58 @@ def main():
     #                     eps, seed0, nsampl_each, nsampl_total, pos_N)
     
 
+    # dpar_trans = 0.012
+    # shift_below = 0.076
+    # shift_above = 0.004
+
+    # eps = "0.000"
+    # mu = "0.270"
+    # seed0 = 1
+    # nsampl_each = {}
+    # for N in [65536, 131072, 262144, 524288]:
+    #     nsampl_each[N] = 10000
+    # nsampl_each[1048576] = 1000
+    # nsampl_each[2097152] = 500
+    # nsampl_each[4194304] = 200
+
+    # nsampl_total = 10000
+
+    # # IBMF
+    # path_in = "/mnt/d/Research/Ecology/Results/IBMF/"
+
+    # filein_mult = f'IBMF_seq_RRG_T_0.000_lambda_0.000_PD_Lotka_Volterra_transitions_mult_av0_0.5_dn_0.5_ninitconds_10_tol_1e-6_maxiter_10000_eps_{eps}_mu_{mu}_c_3_damping_0.2_nseq_1.txt'
+    # path_out = "/mnt/d/Research/Ecology/Scripts/Lecce/IBMF"
+    # fileout = f'params_IBMF_T0_seq_largeN_eps0_2.txt'
+    # pos_par_fixed = 1
+    # pos_par_trans_1 = 2
+    # pos_par_trans_2 = 3
+    # pos_N = 0
+
+    # print_params_largeN_below(path_in, filein_mult, path_out, fileout, dpar_trans, pos_par_fixed, 
+    #                           pos_par_trans_1, pos_par_trans_2, shift_below, shift_above, 
+    #                           eps, seed0, nsampl_each, nsampl_total, pos_N)
+    
+
     dpar_trans = 0.012
-    shift_below = 0.076
+    shift_below = 0.024
     shift_above = 0.004
 
     eps = "0.000"
     mu = "0.270"
     seed0 = 1
     nsampl_each = {}
-    for N in [65536, 131072, 262144, 524288]:
-        nsampl_each[N] = 10000
-    nsampl_each[1048576] = 1000
-    nsampl_each[2097152] = 500
-    nsampl_each[4194304] = 200
+    nsampl_each[8388608] = 100
 
     nsampl_total = 10000
 
     # IBMF
-    path_in = "/mnt/d/Research/Ecology/Results/IBMF/"
+    # path_in = "/mnt/d/Research/Ecology/Results/IBMF/"
+    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/IBMF/"
+
 
     filein_mult = f'IBMF_seq_RRG_T_0.000_lambda_0.000_PD_Lotka_Volterra_transitions_mult_av0_0.5_dn_0.5_ninitconds_10_tol_1e-6_maxiter_10000_eps_{eps}_mu_{mu}_c_3_damping_0.2_nseq_1.txt'
-    path_out = "/mnt/d/Research/Ecology/Scripts/Lecce/IBMF"
+    # path_out = "/mnt/d/Research/Ecology/Scripts/Lecce/IBMF"
+    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Scripts/Lecce/IBMF"
     fileout = f'params_IBMF_T0_seq_largeN_eps0_2.txt'
     pos_par_fixed = 1
     pos_par_trans_1 = 2
