@@ -1,13 +1,13 @@
-#ifndef __IBMF_COMMON_H_INCLUDED__
-#define __IBMF_COMMON_H_INCLUDED__
+#ifndef __GMF_COMMON_H_INCLUDED__
+#define __GMF_COMMON_H_INCLUDED__
 
 /**
- * @file IBMF_common.h
- * @brief Common utilities and data structures for Individual Based Mean Field (IBMF) analysis
+ * @file GMF_common.h
+ * @brief Common utilities and data structures for Gaussian Mean Field (GMF) analysis
  * of Generalized Lotka-Volterra dynamics on sparse graphs.
  * 
  * This file implements the core functionality for analyzing species interactions
- * in ecological networks using the IBMF approach. The implementation focuses on
+ * in ecological networks using the GMF approach. The implementation focuses on
  * finding stationary solutions to the local Fokker-Planck equation that describes
  * the species abundance dynamics.
  */
@@ -36,126 +36,131 @@ void init_ran(gsl_rng * &r, unsigned long s){
     gsl_rng_set(r, s);
 }
 
-/**
- * @brief Node structure representing a species in the ecosystem
- * 
- * This structure contains all information needed to represent a species
- * in the IBMF approximation of the Lotka-Volterra dynamics:
- * - Network topology (neighbors and interaction strengths)
- * - Current state (field and abundance)
- * - Convergence information
- */
 typedef struct{
-    vector <long> neighs;         ///< Indices of neighboring species
-    vector <double> links_in;     ///< Interaction strengths of incoming links
-    double field;               ///< Local field (average abundance) at this node
-    bool converged;             ///< Whether node has reached convergence
-    double av;                  ///< Current average abundance
-    double av_prev_fixed_point; ///< Previous fixed point for comparison
+    vector <long> edges_in; // edges that contain the node
+    vector <int> pos_there; // position occupied by the node in those edges
+    double av; // average value of n in that node
+    double chi; // beta * (q_sqr - av^2) in that node
+    double var; // variance of the perturberd Gaussian in that node
+    double field; // field in that node
+    double av_prev_fixed_point;
+    double chi_prev_fixed_point; // previous value of av and chi in the fixed point
 }Tnode;
 
 
-/**
- * @brief Initialize interaction network from standard input
- * @param nodes Reference to array of nodes representing species
- * @param N Number of species (nodes) in the network
- * 
- * Expected input format:
- * N M          // Number of nodes and edges
- * i j aij aji  // Edge data: nodes i,j and their interaction strengths
- * ...          // (M lines of edge data)
- */
-void init_graph_from_input(Tnode *&nodes, long &N){
-    long M;  // Number of edges
-    scanf("%ld %ld", &N, &M);
-    nodes = new Tnode[N];
-    long i, j;
-    double aij, aji;  // Interaction strengths
+
+
+typedef struct{
+    long nodes_in[2]; // nodes inside the edge. nodes_in[i], with i={0, 1}.
+    double links[2]; // links[i], with i={0, 1}. links[i] is the one pointing to the variable in nodes[i]
+    double cond_av[2]; // cond_av[i], with i={0,1}, is the average of nodes_in[i] given that node j is zero
+    vector < vector <long> > edges_except; // edges that contain the node in nodes[i] excepting this edge
+    vector < vector <int> > pos_there; // position occupied by the node in nodes[i] in those edges
+    int edge_index[2]; // position of the edge in the list of edges that contain the node
+    double chi_cav[2]; // chi_cav[i], with i={0, 1}. chi_cav[i] = beta(cond_q_sqr_i - cond_av_i^2)
+    bool chi_cav_converged[2];
+    bool var_cav_positive[2];
+    bool converged[2]; // converged[i], with i={0, 1}, is true if the averages in nodes_in[i] have converged
+}Tedge;
+
+
+void fill_except(Tnode *nodes, Tedge *edges, long M){
     for (long e = 0; e < M; e++){
-        scanf("%ld %ld %lf %lf", &i, &j, &aij, &aji);
-        nodes[i].neighs.push_back(j);
-        nodes[j].neighs.push_back(i);
-        nodes[i].links_in.push_back(aji);  // Note: aji is incoming to i
-        nodes[j].links_in.push_back(aij);  // aij is incoming to j
+        edges[e].edges_except = vector < vector <long> > (2, vector <long> ());
+        edges[e].pos_there = vector < vector <int> > (2, vector <int> ());
+        for (int i = 0; i < 2; i++){
+            for (int k = 0; k < edges[e].edge_index[i]; k++){
+                edges[e].edges_except[i].push_back(nodes[edges[e].nodes_in[i]].edges_in[k]);
+                edges[e].pos_there[i].push_back(nodes[edges[e].nodes_in[i]].pos_there[k]);
+            }
+            for (int k = edges[e].edge_index[i] + 1; k < nodes[edges[e].nodes_in[i]].edges_in.size(); k++){
+                edges[e].edges_except[i].push_back(nodes[edges[e].nodes_in[i]].edges_in[k]);
+                edges[e].pos_there[i].push_back(nodes[edges[e].nodes_in[i]].pos_there[k]);
+            }
+        }
     }
 }
 
-/**
- * @brief Initialize interaction network from input with inverse interaction order
- * @param nodes Reference to array of nodes representing species
- * @param N Number of species (nodes) in the network
- * 
- * Similar to init_graph_from_input but swaps the interpretation of aij and aji
- * in the input format to support different conventions in input data.
- */
-void init_graph_from_input_inverse(Tnode *&nodes, long &N){
-    long M;
+
+void init_graph_from_input(Tnode *&nodes, Tedge *&edges, long &N, long &M){
     scanf("%ld %ld", &N, &M);
     nodes = new Tnode[N];
+    edges = new Tedge[M];
     long i, j;
-    double aij, aji;
+    double aij, aji; // aij is the coupling that node j sees from node i
     for (long e = 0; e < M; e++){
         scanf("%ld %ld %lf %lf", &i, &j, &aij, &aji);
-        nodes[i].neighs.push_back(j);
-        nodes[j].neighs.push_back(i);
-        nodes[i].links_in.push_back(aij);  // Note: aij is incoming to i
-        nodes[j].links_in.push_back(aji);  // aji is incoming to j
+        edges[e].nodes_in[0] = i;
+        edges[e].nodes_in[1] = j;
+        edges[e].links[0] = aji;
+        edges[e].links[1] = aij;
+
+        edges[e].edge_index[0] = nodes[i].edges_in.size();
+        edges[e].edge_index[1] = nodes[j].edges_in.size();
+        
+
+        nodes[i].edges_in.push_back(e);
+        nodes[j].edges_in.push_back(e);
+        nodes[i].pos_there.push_back(0);
+        nodes[j].pos_there.push_back(1);
     }
+
+    fill_except(nodes, edges, M);
 }
 
-/**
- * @brief Initialize empty node vectors for a network
- * @param nodes Array of nodes to initialize
- * @param N Number of nodes to initialize
- * 
- * Creates empty neighbor and interaction strength vectors for each node.
- * Called before building network structure to ensure clean initialization.
- */
+
+void init_graph_from_input_inverse(Tnode *&nodes, Tedge *&edges, long &N, long &M){
+    scanf("%ld %ld", &N, &M);
+    nodes = new Tnode[N];
+    edges = new Tedge[M];
+    long i, j;
+    double aij, aji; // aij is the coupling that node j sees from node i
+    for (long e = 0; e < M; e++){
+        scanf("%ld %ld %lf %lf", &i, &j, &aij, &aji);
+        edges[e].nodes_in[0] = i;
+        edges[e].nodes_in[1] = j;
+        edges[e].links[0] = aij;
+        edges[e].links[1] = aji;
+
+        edges[e].edge_index[0] = nodes[i].edges_in.size();
+        edges[e].edge_index[1] = nodes[j].edges_in.size();
+        
+
+        nodes[i].edges_in.push_back(e);
+        nodes[j].edges_in.push_back(e);
+        nodes[i].pos_there.push_back(0);
+        nodes[j].pos_there.push_back(1);
+    }
+
+    fill_except(nodes, edges, M);
+}
+
+
 void init_nodes(Tnode *nodes, long N){
     for (long i = 0; i < N; i++){
-        nodes[i].links_in = vector <double> ();
-        nodes[i].neighs = vector <long> ();
+        nodes[i].edges_in = vector <long> ();
+        nodes[i].pos_there = vector <int> ();
     }
 }
 
-/**
- * @brief Generate a Random Regular Graph (RRG) with specified parameters
- * @param nodes Reference to array of nodes to store the generated network
- * @param N Number of species (nodes)
- * @param c Degree (number of interactions) per node
- * @param eps Symmetry parameter (0-1) - probability of symmetric interactions
- * @param mu Mean interaction strength
- * @param sigma Standard deviation of interaction strengths
- * @param r Random number generator
- * 
- * Creates a random c-regular graph where each species interacts with exactly c others.
- * Interaction strengths are drawn from N(mu,sigma²). When eps=1, interactions are
- * symmetric (aij=aji). When eps=0, they are fully independent.
- * 
- * The algorithm uses the configuration model:
- * 1. Create c "stubs" for each node
- * 2. Randomly pair stubs to form edges
- * 3. Generate interaction strengths for each edge
- */
-void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
+long init_graph_inside_RRG(Tnode *&nodes, Tedge *&edges, long N, int c, double eps,
                            double mu, double sigma, gsl_rng * r){
-    // Ensure valid parameters for RRG construction
+    // eps is the degree of symmetry of the graph
     if (N * c % 2 != 0){
-        cerr << "N*c must be even to create a random regular graph" << endl;
+        cout << "N*c must be even to create a random regular graph" << endl;
         exit(1);
     }else{
-        bool success = false;
-        long M = N * c / 2;  // Total number of edges
+        long M = N * c / 2;
         long pos_i, pos_j, i, j;
-        double aij, aji;
+        double aij, aji; // aij is the coupling that node j sees from node i
         nodes = new Tnode[N];
+        edges = new Tedge[M];
 
-        while (!success)
-        {
+        bool success = false;
+        while (!success){
             init_nodes(nodes, N);
 
             vector < long > copies = vector < long > (c * N);
-
             for (long i = 0; i < N; i++){
                 for (int k = 0; k < c; k++){
                     copies[i * c + k] = i;
@@ -173,132 +178,147 @@ void init_graph_inside_RRG(Tnode *&nodes, long N, int c, double eps,
                     j = copies[pos_j];
                 }
                 copies.erase(copies.begin() + pos_j);
-                nodes[i].neighs.push_back(j);
-                nodes[j].neighs.push_back(i);
+
+                edges[e].nodes_in[0] = i;
+                edges[e].nodes_in[1] = j;
+                
+                edges[e].edge_index[0] = nodes[i].edges_in.size();
+                edges[e].edge_index[1] = nodes[j].edges_in.size();
+
                 aij = mu + gsl_ran_gaussian(r, sigma);
                 if (gsl_rng_uniform_pos(r) < eps){
                     aji = aij;
                 }else{
                     aji = mu + gsl_ran_gaussian(r, sigma);
                 }
-                nodes[i].links_in.push_back(aji);
-                nodes[j].links_in.push_back(aij);
-            }
+                edges[e].links[0] = aji;
+                edges[e].links[1] = aij;
 
+                nodes[i].edges_in.push_back(e);
+                nodes[j].edges_in.push_back(e);
+                nodes[i].pos_there.push_back(0);
+                nodes[j].pos_there.push_back(1);
+            }
+            
             pos_i = 0;
-            pos_j = 1;
             i = copies[pos_i];
+            pos_j = 1;
             j = copies[pos_j];
             if (i != j){
                 success = true;
-                nodes[i].neighs.push_back(j);
-                nodes[j].neighs.push_back(i);
+                edges[M - 1].nodes_in[0] = i;
+                edges[M - 1].nodes_in[1] = j;
+                
+                edges[M - 1].edge_index[0] = nodes[i].edges_in.size();
+                edges[M - 1].edge_index[1] = nodes[j].edges_in.size();
+
                 aij = mu + gsl_ran_gaussian(r, sigma);
                 if (gsl_rng_uniform_pos(r) < eps){
                     aji = aij;
                 }else{
                     aji = mu + gsl_ran_gaussian(r, sigma);
                 }
-                nodes[i].links_in.push_back(aji);
-                nodes[j].links_in.push_back(aij);
+                edges[M - 1].links[0] = aji;
+                edges[M - 1].links[1] = aij;
+
+                nodes[i].edges_in.push_back(M - 1);
+                nodes[j].edges_in.push_back(M - 1);
+                nodes[i].pos_there.push_back(0);
+                nodes[j].pos_there.push_back(1);
             }
         }
-    }    
-}
-
-
-void init_graph_inside_RGER_full_asym(Tnode *&nodes, long N, double c,
-                                      double mu, double sigma, gsl_rng * r){
-    // eps is the degree of symmetry of the graph
-    double aji;
-    nodes = new Tnode[N];
-
-    init_nodes(nodes, N);
-
-    for (long i = 0; i < N; i++){
-        for (long j = 0; j < i; j++){
-            if (gsl_rng_uniform(r) < c / N){
-                nodes[i].neighs.push_back(j);
-                aji = mu + gsl_ran_gaussian(r, sigma);
-                nodes[i].links_in.push_back(aji);
-            }
-        }
-        for (long j = i + 1; j < N; j++){
-            if (gsl_rng_uniform(r) < c / N){
-                nodes[i].neighs.push_back(j);
-                aji = mu + gsl_ran_gaussian(r, sigma);
-                nodes[i].links_in.push_back(aji);
-            }
-        }
+        fill_except(nodes, edges, M);
+        return M;
     }
 }
 
 
-void init_avgs(long N, Tnode *nodes, double avn_0, bool random_init, double dn, unsigned long id_0){
+void init_avgs(long M, Tedge *edges, double avn_0, double chi_0, bool random_init, double dn, double dchi, 
+               unsigned long id_0){
     if (random_init){
         gsl_rng * r;
         init_ran(r, id_0);
-        double n_i;
-        for (long i = 0; i < N; i++){
-            n_i = avn_0 - dn + 2 * dn * gsl_rng_uniform(r);
-            if (n_i < 0){
-                n_i = 0;
+        double cav_i, chi_i;
+        for (long e = 0; e < M; e++){
+            for (int k = 0; k < 2; k++){
+                cav_i = avn_0 - dn + 2 * dn * gsl_rng_uniform(r);
+                chi_i = chi_0 - dchi + 2 * dchi * gsl_rng_uniform(r);
+                if (cav_i < 0){
+                    cav_i = 0;
+                }
+                if (chi_i < 0){
+                    chi_i = 0;
+                }
+                edges[e].cond_av[k] = cav_i;
+                edges[e].chi_cav[k] = chi_i;
             }
-            nodes[i].av = n_i;
         }
         gsl_rng_free(r);
     }else{
-        for (long i = 0; i < N; i++){
-            nodes[i].av = avn_0;
+        for (long e = 0; e < M; e++){
+            for (int k = 0; k < 2; k++){
+                edges[e].cond_av[k] = avn_0;
+                edges[e].chi_cav[k] = chi_0;
+            }
         }
     }
 }
 
 
-/**
- * @brief Calculate the local field at a node
- * @param i Index of the node
- * @param nodes Array of all nodes
- * @return Value of the local field h_i = 1 - sum_j a_ij n_j
- * 
- * The local field determines the dynamics of species i through the
- * Lotka-Volterra equations. At steady state, positive fields indicate
- * survival while negative fields lead to extinction.
- */
-double field_in(long i, Tnode *nodes){
-    double field = 0;
-    for (long j = 0; j < nodes[i].neighs.size(); j++){
-        field += nodes[i].links_in[j] * nodes[nodes[i].neighs[j]].av;
+double field_cav_in(long e, int k, Tedge *edges){
+    double sum = 0;
+    long edge_neigh;
+    int pos_there;
+    for (long j = 0; j < edges[e].edges_except[k].size(); j++){
+        edge_neigh = edges[e].edges_except[k][j];
+        pos_there = edges[e].pos_there[k][j];
+        sum += edges[edge_neigh].links[pos_there] * edges[edge_neigh].cond_av[1 - pos_there];
     }
-    return 1 - field;  // 1 is the carrying capacity
+    return 1 - sum;
 }
 
-/**
- * @brief Calculate mean abundance across all species
- * @param N Number of species
- * @param nodes Array of nodes
- * @return Average abundance <n>
- * 
- * The mean abundance is a key observable that characterizes
- * the overall state of the ecosystem.
- */
-double average(long N, Tnode *nodes){
-    double av = 0;
-    for (long i = 0; i < N; i++){
-        av += nodes[i].av;
+
+double var_cav_in(long e, int k, Tedge *edges){
+    double sum = 0;
+    long edge_neigh;
+    int pos_there;
+    for (long j = 0; j < edges[e].edges_except.size(); j++){
+        edge_neigh = edges[e].edges_except[k][j];
+        pos_there = edges[e].pos_there[k][j];
+        sum += edges[edge_neigh].links[0] * edges[edge_neigh].links[1] * 
+               edges[edge_neigh].chi_cav[1 - pos_there];
     }
-    return av / N;
+    return 1.0 / (1 - sum);
 }
 
-/**
- * @brief Calculate mean squared abundance
- * @param N Number of species
- * @param nodes Array of nodes
- * @return Average squared abundance <n²>
- * 
- * Used together with average() to compute abundance fluctuations
- * and characterize the distribution of species abundances.
- */
+
+double field_in(long i, Tnode *nodes, Tedge *edges){
+    double sum = 0;
+    long e;
+    int pos;
+    for (long j = 0; j < nodes[i].edges_in.size(); j++){
+        e = nodes[i].edges_in[j];
+        pos = nodes[i].pos_there[j];
+        sum += edges[e].links[pos] * edges[e].cond_av[1 - pos];
+    }
+    return 1 - sum;
+}
+
+
+double var_in(long i, Tnode *nodes, Tedge *edges){
+    double sum = 0;
+    long e;
+    int pos;
+    for (long j = 0; j < nodes[i].edges_in.size(); j++){
+        e = nodes[i].edges_in[j];
+        pos = nodes[i].pos_there[j];
+        sum += edges[e].links[0] * edges[e].links[1] * edges[e].chi_cav[1 - pos];
+    }
+    return 1.0 / (1 - sum);
+}
+
+
+
 double average_sqr(long N, Tnode *nodes){
     double av_sqr = 0;
     for (long i = 0; i < N; i++){
@@ -308,21 +328,102 @@ double average_sqr(long N, Tnode *nodes){
 }
 
 
-
-void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed_graph, 
-                         unsigned long seed_seq, unsigned long seed_initcond,
-                         int max_iter, bool divergence, bool same_fixed_point, size_t elapsed){
-    long counter = 0;
+double average_chi(long N, Tnode *nodes){
+    double av = 0;
     for (long i = 0; i < N; i++){
-        if (!nodes[i].converged){
-            counter++;
+        av += nodes[i].chi;
+    }
+    return av / N;
+}
+
+double average_chi_sqr(long N, Tnode *nodes){
+    double av_sqr = 0;
+    for (long i = 0; i < N; i++){
+        av_sqr += nodes[i].chi * nodes[i].chi;
+    }
+    return av_sqr / N;
+}
+
+
+double average_cav(long M, Tedge *edges){
+    double av = 0;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            av += edges[e].cond_av[k];
+        }
+    }
+    return av / (2 * M);
+}
+
+
+double average_cav_sqr(long M, Tedge *edges){
+    double av_sqr = 0;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            av_sqr += edges[e].cond_av[k] * edges[e].cond_av[k];
+        }
+    }
+    return av_sqr / (2 * M);
+}
+
+
+double average_chi_cav(long M, Tedge *edges){
+    double av = 0;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            av += edges[e].chi_cav[k];
+        }
+    }
+    return av / (2 * M);
+}
+
+
+double average_chi_cav_sqr(long M, Tedge *edges){
+    double av_sqr = 0;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            av_sqr += edges[e].chi_cav[k] * edges[e].chi_cav[k];
+        }
+    }
+    return av_sqr / (2 * M);
+}
+
+
+
+void print_results(double av, int iter, Tnode *nodes, Tedge *edges, long N, long M, long seed_graph,
+                   long seed_seq, long seed_initcond, int max_iter, bool divergence, bool same_fixed_point, 
+                   size_t elapsed, double normfactor = 1e-14){
+    long counter_diverged = 0;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            if (!edges[e].converged[k]){
+                counter_diverged++;
+            }
         }
     }
 
-    long counter_dead = 0;
+    long counter_varneg = 0;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            if (!edges[e].var_cav_positive[k]){
+                counter_varneg++;
+            }
+        }
+    }
+
+    long counter_chi_cav_diverged = 0;
+    for (long e = 0; e < M; e++){
+        for (int k = 0; k < 2; k++){
+            if (!edges[e].chi_cav_converged[k]){
+                counter_chi_cav_diverged++;
+            }
+        }
+    }
+
+    long count_dead = 0;
     for (long i = 0; i < N; i++){
-        if (nodes[i].field <= 0){
-            counter_dead++;
+        if (nodes[i].av <= 0){
+            count_dead++;
         }
     }
 
@@ -330,31 +431,48 @@ void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed_grap
         same_fixed_point = false;
     }
 
-    double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
+    double av_chi = average_chi(N, nodes);
+    double av_chi_sqr = average_chi_sqr(N, nodes);
+
+    double av_cav = average_cav(M, edges);
+    double av_cav_sqr = average_cav_sqr(M, edges);
+    double av_chi_cav = average_chi_cav(M, edges);
+    double av_chi_cav_sqr = average_chi_cav_sqr(M, edges);
     if (divergence){
-        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
+        cout << iter << "\t" << "diverges" << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
+                count_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
                 seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
     }else{
         bool conv = iter < max_iter;
-        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
+        cout << iter << "\t" << conv << "\t" << 
+                av_cav << "\t" << sqrt(fabs(av_cav_sqr - av_cav * av_cav) / 2 / M) << "\t" << 
+                av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
+                av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
+                av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
+                counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
+                count_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
                 seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
     }
+
 }
 
 
-void produce_random_seq(unsigned long seed_seq, long N, long sequence[]){
+void produce_random_seq(unsigned long seed_seq, long M, long sequence[]){
     gsl_rng * r;
     init_ran(r, seed_seq);
-    vector <long> elements(N);
-    for (long i = 0; i < N; i++){
+    vector <long> elements(M);
+    for (long i = 0; i < M; i++){
         elements[i] = i;
     }
     long pos;
-    for (long i = 0; i < N; i++){
-        pos = gsl_rng_uniform_int(r, N - i);
+    for (long i = 0; i < M; i++){
+        pos = gsl_rng_uniform_int(r, M - i);
         sequence[i] = elements[pos];
         elements.erase(elements.begin() + pos);
     }
@@ -365,6 +483,7 @@ void produce_random_seq(unsigned long seed_seq, long N, long sequence[]){
 void set_av_prev(Tnode *nodes, long N) {
     for (long i = 0; i < N; i++) {
         nodes[i].av_prev_fixed_point = nodes[i].av;
+        nodes[i].chi_prev_fixed_point = nodes[i].chi;
     }
 }
 
@@ -377,6 +496,10 @@ bool compare_fixed_points(Tnode *nodes, long N, double tol_fixed_point){
         if (diff > max_diff) {
             max_diff = diff;
         }
+        diff = fabs(nodes[i].chi - nodes[i].chi_prev_fixed_point);
+        if (diff > max_diff) {
+            max_diff = diff;
+        }
     }
     cerr << "Max difference in fixed points: " << max_diff << endl;
     return max_diff < tol_fixed_point;
@@ -386,14 +509,14 @@ bool compare_fixed_points(Tnode *nodes, long N, double tol_fixed_point){
 void print_avgs_to_file(Tnode *nodes, long N, char *fileavgs){
     ofstream fav(fileavgs);
     for (long i = 0; i < N; i++){
-        fav << i << "\t" << nodes[i].av << endl;
+        fav << i << "\t" << nodes[i].av << "\t" << nodes[i].chi << endl;
     }
     fav.close();
     
 }
 
 
-void create_graph(bool gr_inside, unsigned long seed_graph, long &N, Tnode *&nodes, 
+void create_graph(bool gr_inside, unsigned long seed_graph, long &N, long &M, Tnode *&nodes, Tedge *&edges, 
                   double eps, double mu, double sigma, char * gr_str, char * graph_type, 
                   double c_arg, bool alpha_inverse){
     if (gr_inside){
@@ -401,31 +524,26 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long &N, Tnode *&nod
         init_ran(r, seed_graph);
         if (graph_type == string("RRG")) {
             int c = (int) round(c_arg);
-            init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
+            M = init_graph_inside_RRG(nodes, edges, N, c, eps, mu, sigma, r);
             sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, c, seed_graph);
-            gsl_rng_free(r);
-        }else if (graph_type == string("ER")){
-            double c = c_arg;
-            init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
-            sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%.3lf_seedgraph_%li", eps, mu, sigma, N, c, seed_graph);
             gsl_rng_free(r);
         }else{
             cerr << "graph_type must be RRG or ER" << endl;
             gsl_rng_free(r);
             exit(1);
         }
-
     }else{
+        long M;
         if (alpha_inverse){
-            init_graph_from_input_inverse(nodes, N);
+            init_graph_from_input_inverse(nodes, edges, N, M);
         }else{
-            init_graph_from_input(nodes, N);
+            init_graph_from_input(nodes, edges, N, M);
         }
     }
 }
 
 
-void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, double &dn, 
+void parse_arguments(int argc, char *argv[], double &avn_0, double &chi_0, bool &random_init, double &dn, double &dchi, 
                      unsigned long &id_0, int &num_init_conds, double &T, double &lambda, double &tol, 
                      int &max_iter, unsigned long &seed_seq, unsigned long &num_seq,
                      double &tol_fixed_point, double &damping, bool &print_avgs,
@@ -439,7 +557,8 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "The following list describes the command line arguments" << endl;
             cerr << "the structure is --arg_name  [data_type: default]  ::  description" << endl;
             cerr << "--avn_0  [double: 0.08]  ::  the initial average abundance" << endl;
-            cerr << "--random_init  [double: 0]  [unsigned long: 1]  [int: 1]  ::  it expects a double (dn), an unsigned long (id_0), and an int (num_init_conds). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. The initial conditions are drawn for 'num_init_conds' different seeds of the random number generator, starting at 'id_0'. If --random_init is not included, the initial condition is n0 for all nodes" << endl;
+            cerr << "--chi_0  [double: 0.08]  ::  the initial average response" << endl;
+            cerr << "--random_init  [double: 0]  [double: 0]  [unsigned long: 1]  [int: 1]  ::  it expects a double (dn), a double (dchi), an unsigned long (id_0), and an int (num_init_conds). The abundances are initialized in the interval [n0-dn, n0+dn], where n0 is the average value specified with --avn_0. The responses are initialized in the interval [chi0-dchi, chi0+dchi], where chi0 is the average value specified with --chi_0. The initial conditions are drawn for 'num_init_conds' different seeds of the random number generator, starting at 'id_0'. If --random_init is not included, the initial condition is n0 for all nodes" << endl;
             cerr << "-T  or --temp   [double: 0.01]  ::  temperature" << endl;
             cerr << "--lambda  [double: 1e-6]   ::   immigration rate (default is zero)" << endl;
             cerr << "--tol  [double: 1e-6]   ::   tolerance for the convergence of the individual abundances" << endl;
@@ -457,7 +576,7 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "--seed_graph  [unsigned long: 1]  ::  seed for the generation of the graph  (only needed if --gr_inside is set)" << endl;
             cerr << "-N or --size  [long: 1024]  ::  number of species in the system  (only needed if --gr_inside is set)" << endl;
             cerr << "-c or --connect  [int or double, depending on graph type: 3]  ::  average connectivity of the interaction graph  (only needed if --gr_inside is set)" << endl;
-            cerr << "--graph_type  [string: RRG]  ::  if graph_type=RRG, the program generates a random regular graph. If graph_type=ER, it generates an Erdos-Renyi graph (only needed if --gr_inside is set)" << endl;
+            cerr << "--graph_type  [string: RRG]  ::  if graph_type=RRG, the program generates a random regular graph (only needed if --gr_inside is set)" << endl;
             cerr << "--input_graph_name  [string]  ::  name of the input graph to insert in the output files (only needed if --gr_inside is not set and --print_avgs is set)" << endl;
             cerr << "--print_params  ::  if this flag is added to the arguments, the program will print the parameters used for the run" << endl;
             cerr << "--alpha_inverse  ::  the program will read the input graph assuming that the interactions are given in the inverse order (is makes sense only if --gr_inside is not set)." << endl;
@@ -467,10 +586,16 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             arg_index++;
             avn_0 = atof(argv[arg_index]);
             arg_index++;
+        }else if (string(argv[arg_index]) == "--chi_0"){
+            arg_index++;
+            chi_0 = atof(argv[arg_index]);
+            arg_index++;
         }else if (string(argv[arg_index]) == "--random_init"){
             random_init = true;
             arg_index++;
             dn = atof(argv[arg_index]);
+            arg_index++;
+            dchi = atof(argv[arg_index]);
             arg_index++;
             id_0 = atol(argv[arg_index]);
             arg_index++;
@@ -544,8 +669,8 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
         }else if (string(argv[arg_index]) == "--graph_type"){
             arg_index++;
             sprintf(graph_type, "%s", argv[arg_index]);
-            if (string(graph_type) != "RRG" && string(graph_type) != "ER"){
-                cerr << "graph_type must be RRG or ER" << endl;
+            if (string(graph_type) != "RRG"){
+                cerr << "graph_type must be RRG" << endl;
                 exit(1);
             }
             arg_index++;
@@ -567,7 +692,7 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
 }
 
 
-void print_params_run(double avn_0, bool random_init, double dn, 
+void print_params_run(double avn_0, double chi_0, bool random_init, double dn, double dchi,
                      unsigned long id_0, int num_init_conds, double T, double lambda, double tol, 
                      int max_iter, unsigned long seed_seq, unsigned long num_seq,
                      double tol_fixed_point, double damping, bool print_avgs,
@@ -575,7 +700,8 @@ void print_params_run(double avn_0, bool random_init, double dn,
                      double sigma, unsigned long seed_graph, long N, char * graph_type,
                      double c, char *input_graph_name, bool alpha_inverse){
     cerr << "Initial average abundance: " << avn_0 << endl;
-    cerr << "Random initial condition dn=" << dn << "   extracted  " << num_init_conds << " times, with initial seed " << id_0 << endl;
+    cerr << "Initial average response: " << chi_0 << endl;
+    cerr << "Random initial condition dn=" << dn << " dchi=" << dchi << "   extracted  " << num_init_conds << " times, with initial seed " << id_0 << endl;
     cerr << "Temperature: " << T << endl;
     cerr << "lambda: " << lambda << endl;
     cerr << "Tolerance for convergence: " << tol << endl;
