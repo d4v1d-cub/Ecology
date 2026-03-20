@@ -183,8 +183,8 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 }
             }else{
                 edges[pos].var_cav_positive[k] = false;
-                av_new = damping * maximum + (1 - damping) * edges[pos].cond_av[k];
-                chi_cav_new = damping * maximum + (1 - damping) * edges[pos].chi_cav[k];
+                av_new = (1 - damping) * edges[pos].cond_av[k];
+                chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
             }
             
             if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
@@ -193,11 +193,11 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
             }
 
             delta_av = fabs(av_new - edges[pos].cond_av[k]);
-            if (edges[pos].var_cav_positive[k]){
+            // if (edges[pos].var_cav_positive[k]){
                 delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
-            }else{
-                delta_chi_cav = maximum;
-            }
+            // }else{
+                // delta_chi_cav = maximum;
+            // }
             
 
             if (delta_av > delta){
