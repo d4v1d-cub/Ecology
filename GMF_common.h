@@ -533,7 +533,6 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long &N, long &M, Tn
             exit(1);
         }
     }else{
-        long M;
         if (alpha_inverse){
             init_graph_from_input_inverse(nodes, edges, N, M);
         }else{
