@@ -12,7 +12,7 @@ bool comp_coefficients(double beta, double lambda, double **&coefficients, doubl
                        double maximum=1e10){
     bool gamma_diverges = false;
     gamma_vals = new double[2];
-    if (isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || isinf(gsl_sf_gamma((1 + beta * lambda) / 2)) || 
+    if (std::isnan(gsl_sf_gamma((1 + beta * lambda) / 2)) || std::isinf(gsl_sf_gamma((1 + beta * lambda) / 2)) || 
         gsl_sf_gamma((1 + beta * lambda) / 2) > maximum){
         gamma_diverges = true;
         gamma_vals[0] = sqrt(2 * M_PI / beta / lambda) * pow(beta * lambda / 2 / M_E, beta * lambda / 2);
@@ -59,7 +59,7 @@ double find_divergence_max(double beta, double alpha, double hmax=100, double pr
     double val1, val2;
     val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * hmax * hmax / 2);
     val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * hmax * hmax / 2);
-    while (!(isnan(val1) || isinf(val1) || isnan(val2) || isinf(val2) || 
+    while (!(std::isnan(val1) || std::isinf(val1) || std::isnan(val2) || std::isinf(val2) || 
              val1 > maximum || val2 > maximum)){
         hmax *= 2;
         val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * hmax * hmax / 2);
@@ -71,7 +71,7 @@ double find_divergence_max(double beta, double alpha, double hmax=100, double pr
     while (hmax - hmin > precision){
         val1 = gsl_sf_hyperg_1F1(alpha, 0.5, beta * h * h / 2);
         val2 = gsl_sf_hyperg_1F1(alpha + 0.5, 1.5, beta * h * h / 2);
-        if (isnan(val1) || isinf(val1) || isnan(val2) || isinf(val2) || 
+        if (std::isnan(val1) || std::isinf(val1) || std::isnan(val2) || std::isinf(val2) || 
             val1 > maximum || val2 > maximum){
             hmax = h;
         }else{
@@ -110,8 +110,8 @@ double find_divergence_min(double beta, double lambda, double **coefficients, do
     num_q = numerator_q_sqr(beta, lambda, hmin, coefficients[2]);
     den = denominator(beta, lambda, hmin, coefficients[0]);
     
-    while (!(isnan(num) || isinf(num) || isnan(num_q) || isinf(num_q) 
-             || isnan(den) || isinf(den) || num > maximum || num_q > maximum
+    while (!(std::isnan(num) || std::isinf(num) || std::isnan(num_q) || std::isinf(num_q) 
+             || std::isnan(den) || std::isinf(den) || num > maximum || num_q > maximum
              || den > maximum || num < 0 || num_q < 0 || den < 0)){
         hmin *= 2;
         num = numerator_av(beta, lambda, hmin, coefficients[1]);
@@ -125,8 +125,8 @@ double find_divergence_min(double beta, double lambda, double **coefficients, do
         num = numerator_av(beta, lambda, h, coefficients[1]);
         num_q = numerator_q_sqr(beta, lambda, h, coefficients[2]);
         den = denominator(beta, lambda, h, coefficients[0]); 
-        if (isnan(num) || isinf(num) || isnan(num_q) || isinf(num_q) 
-             || isnan(den) || isinf(den) || num > maximum || num_q > maximum
+        if (std::isnan(num) || std::isinf(num) || std::isnan(num_q) || std::isinf(num_q) 
+             || std::isnan(den) || std::isinf(den) || num > maximum || num_q > maximum
              || den > maximum || num < 0 || num_q < 0 || den < 0){
             hmin = h;
         }else{
@@ -187,7 +187,7 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                 chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
             }
             
-            if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
+            if (std::isnan(av_new) || std::isinf(av_new) || std::isnan(chi_cav_new) || std::isinf(chi_cav_new)){
                 cerr << "Error: averages are nan or inf at site e=" << pos << "  node=" << edges[pos].nodes_in[k] << "   iter=" << iter << endl;
                 return sqrt(-1);
             }
@@ -291,7 +291,7 @@ int convergence(long M, double beta, double lambda, Tedge *edges, double tol,
         delta = new_averages(M, beta, lambda, edges, tol, hmin, hmax, coefficients, 
                              gamma_vals, iter, sequence, damping);
         iter++;
-        if (isinf(delta) || isnan(delta) || delta > maximum){
+        if (std::isinf(delta) || std::isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
         }

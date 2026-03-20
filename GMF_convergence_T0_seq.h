@@ -35,7 +35,7 @@ double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[],
                 chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
             }
             
-            if (isnan(av_new) || isinf(av_new) || isnan(chi_cav_new) || isinf(chi_cav_new)){
+            if (std::isnan(av_new) || std::isinf(av_new) || std::isnan(chi_cav_new) || std::isinf(chi_cav_new)){
                 cerr << "Error: averages are nan or inf at site e=" << pos << "  node=" << edges[pos].nodes_in[k] << "   iter=" << iter << endl;
                 return sqrt(-1);
             }
@@ -121,7 +121,7 @@ int convergence(long M, Tedge *edges, double tol, int max_iter,
     while (consecutive < min_consecutive && iter < max_iter){
         delta = new_averages(M, edges, tol, iter, sequence, damping);
         iter++;
-        if (isinf(delta) || isnan(delta) || delta > maximum){
+        if (std::isinf(delta) || std::isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
         }
