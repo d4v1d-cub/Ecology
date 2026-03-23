@@ -212,8 +212,8 @@ def main():
     ndigits = 3
     mu = "0.270"
 
-    # find_all_trans(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
-    find_all_trans_fit(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
+    find_all_trans(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
+    # find_all_trans_fit(path, T, lda, eps, mu, c, avn0, dn, ninitconds, tol, max_iter, damping, nseq, ndigits)
 
     return 0
 
