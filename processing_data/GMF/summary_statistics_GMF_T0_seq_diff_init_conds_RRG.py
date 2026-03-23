@@ -1,0 +1,169 @@
+__author__ = 'david'
+
+import numpy as np
+import os
+import fnmatch
+
+
+
+def filter_files(path, T, lda, eps, N, c, avn0, chi0, dn, dchi, ninitconds, tol, max_iter, damping, nseq, seed_block=1, nsampl=10000):
+    files_mu_sigma = []
+
+    # Define the pattern for matching filenames
+    pattern = f'GMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_final_av0_{avn0}_chi0_{chi0}_dn_{dn}_dchi_{dchi}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_mu_*_sigma_*_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}_seedblock_{seed_block}_nsampl_{nsampl}.txt'
+
+    # Iterate through the files in the specified directory
+    for filename in os.listdir(path):
+        if fnmatch.fnmatch(filename, pattern):
+            parts = filename.split('_')
+            files_mu_sigma.append((filename, float(parts[28]), float(parts[30])))
+    sorted_pairs = sorted(files_mu_sigma, key=lambda x: (x[1], x[2]))  # Sort by mu value
+    return sorted_pairs
+
+
+def summary_statistics(path, filename):
+    fin = open(f'{path}/{filename}', 'r')
+    all_lines = fin.readlines()
+    fin.close()
+    if len(all_lines) > 0:
+        av_time = 0.0
+        av_num_div = 0.0
+        samples_with_deaths = 0
+        samples_div_m = 0
+        samples_multiple_eq = 0
+        av_m_cav = 0.0
+        av_m_cav_sqr = 0.0
+        av_chi_cav = 0.0
+        av_chi_cav_sqr = 0.0
+        av_m = 0.0
+        av_m_sqr = 0.0
+        av_chi = 0.0
+        av_chi_sqr = 0.0
+        runtime_conv = 0.0
+        runtime_conv_sqr = 0.0
+        numlines = 0
+        for line in all_lines:
+            line_split = line.split()
+            try:
+                av_time += int(line_split[0])
+                av_num_div += int(line_split[10])
+                if line_split[1] != "1":
+                    samples_div_m += 1
+                else:
+                    runtime_conv += float(line_split[18])
+                    runtime_conv_sqr += float(line_split[18]) * float(line_split[18])
+                if line_split[17] != "1":
+                    samples_multiple_eq += 1
+                if int(line_split[13]) > 0:
+                    samples_with_deaths += 1
+                av_m_cav += float(line_split[2])
+                av_m_cav_sqr += float(line_split[2]) * float(line_split[2])
+                av_chi_cav += float(line_split[4])
+                av_chi_cav_sqr += float(line_split[4]) * float(line_split[4])
+                av_m += float(line_split[6])
+                av_m_sqr += float(line_split[6]) * float(line_split[6])
+                av_chi += float(line_split[8])
+                av_chi_sqr += float(line_split[8]) * float(line_split[8])
+                numlines += 1
+            except (IndexError, ValueError):
+                print(f"Skipping line due to error: {line.strip()}")
+        av_time /= numlines
+        av_num_div /= numlines
+        av_m_cav /= numlines
+        av_m_cav_sqr /= numlines
+        av_chi_cav /= numlines
+        av_chi_cav_sqr /= numlines
+        av_m /= numlines
+        av_m_sqr /= numlines
+        av_chi /= numlines
+        av_chi_sqr /= numlines
+        std_av_m_cav = np.sqrt(abs(av_m_cav_sqr - av_m_cav * av_m_cav))
+        std_av_chi_cav = np.sqrt(abs(av_chi_cav_sqr - av_chi_cav * av_chi_cav))
+        std_av_m = np.sqrt(abs(av_m_sqr - av_m * av_m))
+        std_av_chi = np.sqrt(abs(av_chi_sqr - av_chi * av_chi))
+        if (numlines - samples_div_m) > 0:
+            runtime_conv /= (numlines - samples_div_m)
+            runtime_conv_sqr /= (numlines - samples_div_m)
+            std_runtime_conv = np.sqrt(abs(runtime_conv_sqr - runtime_conv * runtime_conv))
+            runtime_conv = f"{runtime_conv:.6f}"
+            std_runtime_conv = f"{std_runtime_conv:.6f}"
+        else:
+            runtime_conv = "nodata"
+            std_runtime_conv = "nodata"
+        return av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m_cav, \
+               std_av_m_cav, av_chi_cav, std_av_chi_cav, av_m, std_av_m, av_chi, std_av_chi, \
+               runtime_conv, std_runtime_conv, numlines, True
+    else:
+        print(f"No data found in file {filename}. Returning zeros.")
+        return 0.0, 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, False
+
+
+def get_all_vals(path, T, lda, eps, N, c, avn0, chi0, dn, dchi, ninitconds, tol, 
+                 max_iter, damping, nseq):
+    # Find all files that match the pattern
+    sorted_data = filter_files(path, T, lda, eps, N, c, avn0, chi0, dn, dchi, ninitconds, tol, max_iter, 
+                               damping, nseq)
+    vals_list = []
+    for filename, mu, sigma in sorted_data:
+        av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, av_m_cav, \
+        std_av_m_cav, av_chi_cav, std_av_chi_cav, av_m, std_av_m, av_chi, std_av_chi, \
+        runtime_conv, std_runtime_conv, nsamples, found = summary_statistics(path, filename)
+        if found:
+            vals_list.append((mu, sigma, av_time, av_num_div, samples_div_m, samples_multiple_eq, 
+                              samples_with_deaths, av_m_cav, std_av_m_cav, av_chi_cav, std_av_chi_cav, 
+                              av_m, std_av_m, av_chi, std_av_chi,
+                              runtime_conv, std_runtime_conv, nsamples))
+        print(f'Processed  N={N}    mu={mu}   sigma={sigma}')
+    return vals_list
+
+
+
+
+def print_summary(path_in, path_out, T, lda, eps, N, c, avn0, chi0, dn, dchi, ninitconds, tol, max_iter, 
+                  damping, nseq, ndigits):
+    fout = open(f'{path_out}/GMF_seq_RRG_T_{T}_lambda_{lda}_PD_Lotka_Volterra_summary_av0_{avn0}_chi0_{chi0}_dn_{dn}_dchi_{dchi}_ninitconds_{ninitconds}_tol_{tol}_maxiter_{max_iter}_eps_{eps}_N_{N}_c_{c}_damping_{damping}_nseq_{nseq}.txt', 'w')
+    fout.write("# mu sigma av_time av_div samples_div samples_multiple_eq samples_with_deaths av_m_cav std_m_cav  av_chi_cav std_chi_cav  av_m std_m  av_chi std_chi  runtime_conv(s)  std_runtime_conv(s)  nsamples\n")
+    vals_list = get_all_vals(path_in, T, lda, eps, N, c, avn0, chi0, dn, dchi, ninitconds, tol, 
+                             max_iter, damping, nseq)
+    for vals in vals_list:
+        mu, sigma, av_time, av_num_div, samples_div_m, samples_multiple_eq, samples_with_deaths, \
+        av_m_cav, std_av_m_cav, av_chi_cav, std_av_chi_cav, av_m, std_av_m, av_chi, std_av_chi, runtime_conv, std_runtime_conv, nsamples = vals
+        fout.write(f"{mu:.{ndigits}f} {sigma:.{ndigits}f} {av_time:.6f} {av_num_div:.6f} {samples_div_m} {samples_multiple_eq} {samples_with_deaths} {av_m_cav:.6f} {std_av_m_cav:.6f} {av_chi_cav:.6f} {std_av_chi_cav:.6f} {av_m:.6f} {std_av_m:.6f} {av_chi:.6f} {std_av_chi:.6f} {runtime_conv} {std_runtime_conv} {nsamples}\n")
+    fout.close()
+
+
+def main():
+    T = "0.000"
+    lda = "0.000"
+    eps = "0.000"
+    avn0 = "0.5"
+    chi0 = "0.5"
+    dn = "0.5"
+    dchi = "0.5"
+    ninitconds = "10"
+    tol = "1e-6"
+    max_iter = "10000"
+    # N_list = ["128", "256", "512", "1024", "2048", "4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576", "2097152", "4194304"]
+    N_list = ["1024", "4096"]
+    c = "3"
+    damping = "0.2"
+    nseq = "1"
+
+    # path_in = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/AllData/PhaseDiagram/T0/"
+    # path_out = "/media/david/Data/UH/Grupo_de_investigacion/Ecology/Results/GMF/"
+    path_in = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/GMF/AllData/PhaseDiagram/T0/"
+    path_out = "/media/david/Seagate Expansion Drive/Salva/Salva_Data_Investigacion/Grupo_de_investigacion/Ecology/Results/GMF/"
+    # path_in = "/mnt/d/Research/Ecology/Results/GMF/AllData/PhaseDiagram/T0/"
+    # path_out = "/mnt/d/Research/Ecology/Results/GMF/"
+
+    
+    
+    ndigits = 3
+
+    for N in N_list:
+        print_summary(path_in, path_out, T, lda, eps, N, c, avn0, chi0, dn, dchi, ninitconds, tol, max_iter, damping, nseq, ndigits)
+    return 0
+
+
+if __name__ == '__main__':
+    main()
