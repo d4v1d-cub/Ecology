@@ -154,8 +154,8 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
         for (int k = 0; k < 2; k++){
             field_cav = field_cav_in(pos, k, edges);
             var_cav = var_cav_in(pos, k, edges);
-            if (var_cav > 0){
-                edges[pos].var_cav_positive[k] = true;   
+            if (var_cav >= 0){
+                edges[pos].chi_cav_finite[k] = true;   
                 Q = sqrt(var_cav);
                 h = field_cav * var_cav;
                 h_div_Q = h / Q;
@@ -182,9 +182,21 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
                     chi_cav_new = damping * beta * (q_sqr_new - av_new_not_damp * av_new_not_damp) + (1 - damping) * edges[pos].chi_cav[k];
                 }
             }else{
-                edges[pos].var_cav_positive[k] = false;
-                av_new = (1 - damping) * edges[pos].cond_av[k];
-                chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
+                edges[pos].chi_cav_finite[k] = false;
+                if (field_cav > hmax){
+                    av_new = damping * (1 - 1.0 / beta / field_cav + lambda / field_cav) + 
+                             (1 - damping) * edges[pos].cond_av[k];
+                }else if (field_cav < hmin){
+                    av_new = damping * lambda / fabs(field_cav) + (1 - damping) * edges[pos].cond_av[k];
+                }else if(field_cav == 0){
+                    av_new = damping * sqrt(2.0 / beta) * gamma_vals[1] / gamma_vals[0] + 
+                             (1 - damping) * edges[pos].cond_av[k];
+                }else{
+                    den = denominator(beta, lambda, field_cav, coefficients[0], normfactor);
+                    av_new_not_damp = numerator_av(beta, lambda, field_cav, coefficients[1]) / den;
+                    av_new = damping * av_new_not_damp + (1 - damping) * edges[pos].cond_av[k];
+                }
+                chi_cav_new = -damping + (1 - damping) * edges[pos].chi_cav[k];
             }
             
             if (std::isnan(av_new) || std::isinf(av_new) || std::isnan(chi_cav_new) || std::isinf(chi_cav_new)){
@@ -193,11 +205,7 @@ double new_averages(long M, double beta, double lambda, Tedge *edges, double tol
             }
 
             delta_av = fabs(av_new - edges[pos].cond_av[k]);
-            // if (edges[pos].var_cav_positive[k]){
-                delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
-            // }else{
-                // delta_chi_cav = maximum;
-            // }
+            delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
             
 
             if (delta_av > delta){
@@ -237,11 +245,10 @@ double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda,
     for (long i = 0; i < N; i++){
         nodes[i].field = field_in(i, nodes, edges);
         nodes[i].var = var_in(i, nodes, edges);
-        if (nodes[i].var > 0){
+        if (nodes[i].var >= 0){
             h = nodes[i].field * nodes[i].var;
             Q = sqrt(nodes[i].var);
             h_div_Q = h / Q;
-
             if (h_div_Q > hmax){
                 nodes[i].av = h * (1 - 1.0 / beta / h_div_Q / h_div_Q + lambda / h_div_Q / h_div_Q);
                 nodes[i].chi = nodes[i].var;
@@ -259,8 +266,18 @@ double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda,
                 nodes[i].chi = beta * (q_sqr_new - nodes[i].av * nodes[i].av);
             }
         }else{
-            nodes[i].av = maximum;
-            nodes[i].chi = maximum;
+            h = nodes[i].field;
+            if (h > hmax){
+                nodes[i].av = (1 - 1.0 / beta / h + lambda / h);
+            }else if (h < hmin){
+                nodes[i].av = lambda / fabs(h);
+            }else if(h == 0){
+                nodes[i].av = sqrt(2.0 / beta) * gamma_vals[1] / gamma_vals[0];
+            }else{
+                den = denominator(beta, lambda, h, coefficients[0], normfactor);
+                nodes[i].av = numerator_av(beta, lambda, h, coefficients[1]) / den;
+            }
+            nodes[i].chi = -1;
         }
         
         av += nodes[i].av;

@@ -19,20 +19,24 @@ double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[],
         for (int k = 0; k < 2; k++){
             field_cav = field_cav_in(pos, k, edges);
             var_cav = var_cav_in(pos, k, edges);
-            if (var_cav > 0){
-                edges[pos].var_cav_positive[k] = true;   
+            if (var_cav >= 0){
+                edges[pos].chi_cav_finite[k] = true;   
                 h = field_cav * var_cav;
                 if (h > 0){
                     av_new = damping * h + (1 - damping) * edges[pos].cond_av[k];
                     chi_cav_new = damping * var_cav + (1 - damping) * edges[pos].chi_cav[k];
-                }else if (h < 0){
+                }else{
                     av_new = (1 - damping) * edges[pos].cond_av[k];
                     chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
                 }
             }else{
-                edges[pos].var_cav_positive[k] = false;
-                av_new = (1 - damping) * edges[pos].cond_av[k];
-                chi_cav_new = (1 - damping) * edges[pos].chi_cav[k];
+                edges[pos].chi_cav_finite[k] = false;
+                if (field_cav > 0){
+                    av_new = damping * field_cav + (1 - damping) * edges[pos].cond_av[k];
+                }else{
+                    av_new = (1 - damping) * edges[pos].cond_av[k];
+                }
+                chi_cav_new = -damping + (1 - damping) * edges[pos].chi_cav[k];
             }
             
             if (std::isnan(av_new) || std::isinf(av_new) || std::isnan(chi_cav_new) || std::isinf(chi_cav_new)){
@@ -41,11 +45,7 @@ double new_averages(long M, Tedge *edges, double tol, int iter, long sequence[],
             }
 
             delta_av = fabs(av_new - edges[pos].cond_av[k]);
-            // if (edges[pos].var_cav_positive[k]){
-                delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
-            // }else{
-            //     delta_chi_cav = 1;
-            // }
+            delta_chi_cav = fabs(chi_cav_new - edges[pos].chi_cav[k]);
             
             
             
@@ -84,18 +84,24 @@ double average(long N, Tnode *nodes, Tedge *edges, double normfactor = 1e-14){
     for (long i = 0; i < N; i++){
         nodes[i].field = field_in(i, nodes, edges);
         nodes[i].var = var_in(i, nodes, edges);
-        if (nodes[i].var > 0){
+        if (nodes[i].var >= 0){
             h = nodes[i].field * nodes[i].var;
             if (h > 0){
                 nodes[i].av = h;
                 nodes[i].chi = nodes[i].var;
             } else{
                 nodes[i].av = 0;
-                nodes[i].chi = 0;
+                nodes[i].chi = nodes[i].var;
             } 
         }else{
-            nodes[i].av = 0;
-            nodes[i].chi = 0;
+            nodes[i].chi_finite = false;
+            h = nodes[i].field;
+            if (h > 0){
+                nodes[i].av = h;
+            } else{
+                nodes[i].av = 0;
+            } 
+            nodes[i].chi = -1;
         }
         
         av += nodes[i].av;

@@ -45,6 +45,7 @@ typedef struct{
     double field; // field in that node
     double av_prev_fixed_point;
     double chi_prev_fixed_point; // previous value of av and chi in the fixed point
+    bool chi_finite; // true if the variance of the perturbed Gaussian in that node is finite
 }Tnode;
 
 
@@ -59,7 +60,7 @@ typedef struct{
     int edge_index[2]; // position of the edge in the list of edges that contain the node
     double chi_cav[2]; // chi_cav[i], with i={0, 1}. chi_cav[i] = beta(cond_q_sqr_i - cond_av_i^2)
     bool chi_cav_converged[2];
-    bool var_cav_positive[2];
+    bool chi_cav_finite[2]; 
     bool converged[2]; // converged[i], with i={0, 1}, is true if the averages in nodes_in[i] have converged
 }Tedge;
 
@@ -140,6 +141,7 @@ void init_nodes(Tnode *nodes, long N){
     for (long i = 0; i < N; i++){
         nodes[i].edges_in = vector <long> ();
         nodes[i].pos_there = vector <int> ();
+        nodes[i].chi_finite = true;
     }
 }
 
@@ -251,6 +253,7 @@ void init_avgs(long M, Tedge *edges, double avn_0, double chi_0, bool random_ini
                 }
                 edges[e].cond_av[k] = cav_i;
                 edges[e].chi_cav[k] = chi_i;
+                edges[e].chi_cav_finite[k] = true;
             }
         }
         gsl_rng_free(r);
@@ -259,6 +262,7 @@ void init_avgs(long M, Tedge *edges, double avn_0, double chi_0, bool random_ini
             for (int k = 0; k < 2; k++){
                 edges[e].cond_av[k] = avn_0;
                 edges[e].chi_cav[k] = chi_0;
+                edges[e].chi_cav_finite[k] = true;
             }
         }
     }
@@ -285,6 +289,13 @@ double var_cav_in(long e, int k, Tedge *edges){
     for (long j = 0; j < edges[e].edges_except.size(); j++){
         edge_neigh = edges[e].edges_except[k][j];
         pos_there = edges[e].pos_there[k][j];
+        if (!edges[edge_neigh].chi_cav_finite[1 - pos_there]){
+            if (edges[edge_neigh].links[0] * edges[edge_neigh].links[1] > 0){
+                return -1;
+            }else{
+                return 0;
+            }
+        }
         sum += edges[edge_neigh].links[0] * edges[edge_neigh].links[1] * 
                edges[edge_neigh].chi_cav[1 - pos_there];
     }
@@ -312,6 +323,13 @@ double var_in(long i, Tnode *nodes, Tedge *edges){
     for (long j = 0; j < nodes[i].edges_in.size(); j++){
         e = nodes[i].edges_in[j];
         pos = nodes[i].pos_there[j];
+        if (!edges[e].chi_cav_finite[1 - pos]){
+            if (edges[e].links[0] * edges[e].links[1] > 0){
+                return -1;
+            }else{
+                return 0;
+            }
+        }
         sum += edges[e].links[0] * edges[e].links[1] * edges[e].chi_cav[1 - pos];
     }
     return 1.0 / (1 - sum);
@@ -331,7 +349,9 @@ double average_sqr(long N, Tnode *nodes){
 double average_chi(long N, Tnode *nodes){
     double av = 0;
     for (long i = 0; i < N; i++){
-        av += nodes[i].chi;
+        if (nodes[i].chi_finite){
+            av += nodes[i].chi;
+        }
     }
     return av / N;
 }
@@ -339,7 +359,9 @@ double average_chi(long N, Tnode *nodes){
 double average_chi_sqr(long N, Tnode *nodes){
     double av_sqr = 0;
     for (long i = 0; i < N; i++){
-        av_sqr += nodes[i].chi * nodes[i].chi;
+        if (nodes[i].chi_finite){
+            av_sqr += nodes[i].chi * nodes[i].chi;
+        }
     }
     return av_sqr / N;
 }
@@ -371,7 +393,9 @@ double average_chi_cav(long M, Tedge *edges){
     double av = 0;
     for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
-            av += edges[e].chi_cav[k];
+            if (edges[e].chi_cav_finite[k]){
+                av += edges[e].chi_cav[k];
+            }
         }
     }
     return av / (2 * M);
@@ -382,7 +406,9 @@ double average_chi_cav_sqr(long M, Tedge *edges){
     double av_sqr = 0;
     for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
-            av_sqr += edges[e].chi_cav[k] * edges[e].chi_cav[k];
+            if (edges[e].chi_cav_finite[k]){
+                av_sqr += edges[e].chi_cav[k] * edges[e].chi_cav[k];
+            }
         }
     }
     return av_sqr / (2 * M);
@@ -402,11 +428,11 @@ void print_results(double av, int iter, Tnode *nodes, Tedge *edges, long N, long
         }
     }
 
-    long counter_varneg = 0;
+    long counter_var_infinite = 0;
     for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
-            if (!edges[e].var_cav_positive[k]){
-                counter_varneg++;
+            if (!edges[e].chi_cav_finite[k]){
+                counter_var_infinite++;
             }
         }
     }
@@ -445,7 +471,7 @@ void print_results(double av, int iter, Tnode *nodes, Tedge *edges, long N, long
                 av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
                 av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
                 av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
-                counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
+                counter_diverged << "\t" << counter_var_infinite << "\t" << counter_chi_cav_diverged << "\t" << 
                 count_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
                 seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
     }else{
@@ -455,7 +481,7 @@ void print_results(double av, int iter, Tnode *nodes, Tedge *edges, long N, long
                 av_chi_cav << "\t" << sqrt(fabs(av_chi_cav_sqr - av_chi_cav * av_chi_cav) / 2 / M) << "\t" << 
                 av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
                 av_chi << "\t" << sqrt(fabs(av_chi_sqr - av_chi * av_chi) / N) << "\t" << 
-                counter_diverged << "\t" << counter_varneg << "\t" << counter_chi_cav_diverged << "\t" << 
+                counter_diverged << "\t" << counter_var_infinite << "\t" << counter_chi_cav_diverged << "\t" << 
                 count_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
                 seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
     }
