@@ -266,16 +266,15 @@ double average(long N, Tnode *nodes, Tedge *edges, double beta, double lambda,
                 nodes[i].chi = beta * (q_sqr_new - nodes[i].av * nodes[i].av);
             }
         }else{
-            h = nodes[i].field;
-            if (h > hmax){
-                nodes[i].av = (1 - 1.0 / beta / h + lambda / h);
-            }else if (h < hmin){
-                nodes[i].av = lambda / fabs(h);
-            }else if(h == 0){
+            if (nodes[i].field > hmax){
+                nodes[i].av = (1 - 1.0 / beta / nodes[i].field + lambda / nodes[i].field);
+            }else if (nodes[i].field < hmin){
+                nodes[i].av = lambda / fabs(nodes[i].field);
+            }else if(nodes[i].field == 0){
                 nodes[i].av = sqrt(2.0 / beta) * gamma_vals[1] / gamma_vals[0];
             }else{
-                den = denominator(beta, lambda, h, coefficients[0], normfactor);
-                nodes[i].av = numerator_av(beta, lambda, h, coefficients[1]) / den;
+                den = denominator(beta, lambda, nodes[i].field, coefficients[0], normfactor);
+                nodes[i].av = numerator_av(beta, lambda, nodes[i].field, coefficients[1]) / den;
             }
             nodes[i].chi = -1;
         }

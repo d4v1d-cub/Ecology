@@ -95,9 +95,8 @@ double average(long N, Tnode *nodes, Tedge *edges, double normfactor = 1e-14){
             } 
         }else{
             nodes[i].chi_finite = false;
-            h = nodes[i].field;
-            if (h > 0){
-                nodes[i].av = h;
+            if (nodes[i].field > 0){
+                nodes[i].av = nodes[i].field;
             } else{
                 nodes[i].av = 0;
             } 
