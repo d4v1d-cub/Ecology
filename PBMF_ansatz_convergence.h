@@ -135,25 +135,7 @@ double find_divergence_min(double beta, double lambda, double **coefficients, do
 }
 
 
-void init_avgs(long N, Tnode *nodes, double avn_0, bool random_init, double dn, unsigned long id_0){
-    if (random_init){
-        gsl_rng * r;
-        init_ran(r, id_0);
-        double n_i;
-        for (long i = 0; i < N; i++){
-            n_i = avn_0 - dn + 2 * dn * gsl_rng_uniform(r);
-            if (n_i < 0){
-                n_i = 0;
-            }
-            nodes[i].av_abundance = n_i;
-        }
-        gsl_rng_free(r);
-    }else{
-        for (long i = 0; i < N; i++){
-            nodes[i].av_abundance = avn_0;
-        }
-    }
-}
+
 
 
 
@@ -190,17 +172,20 @@ void cond_av_from_single_avgs(double beta, double lambda, Tnode *nodes, Tedge *e
     }
 }
 
-
+void update_integrated_cond_av(vector <double> cond_av, vector <double> &integrated_cond_av, vector <double> n_grid, long M){
+    for (int index_n = 1; index_n < n_grid.size(); index_n++){
+        integrated_cond_av[index_n] = integrated_cond_av[index_n - 1] + (cond_av[index_n] + cond_av[index_n - 1]) * (n_grid[index_n] - n_grid[index_n - 1]) / 2;
+    }
+}
 
 
 void init_cond_av_single_avgs(long M, double beta, double lambda, Tnode *nodes, Tedge *edges,
                    vector <double> n_grid, double hmin, double hmax, double **coefficients, double *gamma_vals){
     for (long e = 0; e < M; e++){
-        edges[e].cond_av = vector < vector <double> > (2, vector <double> (n_grid.size(), 0));
-        edges[e].integrated_cond_av = vector < vector <double> > (2, vector <double> (n_grid.size(), 0));
         for (int k = 0; k < 2; k++){
             cond_av_from_single_avgs(beta, lambda, nodes, edges, e, k, n_grid, hmin, hmax, 
                                      coefficients, gamma_vals);
+            update_integrated_cond_av(edges[e].cond_av[k], edges[e].integrated_cond_av[k], n_grid, M);
         }
     }
 }
@@ -208,21 +193,6 @@ void init_cond_av_single_avgs(long M, double beta, double lambda, Tnode *nodes, 
 
 
 
-void update_integrated_cond_av(vector <double> cond_av, vector <double> &integrated_cond_av, vector <double> n_grid, long M){
-    for (int index_n = 1; index_n < n_grid.size(); index_n++){
-        integrated_cond_av[index_n] += (cond_av[index_n] + cond_av[index_n - 1]) * (n_grid[index_n] - n_grid[index_n - 1]) / 2;
-    }
-}
-
-
-// vector <double> derivative(vector <double> vals, double dx){
-//     vector <double> der = vector <double> (vals.size(), 0);
-//     for (long i = 0; i < vals.size() - 1; i++){
-//         der[i] = (vals[i + 1] - vals[i]) / dx;
-//     }
-//     der[vals.size() - 1] = der[vals.size() - 2];
-//     return der;
-// }
 
 
 
@@ -300,6 +270,7 @@ int convergence(Tedge *edges, vector <double> n_grid, vector <double> simpson_we
         delta = update_cond_avgs(edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta,
                                  lambda, M, dn, damping, tol);
         iter++;
+        cerr << "Iteration " << iter << ", delta = " << delta << endl;
         if (std::isinf(delta) || std::isnan(delta) || delta > maximum){
             divergence = true;
             return iter;
@@ -315,34 +286,96 @@ int convergence(Tedge *edges, vector <double> n_grid, vector <double> simpson_we
 }
 
 
-double compute_single_distribution(Tedge *edges, vector <double> n_grid, vector <double> simpson_weights, 
-                                   vector <double> fixed_integrand_num, vector <double> fixed_integrand_den, double beta, 
-                                   double lambda, long M, double dn, double damping, double tol){
-    double num, den, cond_av_new;
-    double max_variation = 0;
-    for (long e=0; e < M; e++){
+
+double sum_over_neighs(long node, Tnode *nodes, Tedge *edges, int n_index_node){
+    double sum = 0;
+    long edge_neigh;
+    int pos_there;
+    for (long j = 0; j < nodes[node].edges_in.size(); j++){
+        edge_neigh = nodes[node].edges_in[j];
+        pos_there = nodes[node].pos_there[j];
+        sum += edges[edge_neigh].links[pos_there] * edges[edge_neigh].integrated_cond_av[1 - pos_there][n_index_node];
+    }
+    return sum;
+}
+
+
+void compute_averages(Tnode *nodes, Tedge *edges, vector <double> n_grid, vector <double> simpson_weights, 
+                      vector <double> fixed_integrand_num, vector <double> fixed_integrand_den, double beta, 
+                      double lambda, long N, double &av_n_graph, double &av_var_n_graph,
+                      double &error_av_n_graph, double &error_var_n_graph){
+    double num_P, av_sqr_site, sum_neighs;
+    av_n_graph = 0;
+    av_var_n_graph = 0;
+    double av_sqr_av_n_graph = 0;
+    double av_sqr_var_n_graph = 0;
+    for (long i=0; i < N; i++){
+        sum_neighs = sum_over_neighs(i, nodes, edges, 1);
+        nodes[i].av_abundance = fixed_integrand_num[0] * n_grid[1] / (beta * lambda + 1) * exp(-beta * sum_neighs);
+        av_sqr_site = fixed_integrand_num[0] * n_grid[1] * n_grid[1] / (beta * lambda + 2) * exp(-beta * sum_neighs);
+        nodes[i].normalization_Psingle = fixed_integrand_den[0] * n_grid[1] / (beta * lambda) * exp(-beta * sum_neighs);
+        for (int n_index = 1; n_index < n_grid.size(); n_index++){
+            sum_neighs = sum_over_neighs(i, nodes, edges, n_index);
+            num_P = fixed_integrand_den[n_index - 1] * exp(-beta * sum_neighs);
+            nodes[i].av_abundance += simpson_weights[n_index - 1] * num_P * n_grid[n_index];
+            av_sqr_site += simpson_weights[n_index - 1] * num_P * n_grid[n_index] * n_grid[n_index];
+            nodes[i].normalization_Psingle += simpson_weights[n_index - 1] * num_P;
+        }
+
+        nodes[i].av_abundance /= nodes[i].normalization_Psingle;
+        av_sqr_site /= nodes[i].normalization_Psingle;
+        nodes[i].var_abundance = av_sqr_site - nodes[i].av_abundance * nodes[i].av_abundance;
+        av_n_graph += nodes[i].av_abundance;
+        av_var_n_graph += nodes[i].var_abundance;
+        av_sqr_av_n_graph += nodes[i].av_abundance * nodes[i].av_abundance;
+        av_sqr_var_n_graph += nodes[i].var_abundance * nodes[i].var_abundance;
+    }
+    av_n_graph /= N;
+    av_var_n_graph /= N;
+    av_sqr_av_n_graph /= N;
+    av_sqr_var_n_graph /= N;
+    error_av_n_graph = sqrt((av_sqr_av_n_graph - av_n_graph * av_n_graph) / N);
+    error_var_n_graph = sqrt((av_sqr_var_n_graph - av_var_n_graph * av_var_n_graph) / N);
+}
+
+
+
+void compute_responses(Tnode *nodes, Tedge *edges, vector <double> n_grid, double beta, long M){
+    for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
-            for (int n_index = 0; n_index < n_grid.size(); n_index++){
-                num = integrate(fixed_integrand_num, beta, lambda, 1, n_grid, edges, n_grid[n_index], 
-                                e, k, simpson_weights);
-                den = integrate(fixed_integrand_den, beta, lambda, 0, n_grid, edges, n_grid[n_index], 
-                                e, k, simpson_weights);
-                cond_av_new = damping * num / den + (1 - damping) * edges[e].cond_av[k][n_index];
-                edges[e].cond_av[k][n_index] = cond_av_new;
+            edges[e].response_around_zero[k] = -(edges[e].cond_av[k][1] - edges[e].cond_av[k][0]) / beta / n_grid[1];
+            for (int n_index = 1; n_index < n_grid.size(); n_index++){
+                if(nodes[edges[e].nodes_in[k]].av_abundance >= n_grid[n_index - 1] && nodes[edges[e].nodes_in[k]].av_abundance < n_grid[n_index]){
+                    edges[e].response_around_average[k] = -(edges[e].cond_av[k][n_index] - edges[e].cond_av[k][n_index - 1]) / beta / (n_grid[n_index] - n_grid[n_index - 1]);
+                    break;
+                }
             }
         }
     }
-    return max_variation;
+}
+
+
+void compute_distributions(Tnode *nodes, Tedge *edges, vector <double> n_grid, vector <double> fixed_integrand_den, double beta, 
+                           long N){
+    double sum_neighs;
+    for (long i=0; i < N; i++){
+        nodes[i].Psingle = vector <double> (n_grid.size() - 1, 0);
+        sum_neighs = sum_over_neighs(i, nodes, edges, 1);
+        for (int n_index = 1; n_index < n_grid.size(); n_index++){
+            sum_neighs = sum_over_neighs(i, nodes, edges, n_index);
+            nodes[i].Psingle[n_index - 1] = fixed_integrand_den[n_index - 1] * exp(-beta * sum_neighs) / nodes[i].normalization_Psingle;
+        }
+    }
 }
 
 
 size_t PBMF_ansatz_single_try(Tnode *nodes, Tedge *edges, vector <double> n_grid, vector <double> simpson_weights, vector <double> fixed_integrand_num,
-                              vector <double> fixed_integrand_den, double beta, double lambda, long M, double dn, double damping, 
+                              vector <double> fixed_integrand_den, double beta, double lambda, long N, long M, double dn, double damping, 
                               double tol, int max_iter, long sequence[], unsigned long seed_seq, double avn_0, bool random_init, 
-                              double std_n_0, unsigned long seed_condinit, int &iter, double hmin, double hmax, double **coefficients,
+                              double std_n0, unsigned long seed_condinit, int &iter, double hmin, double hmax, double **coefficients,
                               double *gamma_vals, bool &divergence){
     produce_random_seq(seed_seq, M, sequence);
-    init_avgs(M, nodes, avn_0, random_init, std_n_0, seed_condinit);
+    init_avgs(N, nodes, avn_0, random_init, std_n0, seed_condinit);
     init_cond_av_single_avgs(M, beta, lambda, nodes, edges, n_grid, hmin, hmax, coefficients, gamma_vals);
     auto start = std::chrono::high_resolution_clock::now();
     iter = convergence(edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, lambda, 
@@ -354,7 +387,183 @@ size_t PBMF_ansatz_single_try(Tnode *nodes, Tedge *edges, vector <double> n_grid
 
 
 
+void several_seq_PBMF(unsigned long seed_graph, unsigned long seed_seq_init, 
+                      long N, long M, Tnode *nodes, Tedge *edges, double T, double lambda, double tol,
+                      int max_iter, unsigned long num_seq, double tol_fixed_point,
+                      double avn_0, double damping, bool print_only_last, bool print_avgs, 
+                      bool print_responses, bool print_distributions, char * fileout_base, 
+                      bool random_init, double std_n0, unsigned long id_0, int num_init_conds,
+                      double n1, double dn, double nmax){
+    double beta = 1.0 / T;
 
+    double hmax = find_divergence_max(beta, 1 + beta * lambda / 2);
+    double **coefficients, *gamma_vals;
+    comp_coefficients(beta, lambda, coefficients, gamma_vals);
+    double hmin = find_divergence_min(beta, lambda, coefficients);
+
+    long *sequence;
+    sequence = new long[M];
+    bool divergence;
+
+    char fileavgs[300];
+    char fileresponses[300];
+    char filedistributions[300];
+    
+    
+    divergence = false;
+    unsigned long seed_seq, seed_condinit;
+    bool make_other_tries;
+    int iter;
+    bool same_fixed_point = true;
+    double av_n_graph, av_var_n_graph, error_av_n_graph, error_var_n_graph;
+    
+    vector <double> n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den;
+    init_auxiliary_vectors(n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, lambda, n1, dn, nmax);
+    init_cond_av(M, edges, n_grid.size());
+
+    seed_seq = seed_seq_init;
+    seed_condinit = id_0;
+    size_t elapsed = PBMF_ansatz_single_try(nodes, edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, lambda, 
+                                            N, M, dn, damping, tol, max_iter, sequence, seed_seq, avn_0, random_init, std_n0, 
+                                            seed_condinit, iter, hmin, hmax, coefficients, gamma_vals, divergence);
+    compute_averages(nodes, edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, 
+                     lambda, N, av_n_graph, av_var_n_graph, error_av_n_graph, error_var_n_graph);
+        
+    if (!print_only_last){
+        print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_av_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq,
+                     seed_condinit, max_iter, divergence, true, elapsed, lambda);
+        if (print_avgs){
+            sprintf(fileavgs, "%s_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            print_node_avgs_to_file(nodes, N, fileavgs);
+        }
+        if (print_responses){
+            sprintf(fileresponses, "%s_responses_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            compute_responses(nodes, edges, n_grid, beta, M);
+            print_responses_to_file(edges, M, fileresponses);
+        }
+        if (print_distributions){
+            sprintf(filedistributions, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, N);
+            print_distributions_to_file(nodes, n_grid, N, filedistributions);
+        }
+    }else if(divergence || iter >= max_iter){
+        print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_av_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq,
+                     seed_condinit, max_iter, divergence, true, elapsed, lambda);
+        if (print_avgs){
+            sprintf(fileavgs, "%s_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            print_node_avgs_to_file(nodes, N, fileavgs);
+        }
+        if (print_responses){
+            sprintf(fileresponses, "%s_responses_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            compute_responses(nodes, edges, n_grid, beta, M);
+            print_responses_to_file(edges, M, fileresponses);
+        }
+        if (print_distributions){
+            sprintf(filedistributions, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, N);
+            print_distributions_to_file(nodes, n_grid, N, filedistributions);
+        }
+    }
+
+    make_other_tries = !print_only_last || (!divergence && iter < max_iter);
+    
+    if (make_other_tries){
+        set_av_prev(nodes, N);
+        bool cond = true;
+
+        seed_seq = seed_seq_init + 1;
+        while (seed_seq < seed_seq_init + num_seq && cond){
+            elapsed = PBMF_ansatz_single_try(nodes, edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, lambda, 
+                                             N, M, dn, damping, tol, max_iter, sequence, seed_seq, avn_0, random_init, std_n0, 
+                                             seed_condinit, iter, hmin, hmax, coefficients, gamma_vals, divergence);
+            compute_averages(nodes, edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, 
+                             lambda, N, av_n_graph, av_var_n_graph, error_av_n_graph, error_var_n_graph);
+            same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
+            if (!print_only_last){
+                print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_av_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq,
+                     seed_condinit, max_iter, divergence, same_fixed_point, elapsed, lambda);
+                if (print_avgs){
+                    sprintf(fileavgs, "%s_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                    print_node_avgs_to_file(nodes, N, fileavgs);
+                }
+                if (print_responses){
+                    sprintf(fileresponses, "%s_responses_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                    compute_responses(nodes, edges, n_grid, beta, M);
+                    print_responses_to_file(edges, M, fileresponses);
+                }
+                if (print_distributions){
+                    sprintf(filedistributions, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                    compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, N);
+                    print_distributions_to_file(nodes, n_grid, N, filedistributions);
+                }
+            }else{
+                if (!same_fixed_point || divergence || iter >= max_iter){
+                    cond = false;
+                }
+            }
+            seed_seq++;
+        }
+        
+        seed_condinit++;
+
+        while (seed_condinit < id_0 + num_init_conds && cond){
+            seed_seq = seed_seq_init;
+            while (seed_seq < seed_seq_init + num_seq && cond){
+                elapsed = PBMF_ansatz_single_try(nodes, edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, lambda, 
+                                                N, M, dn, damping, tol, max_iter, sequence, seed_seq, avn_0, random_init, std_n0, seed_condinit, 
+                                                iter, hmin, hmax, coefficients, gamma_vals, divergence);
+                compute_averages(nodes, edges, n_grid, simpson_weights, fixed_integrand_num, fixed_integrand_den, beta, 
+                                lambda, N, av_n_graph, av_var_n_graph, error_av_n_graph, error_var_n_graph);
+                same_fixed_point = compare_fixed_points(nodes, N, tol_fixed_point);
+                if (!print_only_last){
+                    print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_av_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq,
+                     seed_condinit, max_iter, divergence, same_fixed_point, elapsed, lambda);
+                    if (print_avgs){
+                        sprintf(fileavgs, "%s_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                        print_node_avgs_to_file(nodes, N, fileavgs);
+                    }
+                    if (print_responses){
+                        sprintf(fileresponses, "%s_responses_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                        compute_responses(nodes, edges, n_grid, beta, M);
+                        print_responses_to_file(edges, M, fileresponses);
+                    }
+                    if (print_distributions){
+                        sprintf(filedistributions, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                        compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, N);
+                        print_distributions_to_file(nodes, n_grid, N, filedistributions);
+                    }
+                }else{
+                    if (!same_fixed_point || divergence || iter >= max_iter){
+                        cond = false;
+                    }
+                }
+                seed_seq++;
+            }
+            seed_condinit++;
+        }
+
+
+        if (print_only_last){
+            print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_av_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq-1,
+                     seed_condinit-1, max_iter, divergence, true, elapsed, lambda);
+            if (print_avgs){
+                sprintf(fileavgs, "%s_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
+                print_node_avgs_to_file(nodes, N, fileavgs);
+            }
+            if (print_responses){
+                sprintf(fileresponses, "%s_responses_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
+                compute_responses(nodes, edges, n_grid, beta, M);
+                print_responses_to_file(edges, M, fileresponses);
+            }
+            if (print_distributions){
+                sprintf(filedistributions, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
+                compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, N);
+                print_distributions_to_file(nodes, n_grid, N, filedistributions);
+            }
+        }
+    }
+    delete [] sequence;
+}
 
 
 

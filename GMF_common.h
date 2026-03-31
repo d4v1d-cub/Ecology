@@ -554,7 +554,7 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long &N, long &M, Tn
             sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, c, seed_graph);
             gsl_rng_free(r);
         }else{
-            cerr << "graph_type must be RRG or ER" << endl;
+            cerr << "graph_type must be RRG" << endl;
             gsl_rng_free(r);
             exit(1);
         }
