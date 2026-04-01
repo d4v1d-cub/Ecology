@@ -26,10 +26,15 @@ typedef struct{
     vector <int> pos_there; // position occupied by the node in those edges
     double av_abundance; // average value of n in that node
     double var_abundance; // variance of n in that node
+    double response_around_zero; // average response of the variable in that node to a small perturbation in one of its neighbors when the latter is at zero
     double av_prev_fixed_point; // previous value of av in the fixed point
     double var_prev_fixed_point; // previous value of var in the fixed point
-    vector <double> Psingle; // Psingle[n_index] is the probability of n = n_grid[n_index] in that node
+    vector <double> Psingle; // Psingle[n_index] is the probability density of n = n_grid[n_index] in that node
+    vector <double> Psingle_gaussian_part; // Psingle_gaussian_part[n_index] is the result of dividing the probability density 
+    // of n = n_grid[n_index] in that node by n^(beta * lambda - 1) and renormalizing it.
     double normalization_Psingle; // normalization for Psingle, computed in the function compute_averages() and used 
+    // in compute_distributions() if the parameter print_distributions is set to true.
+    double normalization_Psingle_gaussian_part; // normalization for Psingle_gaussian_part, computed in the function compute_averages() and used
     // in compute_distributions() if the parameter print_distributions is set to true.
 }Tnode;
 
@@ -384,9 +389,9 @@ bool compare_fixed_points(Tnode *nodes, long N, double tol_fixed_point){
 
 void print_node_avgs_to_file(Tnode *nodes, long N, char *fileavgs){
     ofstream fav(fileavgs);
-    fav << "#node\tav(n)\tvar(n)" << endl;
+    fav << "#node\tav(n)\tvar(n)\tresponse(0)" << endl;
     for (long i = 0; i < N; i++){
-        fav << i << "\t" << nodes[i].av_abundance << "\t" << nodes[i].var_abundance << endl;
+        fav << i << "\t" << nodes[i].av_abundance << "\t" << nodes[i].var_abundance << "\t" << nodes[i].response_around_zero << endl;
     }
     fav.close();
     
@@ -407,17 +412,21 @@ void print_responses_to_file(Tedge *edges, long M, char *fileresponses){
 
 void print_distributions_to_file(Tnode *nodes, vector <double> n_grid, long N, char *filedistr){
     ofstream fdist(filedistr);
-    fdist << "#n\tP_1(n)...\tP_N(n)" << endl;
+    fdist << "#n\tP_1(n)...\tP_N(n)\tPgauss_1(n)...\tPgauss_N(n)" << endl;
 
     for (int n_index = 1; n_index < n_grid.size(); n_index++){
         fdist << n_grid[n_index];
         for (long i = 0; i < N; i++){
             fdist << "\t" << nodes[i].Psingle[n_index - 1];
         }
+        for (long i = 0; i < N; i++){
+            fdist << "\t" << nodes[i].Psingle_gaussian_part[n_index - 1];
+        }
         fdist << endl;
     }
     fdist.close();
 }
+
 
 
 void create_graph(bool gr_inside, unsigned long seed_graph, long &N, long &M, Tnode *&nodes, Tedge *&edges, 

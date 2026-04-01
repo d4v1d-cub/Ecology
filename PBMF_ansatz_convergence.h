@@ -304,22 +304,28 @@ void compute_averages(Tnode *nodes, Tedge *edges, vector <double> n_grid, vector
                       vector <double> fixed_integrand_num, vector <double> fixed_integrand_den, double beta, 
                       double lambda, long N, double &av_n_graph, double &av_var_n_graph,
                       double &error_av_n_graph, double &error_var_n_graph){
-    double num_P, av_sqr_site, sum_neighs;
+    double num_P, av_sqr_site, sum_neighs, sum_neighs_zero, gaussian_part, gaussian_part_zero;
     av_n_graph = 0;
     av_var_n_graph = 0;
     double av_sqr_av_n_graph = 0;
     double av_sqr_var_n_graph = 0;
     for (long i=0; i < N; i++){
+        sum_neighs_zero = sum_over_neighs(i, nodes, edges, 0);
         sum_neighs = sum_over_neighs(i, nodes, edges, 1);
         nodes[i].av_abundance = fixed_integrand_num[0] * n_grid[1] / (beta * lambda + 1) * exp(-beta * sum_neighs);
         av_sqr_site = fixed_integrand_num[0] * n_grid[1] * n_grid[1] / (beta * lambda + 2) * exp(-beta * sum_neighs);
         nodes[i].normalization_Psingle = fixed_integrand_den[0] * n_grid[1] / (beta * lambda) * exp(-beta * sum_neighs);
+        gaussian_part_zero = exp(-beta * (pow(n_grid[0] - 1, 2) / 2 + sum_neighs_zero));
+        gaussian_part = exp(-beta * (pow(n_grid[1] - 1, 2) / 2 + sum_neighs));
+        nodes[i].normalization_Psingle_gaussian_part = (gaussian_part + gaussian_part_zero) * (n_grid[1] - n_grid[0]) / 2; 
         for (int n_index = 1; n_index < n_grid.size(); n_index++){
             sum_neighs = sum_over_neighs(i, nodes, edges, n_index);
             num_P = fixed_integrand_den[n_index - 1] * exp(-beta * sum_neighs);
             nodes[i].av_abundance += simpson_weights[n_index - 1] * num_P * n_grid[n_index];
             av_sqr_site += simpson_weights[n_index - 1] * num_P * n_grid[n_index] * n_grid[n_index];
             nodes[i].normalization_Psingle += simpson_weights[n_index - 1] * num_P;
+            gaussian_part = exp(-beta * (pow(n_grid[n_index] - 1, 2) / 2 + sum_neighs));
+            nodes[i].normalization_Psingle_gaussian_part += simpson_weights[n_index - 1] * gaussian_part;
         }
 
         nodes[i].av_abundance /= nodes[i].normalization_Psingle;
@@ -329,6 +335,15 @@ void compute_averages(Tnode *nodes, Tedge *edges, vector <double> n_grid, vector
         av_var_n_graph += nodes[i].var_abundance;
         av_sqr_av_n_graph += nodes[i].av_abundance * nodes[i].av_abundance;
         av_sqr_var_n_graph += nodes[i].var_abundance * nodes[i].var_abundance;
+
+        nodes[i].response_around_zero = 0;
+        for (long j = 0; j < nodes[i].edges_in.size(); j++){
+            long edge_neigh = nodes[i].edges_in[j];
+            int pos_there = nodes[i].pos_there[j];
+            edges[edge_neigh].response_around_zero[pos_there] = -(edges[edge_neigh].cond_av[pos_there][1] - edges[edge_neigh].cond_av[pos_there][0]) / beta / n_grid[1];
+            nodes[i].response_around_zero += edges[edge_neigh].response_around_zero[pos_there] / edges[edge_neigh].links[pos_there];
+        }
+        nodes[i].response_around_zero /= nodes[i].edges_in.size();
     }
     av_n_graph /= N;
     av_var_n_graph /= N;
@@ -343,7 +358,6 @@ void compute_averages(Tnode *nodes, Tedge *edges, vector <double> n_grid, vector
 void compute_responses(Tnode *nodes, Tedge *edges, vector <double> n_grid, double beta, long M){
     for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
-            edges[e].response_around_zero[k] = -(edges[e].cond_av[k][1] - edges[e].cond_av[k][0]) / beta / n_grid[1];
             for (int n_index = 1; n_index < n_grid.size(); n_index++){
                 if(nodes[edges[e].nodes_in[k]].av_abundance >= n_grid[n_index - 1] && nodes[edges[e].nodes_in[k]].av_abundance < n_grid[n_index]){
                     edges[e].response_around_average[k] = -(edges[e].cond_av[k][n_index] - edges[e].cond_av[k][n_index - 1]) / beta / (n_grid[n_index] - n_grid[n_index - 1]);
@@ -357,13 +371,15 @@ void compute_responses(Tnode *nodes, Tedge *edges, vector <double> n_grid, doubl
 
 void compute_distributions(Tnode *nodes, Tedge *edges, vector <double> n_grid, vector <double> fixed_integrand_den, double beta, 
                            long N){
-    double sum_neighs;
+    double sum_neighs, gaussian_part;
     for (long i=0; i < N; i++){
         nodes[i].Psingle = vector <double> (n_grid.size() - 1, 0);
-        sum_neighs = sum_over_neighs(i, nodes, edges, 1);
+        nodes[i].Psingle_gaussian_part = vector <double> (n_grid.size() - 1, 0);
         for (int n_index = 1; n_index < n_grid.size(); n_index++){
             sum_neighs = sum_over_neighs(i, nodes, edges, n_index);
+            gaussian_part = exp(-beta * (pow(n_grid[n_index] - 1, 2) / 2 + sum_neighs));
             nodes[i].Psingle[n_index - 1] = fixed_integrand_den[n_index - 1] * exp(-beta * sum_neighs) / nodes[i].normalization_Psingle;
+            nodes[i].Psingle_gaussian_part[n_index - 1] = gaussian_part / nodes[i].normalization_Psingle_gaussian_part;
         }
     }
 }
