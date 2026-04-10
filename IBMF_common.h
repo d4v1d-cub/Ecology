@@ -383,13 +383,16 @@ bool compare_fixed_points(Tnode *nodes, long N, double tol_fixed_point){
 }
 
 
-void print_avgs_to_file(Tnode *nodes, long N, char *fileavgs){
+void print_avgs_to_file(Tnode *nodes, long N, char *fileavgs, double lambda=0.0){
     ofstream fav(fileavgs);
+    double h_i, var_i;
+    fav << "#node\tav(n)\tvar(n)" << endl;
     for (long i = 0; i < N; i++){
-        fav << i << "\t" << nodes[i].av << endl;
+        h_i = field_in(i, nodes);
+        var_i = lambda + nodes[i].av * (h_i - nodes[i].av);
+        fav << i << "\t" << nodes[i].av << "\t" << var_i << endl;
     }
     fav.close();
-    
 }
 
 
@@ -428,10 +431,11 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long &N, Tnode *&nod
 void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, double &dn, 
                      unsigned long &id_0, int &num_init_conds, double &T, double &lambda, double &tol, 
                      int &max_iter, unsigned long &seed_seq, unsigned long &num_seq,
-                     double &tol_fixed_point, double &damping, bool &print_avgs,
+                     double &tol_fixed_point, double &damping, bool &print_avgs, bool &print_distributions,
                      bool &print_only_last, bool &gr_inside, double &eps, double &mu,
                      double &sigma, unsigned long &seed_graph, long &N, char * graph_type,
-                     double &c, char *input_graph_name, bool &print_params, bool &alpha_inverse){
+                     double &c, char *input_graph_name, bool &print_params, bool &alpha_inverse,
+                     double &n1_distr, double &dn_distr, double &nmax_distr){
     int arg_index = 1;
     while (arg_index < argc){
         if (string(argv[arg_index]) == "-h" || string(argv[arg_index]) == "--help"){
@@ -449,6 +453,7 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "--tol_fp   [double: 1e-2]   ::   maximum allowed difference between individual abundances to determine that two fixed points are equal" << endl;
             cerr << "--damping   [double: 1.0]   :: damping for the convergence process. Setting it to 1 means no damping" << endl;
             cerr << "--print_avgs   ::   if this flag is added to the arguments, the program will print individual average abundances" << endl;
+            cerr << "--print_distr   ::   if this flag is added to the arguments, the program will print the local abundances distributions and their Gaussian parts" << endl;
             cerr << "--print_only_last  ::  if this flag is added to the arguments, the program prints only the information obtained by running the convergence process with the last sequence (with seed 'seed_seq+num_seq-1')" << endl;
             cerr << "--gr_inside  ::  it this flag is added to the arguments, the program will generate the interaction graph. If not, it will expect the graph from standard input" << endl;
             cerr << "--eps   [double: 1.0]  ::   level of asymmetry in the graph (only needed if --gr_inside is set)" << endl;
@@ -461,6 +466,9 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "--input_graph_name  [string]  ::  name of the input graph to insert in the output files (only needed if --gr_inside is not set and --print_avgs is set)" << endl;
             cerr << "--print_params  ::  if this flag is added to the arguments, the program will print the parameters used for the run" << endl;
             cerr << "--alpha_inverse  ::  the program will read the input graph assuming that the interactions are given in the inverse order (is makes sense only if --gr_inside is not set)." << endl;
+            cerr << "--n1_distr [double: 1e-4] :: first point of the grid to print the distributions. Only needed if --print_distributions is set" << endl;
+            cerr << "--dn_distr [double: 5e-3] :: step of the grid to print the distributions. The points are generated as (n1, n1+dn, n1+2*dn, ...). Only needed if --print_distributions is set" << endl;
+            cerr << "--nmax_distr [double: 2.0] :: maximum value of the grid to print the distributions. Only needed if --print_distributions is set" << endl;
             exit(0);
         }
         if (string(argv[arg_index]) == "--avn_0"){
@@ -511,6 +519,9 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
         }else if (string(argv[arg_index]) == "--print_avgs"){
             print_avgs = true;
             arg_index++;
+        }else if (string(argv[arg_index]) == "--print_distr"){
+            print_distributions = true;
+            arg_index++;
         }else if (string(argv[arg_index]) == "--print_only_last"){
             print_only_last = true;
             arg_index++;
@@ -559,6 +570,18 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
         }else if (string(argv[arg_index]) == "--alpha_inverse"){
             alpha_inverse = true;
             arg_index++;
+        }else if (string(argv[arg_index]) == "--n1_distr"){
+            arg_index++;
+            n1_distr = atof(argv[arg_index]);
+            arg_index++;
+        }else if (string(argv[arg_index]) == "--dn_distr"){
+            arg_index++;
+            dn_distr = atof(argv[arg_index]);
+            arg_index++;
+        }else if (string(argv[arg_index]) == "--nmax_distr"){
+            arg_index++;
+            nmax_distr = atof(argv[arg_index]);
+            arg_index++;
         }else{
             cerr << "Unknown argument: " << argv[arg_index] << endl;
             exit(1);
@@ -570,10 +593,10 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
 void print_params_run(double avn_0, bool random_init, double dn, 
                      unsigned long id_0, int num_init_conds, double T, double lambda, double tol, 
                      int max_iter, unsigned long seed_seq, unsigned long num_seq,
-                     double tol_fixed_point, double damping, bool print_avgs,
+                     double tol_fixed_point, double damping, bool print_avgs, bool print_distributions,
                      bool print_only_last, bool gr_inside, double eps, double mu,
                      double sigma, unsigned long seed_graph, long N, char * graph_type,
-                     double c, char *input_graph_name, bool alpha_inverse){
+                     double c, char *input_graph_name, bool alpha_inverse, double n1_distr, double dn_distr, double nmax_distr){
     cerr << "Initial average abundance: " << avn_0 << endl;
     cerr << "Random initial condition dn=" << dn << "   extracted  " << num_init_conds << " times, with initial seed " << id_0 << endl;
     cerr << "Temperature: " << T << endl;
@@ -588,6 +611,13 @@ void print_params_run(double avn_0, bool random_init, double dn,
         cerr << "The program will print individual average abundances" << endl;
     }else{
         cerr << "The program will not print individual average abundances" << endl;
+    }
+    if (print_distributions){
+        cerr << "The program will print the abundances distribution for all nodes" << endl;
+        cerr << "Parameters to build the grid: n1=" << n1_distr << "   dn=" << dn_distr << "   nmax=" << nmax_distr << endl;
+        cerr << "The grid is generated as (0, n1, n1+dn, n1+2*dn, ...), and the distributions are computed in those points" << endl;
+    }else{
+        cerr << "The program will not print the abundances distribution for all nodes" << endl;
     }
     if (print_only_last){
         cerr << "The program will print only the information obtained by running the convergence process with the last sequence" << endl;

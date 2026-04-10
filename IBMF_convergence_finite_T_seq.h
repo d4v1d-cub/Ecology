@@ -148,6 +148,32 @@ double find_divergence_min(double beta, double lambda, double **coefficients, do
     return hmin;
 }
 
+
+
+void print_distributions_to_file(long N, Tnode *nodes, double beta, double lambda, 
+                               double *gamma_vals, char *filedistr, double n1, double dn, double nmax){
+    ofstream fdist(filedistr);
+    fdist << "#n\tP_1(n)...\tP_N(n)\tPgauss_1(n)...\tPgauss_N(n)" << endl;
+    double h_i, den;
+    for (double n = n1; n <= nmax; n += dn){
+        fdist << n;
+        for (long i = 0; i < N; i++){
+            h_i = field_in(i, nodes);
+            den = pow(2 / beta, beta * lambda / 2) / 2 * (gamma_vals[0] * gsl_sf_hyperg_1F1((1 - beta * lambda) / 2, 0.5, -beta * h_i * h_i / 2) + 
+                  gamma_vals[1] * sqrt(2 * beta) * h_i * gsl_sf_hyperg_1F1(1 - beta * lambda / 2, 1.5, -beta * h_i * h_i / 2));
+            fdist << "\t" << pow(n, beta * lambda - 1) * exp(-beta * pow(n - h_i, 2) / 2) / den;
+        }
+        for (long i = 0; i < N; i++){
+            h_i = field_in(i, nodes);
+            den = sqrt(M_PI / 2 / beta) * (1 + erf(sqrt(beta / 2) * h_i));
+            fdist << "\t" << exp(-beta * pow(n - h_i, 2) / 2) / den;
+        }
+        fdist << endl;
+    }
+    fdist.close();
+}
+
+
 double new_averages(long N, double beta, double lambda, Tnode *nodes, double tol, 
                     double hmin, double hmax, double **coefficients, double *gamma_vals, 
                     int iter, long sequence[], double damping, double normfactor = 1e-14){
@@ -241,8 +267,9 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
                       long N, Tnode *nodes, double T, double lambda, double tol,
                       int max_iter, unsigned long num_seq, double tol_fixed_point,
                       double avn_0, double damping, 
-                      bool print_only_last, bool print_avgs, 
-                      char * fileout_base, bool random_init, double dn, unsigned long id_0, int num_init_conds){
+                      bool print_only_last, bool print_avgs, bool print_distributions, 
+                      char * fileout_base, bool random_init, double dn, unsigned long id_0, int num_init_conds, 
+                      double n1_distr=1e-4, double dn_distr=5e-3, double nmax_distr=2.0){
     double beta = 1.0 / T;
 
     double hmax = find_divergence_max(beta, (1 + beta * lambda) / 2);
@@ -255,6 +282,7 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
     bool divergence;
 
     char fileavgs[300];
+    char filedistr[300];
     
     
     divergence = false;
@@ -272,14 +300,22 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
     if (!print_only_last){
         print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
         if (print_avgs){
-            sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-            print_avgs_to_file(nodes, N, fileavgs);
+            sprintf(fileavgs, "%s_averages_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            print_avgs_to_file(nodes, N, fileavgs, lambda);
+        }
+        if (print_distributions){
+            sprintf(filedistr, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            print_distributions_to_file(N, nodes, beta, lambda, gamma_vals, filedistr, n1_distr, dn_distr, nmax_distr);
         }
     }else if(divergence || iter >= max_iter){
         print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed);
         if (print_avgs){
-            sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-            print_avgs_to_file(nodes, N, fileavgs);
+            sprintf(fileavgs, "%s_averages_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            print_avgs_to_file(nodes, N, fileavgs, lambda);
+        }
+        if (print_distributions){
+            sprintf(filedistr, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+            print_distributions_to_file(N, nodes, beta, lambda, gamma_vals, filedistr, n1_distr, dn_distr, nmax_distr);
         }
     }
 
@@ -298,8 +334,12 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
             if (!print_only_last){
                 print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
                 if (print_avgs){
-                    sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-                    print_avgs_to_file(nodes, N, fileavgs);
+                    sprintf(fileavgs, "%s_averages_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                    print_avgs_to_file(nodes, N, fileavgs, lambda);
+                }
+                if (print_distributions){
+                    sprintf(filedistr, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                    print_distributions_to_file(N, nodes, beta, lambda, gamma_vals, filedistr, n1_distr, dn_distr, nmax_distr);
                 }
             }else{
                 if (!same_fixed_point || divergence || iter >= max_iter){
@@ -321,8 +361,12 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
                 if (!print_only_last){
                     print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
                     if (print_avgs){
-                        sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
-                        print_avgs_to_file(nodes, N, fileavgs);
+                        sprintf(fileavgs, "%s_averages_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                        print_avgs_to_file(nodes, N, fileavgs, lambda);
+                    }
+                    if (print_distributions){
+                        sprintf(filedistr, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq, seed_condinit);
+                        print_distributions_to_file(N, nodes, beta, lambda, gamma_vals, filedistr, n1_distr, dn_distr, nmax_distr);
                     }
                 }else{
                     if (!same_fixed_point || divergence || iter >= max_iter){
@@ -337,8 +381,12 @@ void several_seq_IBMF(unsigned long seed_graph, unsigned long seed_seq_init,
         if (print_only_last){
             print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit-1, max_iter, divergence, same_fixed_point, elapsed);
             if (print_avgs){
-                sprintf(fileavgs, "%s_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
-                print_avgs_to_file(nodes, N, fileavgs);
+                sprintf(fileavgs, "%s_averages_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
+                print_avgs_to_file(nodes, N, fileavgs, lambda);
+            }
+            if (print_distributions){
+                sprintf(filedistr, "%s_distributions_seedseq_%li_seedinit_%li.txt", fileout_base, seed_seq-1, seed_condinit-1);
+                print_distributions_to_file(N, nodes, beta, lambda, gamma_vals, filedistr, n1_distr, dn_distr, nmax_distr);
             }
         }
     }
