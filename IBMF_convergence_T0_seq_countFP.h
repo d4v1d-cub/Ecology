@@ -104,7 +104,8 @@ size_t IBMF_single_try(unsigned long seed_seq, long N, Tnode *nodes, double tol,
     return elapsed;
 }
 
-void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsigned long seed_graph, int attempts) {
+void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsigned long seed_graph, 
+                                int attempts, bool print_avgs) {
     int num_fixed_points = nodes[0].fixed_points.size();
     char filesummary[300];
     sprintf(filesummary, "%s_summary.txt", fileout_base);
@@ -130,6 +131,7 @@ void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsign
 
 	fprintf(fsummary,"%d %g %g %g %g %g\n",fp_idx+1,count/(double)attempts,average_FP(N,nodes,fp_idx),average_sqr_FP(N,nodes,fp_idx),nodes[0].fixed_points[fp_idx],nodes[1].fixed_points[fp_idx]);   
 	
+    if (print_avgs){
         // Salva su file
         char filename[300];
         sprintf(filename, "%s_fixedpoint_%d.txt", fileout_base, fp_idx + 1);
@@ -143,6 +145,7 @@ void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsign
             fclose(fp);
             printf("  Salvato in: %s\n", filename);
         }
+    }
     }
     
     printf("\n========================================\n");
@@ -222,7 +225,7 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
 
     
     // Stampa i risultati finali
-    print_fixed_points_summary(nodes, N, fileout_base, seed_graph, attempts);
+    print_fixed_points_summary(nodes, N, fileout_base, seed_graph, attempts, print_avgs);
     
     delete [] sequence;
 }
