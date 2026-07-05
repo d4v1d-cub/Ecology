@@ -73,8 +73,8 @@ int main(int argc, char *argv[]) {
     char fileout_base[300];
 
     if (T == 0) {
-        sprintf(fileout_base, "IBMF_T0_seq_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_tol_%.1e_maxiter_%d_damping_%.2lf", 
-                              gr_str, avn_0, dn, tol, max_iter, damping);
+        sprintf(fileout_base, "IBMF_T0_seq_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_ninitcond_%d_tol_%.1e_maxiter_%d_damping_%.2lf", 
+                              gr_str, avn_0, dn, num_init_conds, tol, max_iter, damping);
         several_seq_IBMF_T0(seed_graph, seed_seq, N, nodes, tol,
                             max_iter, num_seq, tol_fixed_point,
                             avn_0, damping, print_only_last, print_avgs,
