@@ -49,6 +49,53 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
+            "name": "C/C++: g++ IBMF sequential countFP",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/Debug/IBMF_LV_sequential_countFP.out",
+            "args": ["--print_params",
+                     "--avn_0", "0.5", 
+                     "--random_init", "0.4", "1", "300",
+                     "--temp", "0.000", 
+                    //  "--tol", "1e-6", 
+                    //  "--max_iter", "10000", 
+                    //  "--seed_seq", "1", 
+                    //  "--num_seq", "1", 
+                    //  "--tol_fp", "1e-2", 
+                    //  "--damping", "1.0",
+                     "--print_avgs",
+                    //  "--print_distr",
+                    //  "--print_only_last",
+                     "--gr_inside",
+                     "--eps", "0.000", 
+                     "--mu", "0.361", 
+                     "--sigma", "0.000",
+                     "--seed_graph", "3", 
+                     "-N", "1024", 
+                     "-c", "3",
+                     "--graph_type", "RRG"
+                    ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}/Debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ IBMF sequential countFP",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
             "name": "C/C++: g++ IBMF popdyn",
             "type": "cppdbg",
             "request": "launch",
