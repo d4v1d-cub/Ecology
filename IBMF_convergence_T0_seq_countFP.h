@@ -187,7 +187,7 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
                          long N, Tnode *nodes, double tol,
                          int max_iter, unsigned long num_seq, double tol_fixed_point,
                          double avn_0, double damping, 
-                         bool print_only_last, bool print_avgs, 
+                         bool print_avgs, 
                          char * fileout_base, bool random_init, double dn, 
                          unsigned long id_0, int num_init_conds) {
 
@@ -245,13 +245,7 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
 	  same_fixed_point = false;
 	}
         
-	if (!print_only_last){
-	  print_results_short(iter, nodes, N, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed);
-	} else {
-	  if (!same_fixed_point || divergence || iter >= max_iter){
-	    cond = false;
-	  }
-	}
+	
 	seed_seq++;
       }
 
@@ -264,10 +258,6 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
       }
 
       seed_condinit++;
-    }
-    
-    if (print_only_last){
-      print_results_short(iter, nodes, N, seed_graph, seed_seq-1, seed_condinit-1, max_iter, divergence, same_fixed_point, elapsed);
     }
 
     

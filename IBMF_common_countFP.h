@@ -474,7 +474,7 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
                      unsigned long &id_0, int &num_init_conds, double &T, double &lambda, double &tol, 
                      int &max_iter, unsigned long &seed_seq, unsigned long &num_seq,
                      double &tol_fixed_point, double &damping, bool &print_avgs,
-                     bool &print_only_last, bool &gr_inside, double &eps, double &mu,
+                     bool &gr_inside, double &eps, double &mu,
                      double &sigma, unsigned long &seed_graph, long &N, char * graph_type,
                      double &c, char *input_graph_name, bool &print_params, bool &alpha_inverse){
     int arg_index = 1;
@@ -494,7 +494,6 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "--tol_fp   [double: 1e-2]   ::   maximum allowed difference between individual abundances to determine that two fixed points are equal" << endl;
             cerr << "--damping   [double: 1.0]   :: damping for the convergence process. Setting it to 1 means no damping" << endl;
             cerr << "--print_avgs   ::   if this flag is added to the arguments, the program will print individual average abundances" << endl;
-            cerr << "--print_only_last  ::  if this flag is added to the arguments, the program prints only the information obtained by running the convergence process with the last sequence (with seed 'seed_seq+num_seq-1')" << endl;
             cerr << "--gr_inside  ::  it this flag is added to the arguments, the program will generate the interaction graph. If not, it will expect the graph from standard input" << endl;
             cerr << "--eps   [double: 1.0]  ::   level of asymmetry in the graph (only needed if --gr_inside is set)" << endl;
             cerr << "--mu  [double: 0.2]   ::   average strength of the interactions (only needed if --gr_inside is set)" << endl;
@@ -556,9 +555,6 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
         }else if (string(argv[arg_index]) == "--print_avgs"){
             print_avgs = true;
             arg_index++;
-        }else if (string(argv[arg_index]) == "--print_only_last"){
-            print_only_last = true;
-            arg_index++;
         }else if (string(argv[arg_index]) == "--gr_inside"){
             gr_inside = true;
             arg_index++;
@@ -616,7 +612,7 @@ void print_params_run(double avn_0, bool random_init, double dn,
                      unsigned long id_0, int num_init_conds, double T, double lambda, double tol, 
                      int max_iter, unsigned long seed_seq, unsigned long num_seq,
                      double tol_fixed_point, double damping, bool print_avgs,
-                     bool print_only_last, bool gr_inside, double eps, double mu,
+                     bool gr_inside, double eps, double mu,
                      double sigma, unsigned long seed_graph, long N, char * graph_type,
                      double c, char *input_graph_name, bool alpha_inverse){
     cerr << "Initial average abundance: " << avn_0 << endl;
@@ -633,11 +629,6 @@ void print_params_run(double avn_0, bool random_init, double dn,
         cerr << "The program will print individual average abundances" << endl;
     }else{
         cerr << "The program will not print individual average abundances" << endl;
-    }
-    if (print_only_last){
-        cerr << "The program will print only the information obtained by running the convergence process with the last sequence" << endl;
-    }else{
-        cerr << "The program will print the information obtained by running the convergence process with all sequences and initial conditions" << endl;
     }
     if (gr_inside){
         cerr << "The program will generate the interaction graph" << endl;

@@ -35,7 +35,6 @@ int main(int argc, char *argv[]) {
     double tol_fixed_point = 1e-2;
     double damping = 1.0;
     bool print_avgs = false;
-    bool print_only_last = false;
     bool gr_inside = false;
     double eps = 1.0;
     double mu = 0.2;
@@ -55,12 +54,12 @@ int main(int argc, char *argv[]) {
 
     parse_arguments(argc, argv, avn_0, random_init, dn, id_0, num_init_conds, T, lambda, tol, max_iter,
                     seed_seq, num_seq, tol_fixed_point, damping,
-                    print_avgs, print_only_last, gr_inside, eps, mu,
+                    print_avgs, gr_inside, eps, mu,
                     sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params, alpha_inverse);
     if (print_params) {
         print_params_run(avn_0, random_init, dn, id_0, num_init_conds, T, lambda, tol, max_iter,
                          seed_seq, num_seq, tol_fixed_point, damping,
-                         print_avgs, print_only_last, gr_inside, eps, mu,
+                         print_avgs, gr_inside, eps, mu,
                          sigma, seed_graph, N, graph_type, c_arg, gr_str, alpha_inverse);
     }
 
@@ -77,7 +76,7 @@ int main(int argc, char *argv[]) {
                               gr_str, avn_0, dn, num_init_conds, tol, max_iter, damping);
         several_seq_IBMF_T0(seed_graph, seed_seq, N, nodes, tol,
                             max_iter, num_seq, tol_fixed_point,
-                            avn_0, damping, print_only_last, print_avgs,
+                            avn_0, damping, print_avgs,
                             fileout_base, random_init, dn, id_0, num_init_conds);
     }else{
         cout << "This program only accepts a temperature T=0" << endl;
