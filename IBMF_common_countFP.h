@@ -20,6 +20,7 @@
 #include <gsl/gsl_sf_hyperg.h>  // For hypergeometric functions
 #include <gsl/gsl_sf_gamma.h>   // For gamma functions
 #include <cmath>
+#include <algorithm>
 
 using namespace std;
 
@@ -53,7 +54,8 @@ typedef struct{
     bool converged;               ///< Whether node has reached convergence
     double av;                    ///< Current average abundance
     vector<double> fixed_points;  ///< Tutti i punti fissi diversi trovati
-    vector<int> fixed_point_counts; ///< Conteggio per ogni punto fisso
+    // Counts are identical for every node, so they are stored once by the
+    // caller in a shared vector<int> rather than replicated per node.
     //double av_prev_fixed_point; ///< Previous fixed point for comparison
 }Tnode;
 
@@ -236,10 +238,9 @@ void init_graph_inside_RGER_full_asym(Tnode *&nodes, long N, double c,
 }
 
 
-void init_avgs(long N, Tnode *nodes, double avn_0, bool random_init, double dn, unsigned long id_0){
+void init_avgs(long N, Tnode *nodes, double avn_0, bool random_init, double dn, unsigned long id_0, gsl_rng * r){
     if (random_init){
-        gsl_rng * r;
-        init_ran(r, id_0);
+        gsl_rng_set(r, id_0);
         double n_i;
         for (long i = 0; i < N; i++){
             n_i = avn_0 - dn + 2 * dn * gsl_rng_uniform(r);
@@ -248,7 +249,6 @@ void init_avgs(long N, Tnode *nodes, double avn_0, bool random_init, double dn, 
             }
             nodes[i].av = n_i;
         }
-        gsl_rng_free(r);
     }else{
         for (long i = 0; i < N; i++){
             nodes[i].av = avn_0;
@@ -349,39 +349,35 @@ void print_results_short(int iter, Tnode *nodes, long N, unsigned long seed_grap
     double av = average(N, nodes);
     double av_sqr = average_sqr(N, nodes);
     if (divergence){
-        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
-                seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
+        cout << iter << "\t" << "diverges" << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" <<
+                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  <<
+                seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << "\n";
     }else{
         bool conv = iter < max_iter;
-        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" << 
-                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  << 
-                seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << endl;
+        cout << iter << "\t" << conv << "\t" << av << "\t" << sqrt(fabs(av_sqr - av * av) / N) << "\t" <<
+                counter << "\t" << counter_dead << "\t" << seed_graph  << "\t"  << seed_seq  << "\t"  <<
+                seed_initcond << "\t" << same_fixed_point << "\t" << double(elapsed) / 1000 << "\n";
     }
 }
 
 
-void produce_random_seq(unsigned long seed_seq, long N, long sequence[]){
-    gsl_rng * r;
-    init_ran(r, seed_seq);
-    vector <long> elements(N);
+void produce_random_seq(unsigned long seed_seq, long N, long sequence[], gsl_rng * r){
+    gsl_rng_set(r, seed_seq);
     for (long i = 0; i < N; i++){
-        elements[i] = i;
+        sequence[i] = i;
     }
     long pos;
     for (long i = 0; i < N; i++){
-        pos = gsl_rng_uniform_int(r, N - i);
-        sequence[i] = elements[pos];
-        elements.erase(elements.begin() + pos);
+        pos = i + gsl_rng_uniform_int(r, N - i);
+        std::swap(sequence[i], sequence[pos]);
     }
-    gsl_rng_free(r);
 }
 
-void init_fixed_points_storage(Tnode *nodes, long N) {
+void init_fixed_points_storage(Tnode *nodes, long N, vector<int> &fixed_point_counts) {
     for (long i = 0; i < N; i++) {
         nodes[i].fixed_points.clear();
-        nodes[i].fixed_point_counts.clear();
     }
+    fixed_point_counts.clear();
 }
 
 
@@ -395,15 +391,20 @@ int find_fixed_point_index(Tnode *nodes, long N, double tol_fixed_point) {
     
     for (int fp_idx = 0; fp_idx < num_fixed_points; fp_idx++) {
         double max_diff = 0.0;
-        
+        bool ruled_out = false;
+
         for (long i = 0; i < N; i++) {
             double diff = fabs(nodes[i].av - nodes[i].fixed_points[fp_idx]);
             if (diff > max_diff) {
                 max_diff = diff;
+                if (max_diff >= tol_fixed_point) {
+                    ruled_out = true;
+                    break; // this candidate cannot match; no need to scan the rest
+                }
             }
         }
-        
-        if (max_diff < tol_fixed_point) {
+
+        if (!ruled_out) {
             return fp_idx; // Trovato corrispondenza
         }
     }
@@ -412,20 +413,18 @@ int find_fixed_point_index(Tnode *nodes, long N, double tol_fixed_point) {
 }
 
 // Funzione per aggiornare i conteggi
-void update_fixed_point_counts(Tnode *nodes, long N, int fp_index) {
-    if (fp_index >= 0 && fp_index < nodes[0].fixed_point_counts.size()) {
-        for (long i = 0; i < N; i++) {
-            nodes[i].fixed_point_counts[fp_index]++;
-        }
+void update_fixed_point_counts(vector<int> &fixed_point_counts, int fp_index) {
+    if (fp_index >= 0 && fp_index < (int)fixed_point_counts.size()) {
+        fixed_point_counts[fp_index]++;
     }
 }
 
 // Funzione per aggiungere un nuovo punto fisso con conteggio iniziale
-void add_new_fixed_point(Tnode *nodes, long N, int initial_count) {
+void add_new_fixed_point(Tnode *nodes, long N, int initial_count, vector<int> &fixed_point_counts) {
     for (long i = 0; i < N; i++) {
         nodes[i].fixed_points.push_back(nodes[i].av);
-        nodes[i].fixed_point_counts.push_back(initial_count);
     }
+    fixed_point_counts.push_back(initial_count);
 }
 
 

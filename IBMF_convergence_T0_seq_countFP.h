@@ -13,6 +13,7 @@
 
 #include "IBMF_common_countFP.h"
 #include <chrono>
+#include <cstring>
 
 using namespace std;
 
@@ -93,10 +94,11 @@ int convergence(long N, Tnode *nodes, double tol, int max_iter, bool &divergence
 
 
 size_t IBMF_single_try(unsigned long seed_seq, long N, Tnode *nodes, double tol,
-                       int max_iter, double avn_0, double damping, bool random_init, double dn, 
-                       unsigned long seed_condinit, long sequence[], bool &divergence, int &iter){
-    produce_random_seq(seed_seq, N, sequence);
-    init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit);
+                       int max_iter, double avn_0, double damping, bool random_init, double dn,
+                       unsigned long seed_condinit, long sequence[], bool &divergence, int &iter,
+                       gsl_rng * r_seq, gsl_rng * r_condinit){
+    produce_random_seq(seed_seq, N, sequence, r_seq);
+    init_avgs(N, nodes, avn_0, random_init, dn, seed_condinit, r_condinit);
     auto start = std::chrono::high_resolution_clock::now();
     iter = convergence(N, nodes, tol, max_iter, divergence, sequence, damping);
     auto end = std::chrono::high_resolution_clock::now();
@@ -104,8 +106,8 @@ size_t IBMF_single_try(unsigned long seed_seq, long N, Tnode *nodes, double tol,
     return elapsed;
 }
 
-void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsigned long seed_graph, 
-                                int attempts, bool print_avgs) {
+void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsigned long seed_graph,
+                                int attempts, bool print_avgs, const vector<int> &fixed_point_counts) {
     int num_fixed_points = nodes[0].fixed_points.size();
     char filesummary[300];
     sprintf(filesummary, "%s_summary.txt", fileout_base);
@@ -119,7 +121,7 @@ void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsign
     printf("========================================\n");
     
     for (int fp_idx = 0; fp_idx < num_fixed_points; fp_idx++) {
-        int count = nodes[0].fixed_point_counts[fp_idx];
+        int count = fixed_point_counts[fp_idx];
         printf("\nPunto fisso %d:\n", fp_idx + 1);
         printf("  Trovato %d volte\n", count);
         printf("  Valori: ");
@@ -153,7 +155,35 @@ void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsign
     fclose(fsummary);
 }
 
-void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init, 
+/**
+ * @brief Build a checkpoint file base name by replacing the "_ninitcond_<N>" token
+ * @param fileout_base Original file base, containing "_ninitcond_<num_init_conds>"
+ * @param num_init_conds Total number of initial conditions the original base was built with
+ * @param checkpoint_count Number of initial conditions explored so far (replaces num_init_conds)
+ * @param out_buffer Buffer to receive the checkpoint file base
+ * @param out_size Size of out_buffer
+ */
+void build_checkpoint_fileout_base(const char *fileout_base, int num_init_conds,
+                                   long checkpoint_count, char *out_buffer, size_t out_size) {
+    char search_str[50];
+    char replace_str[50];
+    sprintf(search_str, "_ninitcond_%d", num_init_conds);
+    sprintf(replace_str, "_ninitcond_%ld", checkpoint_count);
+
+    const char *pos = strstr(fileout_base, search_str);
+    if (pos == nullptr) {
+        snprintf(out_buffer, out_size, "%s", fileout_base);
+        return;
+    }
+    int prefix_len = (int)(pos - fileout_base);
+    snprintf(out_buffer, out_size, "%.*s%s%s", prefix_len, fileout_base, replace_str, pos + strlen(search_str));
+}
+
+bool is_power_of_two(long n) {
+    return n > 0 && (n & (n - 1)) == 0;
+}
+
+void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
                          long N, Tnode *nodes, double tol,
                          int max_iter, unsigned long num_seq, double tol_fixed_point,
                          double avn_0, double damping, 
@@ -168,8 +198,16 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
     char fileavgs[300];
     size_t elapsed;
 
+    // RNGs are allocated once and reseeded per attempt (via gsl_rng_set),
+    // instead of being allocated/freed on every single attempt.
+    gsl_rng * r_seq;
+    gsl_rng * r_condinit;
+    init_ran(r_seq, seed_seq_init);
+    init_ran(r_condinit, id_0);
+
     // Inizializza lo storage dei punti fissi
-    init_fixed_points_storage(nodes, N);
+    vector<int> fixed_point_counts;
+    init_fixed_points_storage(nodes, N, fixed_point_counts);
 
     divergence = false;
     unsigned long seed_seq, seed_condinit;
@@ -187,19 +225,19 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
       seed_seq = seed_seq_init;
       while (seed_seq < seed_seq_init + num_seq && cond){
 	elapsed = IBMF_single_try(seed_seq, N, nodes, tol, max_iter, avn_0, damping,
-				  random_init, dn, seed_condinit, sequence, divergence, 
-				  iter);
+				  random_init, dn, seed_condinit, sequence, divergence,
+				  iter, r_seq, r_condinit);
 	attempts++;
 	if (!divergence && iter < max_iter) {
 	  fp_index = find_fixed_point_index(nodes, N, tol_fixed_point);
 	  
 	  if (fp_index >= 0) {
 	    // Punto fisso già trovato in precedenza
-	    update_fixed_point_counts(nodes, N, fp_index);
+	    update_fixed_point_counts(fixed_point_counts, fp_index);
 	    same_fixed_point = true;
 	  } else {
 	    // Nuovo punto fisso
-	    add_new_fixed_point(nodes, N, 1);
+	    add_new_fixed_point(nodes, N, 1, fixed_point_counts);
 	    same_fixed_point = false;
 	    
 	  }
@@ -216,6 +254,15 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
 	}
 	seed_seq++;
       }
+
+      long ninitcond_done = seed_condinit - id_0 + 1;
+      if (is_power_of_two(ninitcond_done) && ninitcond_done != num_init_conds && ninitcond_done >= 256){
+	char fileout_checkpoint[300];
+	build_checkpoint_fileout_base(fileout_base, num_init_conds, ninitcond_done,
+				      fileout_checkpoint, sizeof(fileout_checkpoint));
+	print_fixed_points_summary(nodes, N, fileout_checkpoint, seed_graph, attempts, print_avgs, fixed_point_counts);
+      }
+
       seed_condinit++;
     }
     
@@ -225,9 +272,11 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
 
     
     // Stampa i risultati finali
-    print_fixed_points_summary(nodes, N, fileout_base, seed_graph, attempts, print_avgs);
-    
+    print_fixed_points_summary(nodes, N, fileout_base, seed_graph, attempts, print_avgs, fixed_point_counts);
+
     delete [] sequence;
+    gsl_rng_free(r_seq);
+    gsl_rng_free(r_condinit);
 }
 
 
