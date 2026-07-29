@@ -1,6 +1,7 @@
 import os
 import fnmatch
 import statistics
+import sys
 
 
 def read_file(path):
@@ -119,7 +120,7 @@ def write_summary(path_out, filename_out, results):
 def main():
     T = "0"
     eps = "0.000"
-    sigma = "0.000"
+    sigma = sys.argv[1]
     c = "3"
     avn0 = "0.500"
     dn = "0.500"
@@ -127,7 +128,7 @@ def main():
     max_iter = "10000"
     damping = "1.00"
 
-    home_path = "./"
+    home_path = "/home/2a/dm27124/Ecology/Results/IBMF/PhaseDiagram"
     scratch_path = "/mnt/beegfs/2a/dm27124/Ecology"
     path_out = "./ToDownload"
 
