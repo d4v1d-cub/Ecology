@@ -1,4 +1,5 @@
 #include "PBMF_ansatz_convergence.h"
+#include <iomanip>
 
 
 using namespace std;
@@ -39,18 +40,26 @@ int main(int argc, char *argv[]) {
     double n1 = 1e-4;
     double dn = 5e-3;
     double nmax = 2.0;
+    bool adaptive_nmax = false;
+    double tail_tol = 1e-2;
+    double nmax_growth = 1.5;
+    double nmax_limit = 15.0;
 
     cout << fixed;
 
+    cerr << setprecision(17);
+
     parse_arguments(argc, argv, avn_0, random_init, std_n0, id_0, num_init_conds, T, lambda, tol, max_iter,
-                    seed_seq, num_seq, tol_fixed_point, damping, print_avgs, print_responses, 
-                    print_distributions, print_only_last, gr_inside, eps, mu,
-                    sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params, alpha_inverse, n1, dn, nmax);
+                seed_seq, num_seq, tol_fixed_point, damping, print_avgs, print_responses, 
+                print_distributions, print_only_last, gr_inside, eps, mu,
+                sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params, alpha_inverse, n1, dn, nmax,
+                adaptive_nmax, tail_tol, nmax_growth, nmax_limit);
     if (print_params) {
-        print_params_run(avn_0, random_init, std_n0, id_0, num_init_conds, T, lambda, tol, max_iter,
-                         seed_seq, num_seq, tol_fixed_point, damping,
-                         print_avgs, print_responses, print_distributions, print_only_last, gr_inside, eps, mu,
-                         sigma, seed_graph, N, graph_type, c_arg, gr_str, alpha_inverse, n1, dn, nmax);
+        print_params_run(avn_0, std_n0, id_0, num_init_conds, T, lambda, tol, max_iter,
+                 seed_seq, num_seq, tol_fixed_point, damping,
+                 print_avgs, print_responses, print_distributions, print_only_last, gr_inside, eps, mu,
+                 sigma, seed_graph, N, graph_type, c_arg, gr_str, alpha_inverse, n1, dn, nmax,
+                 adaptive_nmax, tail_tol, nmax_growth, nmax_limit);
     }
 
     gsl_set_error_handler_off();
@@ -67,11 +76,12 @@ int main(int argc, char *argv[]) {
         cout << "The program is not prepared to run at T=0, since the convergence process is not well defined in that case. Please set a small but nonzero value of T" << endl;
         exit(1);
     } else {
-        sprintf(fileout_base, "PBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_damping_%.2lf_n1_%.1e_dn_%.1e_nmax_%.3lf", 
-                gr_str, avn_0, std_n0, T, lambda, tol, max_iter, damping, n1, dn, nmax);
+        sprintf(fileout_base, "PBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_damping_%.2lf_n1_%.1e_dn_%.1e", 
+        gr_str, avn_0, std_n0, T, lambda, tol, max_iter, damping, n1, dn);
         several_seq_PBMF(seed_graph, seed_seq, N, M, nodes, edges, T, lambda, tol, max_iter, num_seq, tol_fixed_point,
-                         avn_0, damping, print_only_last, print_avgs, print_responses, print_distributions,
-                         fileout_base, random_init, std_n0, id_0, num_init_conds, n1, dn, nmax);
+                 avn_0, damping, print_only_last, print_avgs, print_responses, print_distributions,
+                 fileout_base, random_init, std_n0, id_0, num_init_conds, n1, dn, nmax,
+                 adaptive_nmax, tail_tol, nmax_growth, nmax_limit);
     }
     
     

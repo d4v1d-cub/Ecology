@@ -8,7 +8,10 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_sf_gamma.h>
-#include "math.h"
+// #include "math.h"
+#include <cmath>
+#include <cstdio>
+
 
 using namespace std;
 
@@ -30,12 +33,10 @@ typedef struct{
     double av_prev_fixed_point; // previous value of av in the fixed point
     double var_prev_fixed_point; // previous value of var in the fixed point
     vector <double> Psingle; // Psingle[n_index] is the probability density of n = n_grid[n_index] in that node
-    vector <double> Psingle_gaussian_part; // Psingle_gaussian_part[n_index] is the result of dividing the probability density 
+    vector <double> Psingle_gaussian_part; // Psingle_gaussian_part[n_index] is the result of dividing the probability density
     // of n = n_grid[n_index] in that node by n^(beta * lambda - 1) and renormalizing it.
-    double normalization_Psingle; // normalization for Psingle, computed in the function compute_averages() and used 
-    // in compute_distributions() if the parameter print_distributions is set to true.
-    double normalization_Psingle_gaussian_part; // normalization for Psingle_gaussian_part, computed in the function compute_averages() and used
-    // in compute_distributions() if the parameter print_distributions is set to true.
+    double log_normalization_Psingle; // logarithm of the normalization of Psingle.
+    double log_normalization_Psingle_gaussian_part; // logarithm of the normalization of Psingle_gaussian_part.
 }Tnode;
 
 
@@ -51,11 +52,17 @@ typedef struct{
     vector < vector <long> > edges_except; // edges that contain the node in nodes_in[i] excepting this edge
     vector < vector <int> > pos_there; // position occupied by the node in nodes_in[i] in those edges
     int edge_index[2]; // position of the edge in the list of edges that contain the node
-    bool converged[2]; // converged[i], with i = {0, 1}. converged[i] is true if the conditional average cond_av[i] arrived to convergence.
+    bool converged[2]; // converged[i], with i = {0, 1}. converged[i] is true if the conditional average cond_av[i] arrived to convergence
+    // the last time this edge/direction was actually iterated. Under selective (subset) adaptive-nmax growth
+    // (see convergence_subset in PBMF_ansatz_convergence.h), an edge that drops out of the active set keeps
+    // whatever converged[] value it had from its last active round -- it is not re-verified on later, larger
+    // grids unless it becomes active again or a full-graph retry occurs. So converged[] reflects "as of the
+    // last round this edge was iterated", which may predate the final accepted grid.
     double response_around_average[2]; // response_around_average[i], with i = {0, 1}. response_around_average[i] is the response of the 
     // variable in nodes_in[i] to a small perturbation around the average value of the variable in nodes_in[1 - i].
-    double response_around_zero[2]; // response_around_average[i], with i = {0, 1}. response_around_average[i] is the response of the 
+    double response_around_zero[2]; // response_around_zero[i], with i = {0, 1}. response_around_zero[i] is the response of the
     // variable in nodes_in[i] to a small perturbation on the variable in nodes_in[1 - i] when the latter is at zero.
+    bool use_log_integration[2]; // flag to signal to use log sum exp in integration
 }Tedge;
 
 
@@ -253,9 +260,15 @@ vector <double> init_grid(double n1, double dn, double nmax){
     vector <double> n_grid;
     n_grid.push_back(0);
     n_grid.push_back(n1);
+
     for (double n = n1 + dn; n <= nmax; n += dn){
         n_grid.push_back(n);
     }
+
+    if ((n_grid.size() - 1) % 2 != 0){
+        n_grid.pop_back();
+    }
+
     return n_grid;
 }
 
@@ -272,7 +285,7 @@ vector <double> compute_simpson_weights(int npoints, double dn){
 }
 
 
-vector <double> compute_fixed_integrand(double beta, double lambda, int p, vector <double> n_grid){
+vector <double> compute_fixed_integrand(double beta, double lambda, int p, const vector <double> &n_grid){
     vector <double> integrand = vector <double> (n_grid.size() - 1, 0);
     for (int i = 1; i < n_grid.size(); i++){
         integrand[i - 1] = pow(n_grid[i], beta * lambda - 1 + p) * exp(-beta * pow(n_grid[i] - 1, 2) / 2);
@@ -287,6 +300,12 @@ void init_cond_av(long M, Tedge *edges, long npoints){
     }
 }
 
+void reset_log_integration_flags(Tedge *edges, long M) {
+    for (long e = 0; e < M; ++e) {
+        edges[e].use_log_integration[0] = false;
+        edges[e].use_log_integration[1] = false;
+    }
+}
 
 void init_auxiliary_vectors(vector <double> &n_grid, vector <double> &simpson_weights, vector <double> &fixed_integrand_num, 
                             vector <double> &fixed_integrand_den, double beta, double lambda, double n1, double dn,
@@ -320,7 +339,7 @@ void produce_random_seq(unsigned long seed_seq, long M, long sequence[]){
 void print_results(double av_n_graph, double error_n_graph, double av_var_n_graph, double error_var_n_graph, int iter, 
                    Tnode *nodes, Tedge *edges, long N, long M, long seed_graph,
                    long seed_seq, long seed_initcond, int max_iter, bool divergence, bool same_fixed_point, 
-                   size_t elapsed, double lambda, double normfactor = 1e-14, double factor_for_deaths=1){
+                   size_t elapsed, double lambda, double factor_for_deaths=1){
     long counter_diverged = 0;
     for (long e = 0; e < M; e++){
         for (int k = 0; k < 2; k++){
@@ -410,7 +429,7 @@ void print_responses_to_file(Tedge *edges, long M, char *fileresponses){
 }
 
 
-void print_distributions_to_file(Tnode *nodes, vector <double> n_grid, long N, char *filedistr){
+void print_distributions_to_file(Tnode *nodes, const vector <double> &n_grid, long N, char *filedistr){
     ofstream fdist(filedistr);
     fdist << "#n\tP_1(n)...\tP_N(n)\tPgauss_1(n)...\tPgauss_N(n)" << endl;
 
@@ -462,7 +481,7 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
                      bool &print_distributions, bool &print_only_last, bool &gr_inside, double &eps, double &mu,
                      double &sigma, unsigned long &seed_graph, long &N, char * graph_type,
                      double &c, char *input_graph_name, bool &print_params, bool &alpha_inverse, 
-                     double &n1, double &dn, double &nmax){
+                     double &n1, double &dn, double &nmax, bool &adaptive_nmax, double &tail_tol, double &nmax_growth, double &nmax_limit){
     int arg_index = 1;
     while (arg_index < argc){
         if (string(argv[arg_index]) == "-h" || string(argv[arg_index]) == "--help"){
@@ -497,6 +516,10 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "--n1 [double: 1e-4] :: second point of the grid for the distributions. The first point is always 0, and the second" << endl;
             cerr << "--dn [double: 5e-3] :: step of the grid for the distributions. The points are generated as (0, n1, n1+dn, n1+2*dn, ...)" << endl;
             cerr << "--nmax [double: 2.0] :: maximum value of the grid for the distributions" << endl;
+            cerr << "--adaptive_nmax :: if this flag is added, nmax is increased " << "until P(nmax)/max(P) is small enough" << endl;
+            cerr << "--tail_tol [double: 1e-2] :: tolerance for the adaptive " << "nmax boundary criterion" << endl;
+            cerr << "--nmax_growth [double: 1.5] :: multiplicative factor used " << "to increase nmax" << endl;
+            cerr << "--nmax_limit [double: 15.0] :: maximum allowed value of " << "nmax in the adaptive procedure" << endl;
             exit(0);
         }
         if (string(argv[arg_index]) == "--avn_0"){
@@ -613,6 +636,21 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             arg_index++;
             nmax = atof(argv[arg_index]);
             arg_index++;
+        }else if (string(argv[arg_index]) == "--adaptive_nmax"){
+            adaptive_nmax = true;
+            arg_index++;
+        }else if (string(argv[arg_index]) == "--tail_tol"){
+            arg_index++;
+            tail_tol = atof(argv[arg_index]);
+            arg_index++;
+        }else if (string(argv[arg_index]) == "--nmax_growth"){
+            arg_index++;
+            nmax_growth = atof(argv[arg_index]);
+            arg_index++;
+        }else if (string(argv[arg_index]) == "--nmax_limit"){
+            arg_index++;
+            nmax_limit = atof(argv[arg_index]);
+            arg_index++;
         }else{
             cerr << "Unknown argument: " << argv[arg_index] << endl;
             exit(1);
@@ -621,13 +659,13 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
 }
 
 
-void print_params_run(double avn_0, bool random_init, double std_n0,
+void print_params_run(double avn_0, double std_n0,
                      unsigned long id_0, int num_init_conds, double T, double lambda, double tol, 
                      int max_iter, unsigned long seed_seq, unsigned long num_seq,
                      double tol_fixed_point, double damping, bool print_avgs, bool print_responses, 
                      bool print_distributions, bool print_only_last, bool gr_inside, double eps, double mu,
                      double sigma, unsigned long seed_graph, long N, char * graph_type,
-                     double c, char *input_graph_name, bool alpha_inverse, double n1, double dn, double nmax){
+                     double c, char *input_graph_name, bool alpha_inverse, double n1, double dn, double nmax, bool adaptive_nmax, double tail_tol, double nmax_growth, double nmax_limit){
     cerr << "Initial average abundance: " << avn_0 << endl;
     cerr << "Random initial condition std_n0=" << std_n0 << "   extracted  " << num_init_conds << " times, with initial seed " << id_0 << endl;
     cerr << "Temperature: " << T << endl;
@@ -675,6 +713,14 @@ void print_params_run(double avn_0, bool random_init, double std_n0,
         if (alpha_inverse){
             cerr << "The program will read the input graph assuming that the interactions are given in the inverse order" << endl;
         }
+    }
+    if (adaptive_nmax){
+    cerr << "Adaptive nmax is enabled" << endl;
+    cerr << "Tail tolerance: " << tail_tol << endl;
+    cerr << "nmax growth factor: " << nmax_growth << endl;
+    cerr << "nmax limit: " << nmax_limit << endl;
+    }else{
+    cerr << "Adaptive nmax is disabled" << endl;
     }
 }
 
