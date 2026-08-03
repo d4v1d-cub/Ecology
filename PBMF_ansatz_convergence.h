@@ -1412,7 +1412,8 @@ void several_seq_PBMF(unsigned long seed_graph, unsigned long seed_seq_init,
                       double avn_0, double damping, bool print_only_last, bool print_avgs, 
                       bool print_responses, bool print_distributions, char * fileout_base, 
                       bool random_init, double std_n0, unsigned long id_0, int num_init_conds,
-                      double n1, double dn, double nmax, bool adaptive_nmax, double tail_tol, double nmax_growth, double nmax_limit){
+                      double n1, double dn, double nmax, bool adaptive_nmax, double tail_tol, 
+                      double nmax_growth, double nmax_limit){
     double beta = 1.0 / T;
 
     double hmax = find_divergence_max(beta, 1 + beta * lambda / 2);
@@ -1424,9 +1425,9 @@ void several_seq_PBMF(unsigned long seed_graph, unsigned long seed_seq_init,
     sequence = new long[M];
     bool divergence;
 
-    char fileavgs[300];
-    char fileresponses[300];
-    char filedistributions[300];
+    char fileavgs[400];
+    char fileresponses[400];
+    char filedistributions[400];
     
     
     divergence = false;
@@ -1460,32 +1461,32 @@ if (adaptive_nmax) {
     if (!print_only_last){
         print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_var_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed, lambda);
         if (print_avgs){
-            sprintf(fileavgs, "%s_nmax_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax, seed_seq, seed_condinit);
+            sprintf(fileavgs, "%s_nmaxlimit_%.3lf_av_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax_limit, seed_seq, seed_condinit);
             print_node_avgs_to_file(nodes, N, fileavgs);
         }
         if (print_responses){
-            sprintf(fileresponses,"%s_nmax_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+            sprintf(fileresponses,"%s_nmaxlimit_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
             compute_responses(nodes, edges, n_grid, beta, M);
             print_responses_to_file(edges, M, fileresponses);
         }
         if (print_distributions){
-            sprintf(filedistributions,"%s_nmax_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+            sprintf(filedistributions,"%s_nmaxlimit_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
             compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, lambda, N);
             print_distributions_to_file(nodes, n_grid, N, filedistributions);
         }
     }else if(divergence || iter >= max_iter){
         print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_var_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq, seed_condinit, max_iter, divergence, true, elapsed, lambda);
         if (print_avgs){
-            sprintf(fileavgs, "%s_nmax_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax, seed_seq, seed_condinit);
+            sprintf(fileavgs, "%s_nmaxlimit_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax_limit, seed_seq, seed_condinit);
             print_node_avgs_to_file(nodes, N, fileavgs);
         }
         if (print_responses){
-            sprintf(fileresponses,"%s_nmax_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+            sprintf(fileresponses,"%s_nmaxlimit_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
             compute_responses(nodes, edges, n_grid, beta, M);
             print_responses_to_file(edges, M, fileresponses);
         }
         if (print_distributions){
-            sprintf(filedistributions,"%s_nmax_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+            sprintf(filedistributions,"%s_nmaxlimit_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
             compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, lambda, N);
             print_distributions_to_file(nodes, n_grid, N, filedistributions);
         }
@@ -1512,16 +1513,16 @@ if (adaptive_nmax) {
             if (!print_only_last){
                 print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_var_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed, lambda);
                 if (print_avgs){
-                    sprintf(fileavgs, "%s_nmax_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax, seed_seq, seed_condinit);
+                    sprintf(fileavgs, "%s_nmaxlimit_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax_limit, seed_seq, seed_condinit);
                     print_node_avgs_to_file(nodes, N, fileavgs);
                 }
                 if (print_responses){
-                    sprintf(fileresponses,"%s_nmax_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+                    sprintf(fileresponses,"%s_nmaxlimit_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
                     compute_responses(nodes, edges, n_grid, beta, M);
                     print_responses_to_file(edges, M, fileresponses);
                 }
                 if (print_distributions){
-                    sprintf(filedistributions,"%s_nmax_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+                    sprintf(filedistributions,"%s_nmaxlimit_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
                     compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, lambda, N);
                     print_distributions_to_file(nodes, n_grid, N, filedistributions);
                 }
@@ -1551,16 +1552,16 @@ if (adaptive_nmax) {
                 if (!print_only_last){
                     print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_var_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq, seed_condinit, max_iter, divergence, same_fixed_point, elapsed, lambda);
                     if (print_avgs){
-                        sprintf(fileavgs, "%s_nmax_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax, seed_seq, seed_condinit);
+                        sprintf(fileavgs, "%s_nmaxlimit_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt", fileout_base, nmax_limit, seed_seq, seed_condinit);
                         print_node_avgs_to_file(nodes, N, fileavgs);
                     }
                     if (print_responses){
-                        sprintf(fileresponses,"%s_nmax_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+                        sprintf(fileresponses,"%s_nmaxlimit_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
                         compute_responses(nodes, edges, n_grid, beta, M);
                         print_responses_to_file(edges, M, fileresponses);
                     }
                     if (print_distributions){
-                        sprintf(filedistributions,"%s_nmax_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq, seed_condinit);
+                        sprintf(filedistributions,"%s_nmaxlimit_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq, seed_condinit);
                         compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, lambda, N);
                         print_distributions_to_file(nodes, n_grid, N, filedistributions);
                     }
@@ -1578,16 +1579,16 @@ if (adaptive_nmax) {
         if (print_only_last){
             print_results(av_n_graph, error_av_n_graph, av_var_n_graph, error_var_n_graph, iter, nodes, edges, N, M, seed_graph, seed_seq-1, seed_condinit-1, max_iter, divergence, true, elapsed, lambda);
             if (print_avgs){
-                sprintf(fileavgs,"%s_nmax_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq - 1, seed_condinit - 1);
+                sprintf(fileavgs,"%s_nmaxlimit_%.3lf_average_abundances_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq - 1, seed_condinit - 1);
                 print_node_avgs_to_file(nodes, N, fileavgs);
             }
             if (print_responses){
-                sprintf(fileresponses,"%s_nmax_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq - 1, seed_condinit - 1);
+                sprintf(fileresponses,"%s_nmaxlimit_%.3lf_responses_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq - 1, seed_condinit - 1);
                 compute_responses(nodes, edges, n_grid, beta, M);
                 print_responses_to_file(edges, M, fileresponses);
             }
             if (print_distributions){
-                sprintf(filedistributions,"%s_nmax_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax, seed_seq - 1, seed_condinit - 1);
+                sprintf(filedistributions,"%s_nmaxlimit_%.3lf_distributions_seedseq_%li_seedinit_%li.txt",fileout_base, nmax_limit, seed_seq - 1, seed_condinit - 1);
                 compute_distributions(nodes, edges, n_grid, fixed_integrand_den, beta, lambda, N);
                 print_distributions_to_file(nodes, n_grid, N, filedistributions);
             }

@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     char graph_type[10];
     sprintf(graph_type, "RRG");
     char gr_str[100];
-    sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, int(round(c_arg)), seed_graph);
+    sprintf(gr_str, "gr_in_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_sgraph_%li", eps, mu, sigma, N, int(round(c_arg)), seed_graph);
 
     bool print_params = false;
     bool alpha_inverse = false;
@@ -70,13 +70,13 @@ int main(int argc, char *argv[]) {
 
     create_graph(gr_inside, seed_graph, N, M, nodes, edges, eps, mu, sigma, gr_str, graph_type, c_arg, alpha_inverse);
 
-    char fileout_base[300];
+    char fileout_base[400];
 
     if (T == 0) {
         cout << "The program is not prepared to run at T=0, since the convergence process is not well defined in that case. Please set a small but nonzero value of T" << endl;
         exit(1);
     } else {
-        sprintf(fileout_base, "PBMF_seq_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_T_%.3lf_lambda_%.1e_tol_%.1e_maxiter_%d_damping_%.2lf_n1_%.1e_dn_%.1e", 
+        sprintf(fileout_base, "PBMF_%s_LV_av0_%.3lf_stdn0_%.3lf_T_%.3lf_lda_%.1e_tol_%.1e_maxiter_%d_damping_%.2lf_n1_%.1e_dn_%.1e", 
         gr_str, avn_0, std_n0, T, lambda, tol, max_iter, damping, n1, dn);
         several_seq_PBMF(seed_graph, seed_seq, N, M, nodes, edges, T, lambda, tol, max_iter, num_seq, tol_fixed_point,
                  avn_0, damping, print_only_last, print_avgs, print_responses, print_distributions,
