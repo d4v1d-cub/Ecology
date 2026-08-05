@@ -457,7 +457,7 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long &N, long &M, Tn
         if (graph_type == string("RRG")) {
             int c = (int) round(c_arg);
             M = init_graph_inside_RRG(nodes, edges, N, c, eps, mu, sigma, r);
-            sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, c, seed_graph);
+            sprintf(gr_str, "gr_in_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_sgraph_%li", eps, mu, sigma, N, c, seed_graph);
             gsl_rng_free(r);
         }else{
             cerr << "graph_type must be RRG" << endl;
