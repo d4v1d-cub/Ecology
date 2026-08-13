@@ -13,13 +13,16 @@ and contain a header line followed by whitespace/tab separated columns:
     n, P_1(n), ..., P_N(n), Phat_1(n), ..., Phat_N(n)
 
 For each species column Phat_i(n) we fit A * TruncNorm(n; mu, sigma, a=0, b=inf) and report
-several goodness-of-fit / distance-from-Gaussian diagnostics. Results are aggregated (mean,
-median, std) over the N species of each file and written out as one row per file.
+several goodness-of-fit / distance-from-Gaussian diagnostics. Two complementary measures of
+how close the modified distribution is to a truncated Gaussian are reported in the summary:
+(a) fitting each species individually and aggregating (mean, median, std) the per-species
+errors, and (b) computing the species-averaged distribution first and fitting a single
+truncated Gaussian to that (columns prefixed with "avgdist_"). Summary output is one row per
+input file, written as a single fixed-name CSV inside --output-dir.
 
-For each input file, a companion "<file>_avg_dist_fit.txt" file is also written, containing
-the grid, the (species-)averaged normalized P(n), and the (species-)averaged Phat(n), with two
-commented header rows: the truncated-Gaussian fit diagnostics for a fit done directly to the
-averaged Phat(n) curve, followed by the column names.
+For each input file, a companion "<file>_avg_dist_fit.txt" file is also written (unless
+--skip-avg-dist-files is given), containing the grid, the (species-)averaged normalized P(n),
+the (species-)averaged Phat(n), and their pointwise median/std across species.
 """
 
 import argparse
@@ -46,6 +49,20 @@ FILENAME_RE = re.compile(
 )
 
 DEFAULT_PATTERN = "PBMF_gr_in_RRG_*_distributions_seedseq_*_seedinit_*.txt"
+
+
+def _build_summary_csv_name():
+    """Build the fixed summary CSV filename from the same skeleton as the input
+    filenames, dropping every "<label>_<value>" parameter token (each one becomes a
+    column in the CSV) while keeping the purely literal/structural parts of the name."""
+    skeleton = "PBMF_gr_in_RRG_" + FILENAME_RE.pattern
+    skeleton = re.sub(r"(\w+)_\(\?P<\1>[^)]*\)", "", skeleton)
+    skeleton = skeleton.replace(r"\.txt$", "")
+    skeleton = re.sub(r"_+", "_", skeleton).strip("_")
+    return skeleton + ".csv"
+
+
+SUMMARY_CSV_NAME = _build_summary_csv_name()
 
 
 def parse_filename(path):
@@ -188,16 +205,11 @@ AVG_DIST_SUFFIX = "_avg_dist_fit.txt"
 
 
 def write_average_distribution_file(path, output_dir, n, avgP, avgPhat,
-                                     medianP, medianPhat, stdP, stdPhat, avg_fit):
+                                     medianP, medianPhat, stdP, stdPhat):
     out_name = os.path.basename(path)[:-len(".txt")] + AVG_DIST_SUFFIX
     out_path = os.path.join(output_dir, out_name)
 
-    if avg_fit is None:
-        fit_line = "average-distribution truncated-Gaussian fit failed"
-    else:
-        fit_line = "\t".join(f"{key}={avg_fit[key]:.6e}" for key in METRIC_KEYS)
-
-    header = fit_line + "\n" + "\t".join(
+    header = "\t".join(
         ["n", "P_avg", "Phat_avg", "P_median", "Phat_median", "P_std", "Phat_std"]
     )
 
@@ -208,7 +220,7 @@ def write_average_distribution_file(path, output_dir, n, avgP, avgPhat,
     return out_path
 
 
-def process_file(path, upper_truncation="inf", avg_dist_dir=None):
+def process_file(path, upper_truncation="inf", avg_dist_dir=None, write_avg_dist_files=True):
     params = parse_filename(path)
     if params is None:
         print(f"  [skip] filename does not match expected pattern: {path}", file=sys.stderr)
@@ -258,9 +270,13 @@ def process_file(path, upper_truncation="inf", avg_dist_dir=None):
     if avg_fit is None:
         print(f"  [warn] truncated-Gaussian fit to the average distribution failed in {path}",
               file=sys.stderr)
-    write_average_distribution_file(
-        path, avg_dist_dir, n, avgP, avgPhat, medianP, medianPhat, stdP, stdPhat, avg_fit
-    )
+    for key in METRIC_KEYS:
+        summary_row[f"avgdist_{key}"] = avg_fit[key] if avg_fit is not None else np.nan
+
+    if write_avg_dist_files:
+        write_average_distribution_file(
+            path, avg_dist_dir, n, avgP, avgPhat, medianP, medianPhat, stdP, stdPhat
+        )
 
     return summary_row, per_species_df
 
@@ -269,8 +285,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input_dir", help="Folder containing the PBMF distribution files")
     parser.add_argument(
-        "-o", "--output", default="PBMF_truncated_gaussian_fit_summary.csv",
-        help="Path to the summary CSV to write (default: %(default)s)",
+        "--output-dir", default=".",
+        help=f"Directory to write the summary CSV to. Its filename is fixed: "
+             f"{SUMMARY_CSV_NAME} (default: %(default)s)",
     )
     parser.add_argument(
         "--pattern", default=DEFAULT_PATTERN,
@@ -288,7 +305,12 @@ def main():
     parser.add_argument(
         "--avg-dist-dir", default=None,
         help="Directory to write the per-file average-distribution .txt files to "
-             "(default: same directory as --output).",
+             "(default: same as --output-dir).",
+    )
+    parser.add_argument(
+        "--skip-avg-dist-files", action="store_true",
+        help="Do not write the per-file average-distribution .txt files. The summary CSV "
+             "is produced as usual (including the avgdist_* columns).",
     )
     args = parser.parse_args()
 
@@ -297,15 +319,18 @@ def main():
         print(f"No files matching '{args.pattern}' found in {args.input_dir}", file=sys.stderr)
         sys.exit(1)
 
-    avg_dist_dir = args.avg_dist_dir or os.path.dirname(os.path.abspath(args.output)) or "."
-    os.makedirs(avg_dist_dir, exist_ok=True)
+    os.makedirs(args.output_dir, exist_ok=True)
+    avg_dist_dir = args.avg_dist_dir or args.output_dir
+    if not args.skip_avg_dist_files:
+        os.makedirs(avg_dist_dir, exist_ok=True)
 
     summary_rows = []
     per_species_frames = []
     for path in files:
         print(f"Processing {os.path.basename(path)} ...")
         summary_row, per_species_df = process_file(
-            path, upper_truncation=args.upper_truncation, avg_dist_dir=avg_dist_dir
+            path, upper_truncation=args.upper_truncation, avg_dist_dir=avg_dist_dir,
+            write_avg_dist_files=not args.skip_avg_dist_files,
         )
         if summary_row is None:
             continue
@@ -321,8 +346,9 @@ def main():
     lead_cols = ["T", "mu", "eps", "sigma", "sgraph", "seedinit"]
     other_cols = [c for c in summary_df.columns if c not in lead_cols]
     summary_df = summary_df[lead_cols + other_cols]
-    summary_df.to_csv(args.output, sep="\t", index=False)
-    print(f"Wrote summary for {len(summary_df)} file(s) to {args.output}")
+    output_path = os.path.join(args.output_dir, SUMMARY_CSV_NAME)
+    summary_df.to_csv(output_path, sep="\t", index=False)
+    print(f"Wrote summary for {len(summary_df)} file(s) to {output_path}")
 
     if args.per_species_output is not None:
         pd.concat(per_species_frames, ignore_index=True).to_csv(
