@@ -156,6 +156,52 @@ void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsign
 }
 
 /**
+ * @brief Write pairwise distances between all distinct fixed points, with multiplicity
+ * @param nodes Array of species nodes (nodes[i].fixed_points[k] holds species i's abundance at fixed point k)
+ * @param N Number of species
+ * @param fileout_base Base file name; output is written to "<fileout_base>_pairwise_dist.txt"
+ * @param fixed_point_counts Number of times each distinct fixed point was found
+ *
+ * For every pair of distinct fixed points (k, l), k < l, writes a row with the
+ * normalized Euclidean distance ||n_k - n_l|| / sqrt(N) and multiplicity
+ * count_k * count_l. Pairs of attempts that converged to the SAME fixed point
+ * (distance 0) are also included, with multiplicity count_k * (count_k - 1) / 2,
+ * so the file directly gives the weights needed for a P(q) histogram.
+ */
+void print_pairwise_distances(Tnode *nodes, long N, char *fileout_base,
+                              const vector<int> &fixed_point_counts) {
+    int num_fixed_points = nodes[0].fixed_points.size();
+    char filedist[300];
+    sprintf(filedist, "%s_pairwise_dist.txt", fileout_base);
+
+    FILE *fdist = fopen(filedist, "w");
+    fprintf(fdist, "# distance multiplicity\n");
+
+    double sqrtN = sqrt((double)N);
+
+    for (int k = 0; k < num_fixed_points; k++) {
+        long long Mk = fixed_point_counts[k];
+        if (Mk > 1) {
+            long long mult0 = Mk * (Mk - 1) / 2;
+            fprintf(fdist, "%.10f %lld\n", 0.0, mult0);
+        }
+        for (int l = k + 1; l < num_fixed_points; l++) {
+            double sumsq = 0.0;
+            for (long i = 0; i < N; i++) {
+                double diff = nodes[i].fixed_points[k] - nodes[i].fixed_points[l];
+                sumsq += diff * diff;
+            }
+            double dist = sqrt(sumsq) / sqrtN;
+            long long mult = Mk * (long long)fixed_point_counts[l];
+            fprintf(fdist, "%.10f %lld\n", dist, mult);
+        }
+    }
+
+    fclose(fdist);
+    printf("Pairwise distances saved in: %s\n", filedist);
+}
+
+/**
  * @brief Build a checkpoint file base name by replacing the "_ninitcond_<N>" token
  * @param fileout_base Original file base, containing "_ninitcond_<num_init_conds>"
  * @param num_init_conds Total number of initial conditions the original base was built with
@@ -187,9 +233,10 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
                          long N, Tnode *nodes, double tol,
                          int max_iter, unsigned long num_seq, double tol_fixed_point,
                          double avn_0, double damping, 
-                         bool print_avgs, 
-                         char * fileout_base, bool random_init, double dn, 
-                         unsigned long id_0, int num_init_conds) {
+                         bool print_avgs,
+                         char * fileout_base, bool random_init, double dn,
+                         unsigned long id_0, int num_init_conds, bool pairwise_dist,
+                         bool no_checkpoints) {
 
     long *sequence;
     sequence = new long[N];
@@ -250,7 +297,7 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
       }
 
       long ninitcond_done = seed_condinit - id_0 + 1;
-      if (is_power_of_two(ninitcond_done) && ninitcond_done != num_init_conds && ninitcond_done >= 256){
+      if (!no_checkpoints && is_power_of_two(ninitcond_done) && ninitcond_done != num_init_conds && ninitcond_done >= 256){
 	char fileout_checkpoint[300];
 	build_checkpoint_fileout_base(fileout_base, num_init_conds, ninitcond_done,
 				      fileout_checkpoint, sizeof(fileout_checkpoint));
@@ -263,6 +310,10 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
     
     // Stampa i risultati finali
     print_fixed_points_summary(nodes, N, fileout_base, seed_graph, attempts, print_avgs, fixed_point_counts);
+
+    if (pairwise_dist) {
+        print_pairwise_distances(nodes, N, fileout_base, fixed_point_counts);
+    }
 
     delete [] sequence;
     gsl_rng_free(r_seq);

@@ -49,18 +49,22 @@ int main(int argc, char *argv[]) {
 
     bool print_params = false;
     bool alpha_inverse = false;
+    bool pairwise_dist = false;
+    bool no_checkpoints = false;
 
     cout << fixed;
 
     parse_arguments(argc, argv, avn_0, random_init, dn, id_0, num_init_conds, T, lambda, tol, max_iter,
                     seed_seq, num_seq, tol_fixed_point, damping,
                     print_avgs, gr_inside, eps, mu,
-                    sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params, alpha_inverse);
+                    sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params, alpha_inverse,
+                    pairwise_dist, no_checkpoints);
     if (print_params) {
         print_params_run(avn_0, random_init, dn, id_0, num_init_conds, T, lambda, tol, max_iter,
                          seed_seq, num_seq, tol_fixed_point, damping,
                          print_avgs, gr_inside, eps, mu,
-                         sigma, seed_graph, N, graph_type, c_arg, gr_str, alpha_inverse);
+                         sigma, seed_graph, N, graph_type, c_arg, gr_str, alpha_inverse, pairwise_dist,
+                         no_checkpoints);
     }
 
     gsl_set_error_handler_off();
@@ -77,7 +81,8 @@ int main(int argc, char *argv[]) {
         several_seq_IBMF_T0(seed_graph, seed_seq, N, nodes, tol,
                             max_iter, num_seq, tol_fixed_point,
                             avn_0, damping, print_avgs,
-                            fileout_base, random_init, dn, id_0, num_init_conds);
+                            fileout_base, random_init, dn, id_0, num_init_conds,
+                            pairwise_dist, no_checkpoints);
     }else{
         cout << "This program only accepts a temperature T=0" << endl;
         exit(1);

@@ -476,7 +476,8 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
                      double &tol_fixed_point, double &damping, bool &print_avgs,
                      bool &gr_inside, double &eps, double &mu,
                      double &sigma, unsigned long &seed_graph, long &N, char * graph_type,
-                     double &c, char *input_graph_name, bool &print_params, bool &alpha_inverse){
+                     double &c, char *input_graph_name, bool &print_params, bool &alpha_inverse,
+                     bool &pairwise_dist, bool &no_checkpoints){
     int arg_index = 1;
     while (arg_index < argc){
         if (string(argv[arg_index]) == "-h" || string(argv[arg_index]) == "--help"){
@@ -505,6 +506,8 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
             cerr << "--input_graph_name  [string]  ::  name of the input graph to insert in the output files (only needed if --gr_inside is not set and --print_avgs is set)" << endl;
             cerr << "--print_params  ::  if this flag is added to the arguments, the program will print the parameters used for the run" << endl;
             cerr << "--alpha_inverse  ::  the program will read the input graph assuming that the interactions are given in the inverse order (is makes sense only if --gr_inside is not set)." << endl;
+            cerr << "--pairwise-dist  ::  if this flag is added to the arguments, the program will write a file with the pairwise distances between all distinct fixed points found, along with their multiplicity, for building a P(q) histogram" << endl;
+            cerr << "--no_checkpoints  ::  if this flag is added to the arguments, the program will not write the intermediate checkpoint summary files, only the final one" << endl;
             exit(0);
         }
         if (string(argv[arg_index]) == "--avn_0"){
@@ -600,6 +603,12 @@ void parse_arguments(int argc, char *argv[], double &avn_0, bool &random_init, d
         }else if (string(argv[arg_index]) == "--alpha_inverse"){
             alpha_inverse = true;
             arg_index++;
+        }else if (string(argv[arg_index]) == "--pairwise-dist"){
+            pairwise_dist = true;
+            arg_index++;
+        }else if (string(argv[arg_index]) == "--no_checkpoints"){
+            no_checkpoints = true;
+            arg_index++;
         }else{
             cerr << "Unknown argument: " << argv[arg_index] << endl;
             exit(1);
@@ -614,7 +623,8 @@ void print_params_run(double avn_0, bool random_init, double dn,
                      double tol_fixed_point, double damping, bool print_avgs,
                      bool gr_inside, double eps, double mu,
                      double sigma, unsigned long seed_graph, long N, char * graph_type,
-                     double c, char *input_graph_name, bool alpha_inverse){
+                     double c, char *input_graph_name, bool alpha_inverse, bool pairwise_dist,
+                     bool no_checkpoints){
     cerr << "Initial average abundance: " << avn_0 << endl;
     cerr << "Random initial condition dn=" << dn << "   extrated  " << num_init_conds << " times, with initial seed " << id_0 << endl;
     cerr << "Temperature: " << T << endl;
@@ -645,6 +655,12 @@ void print_params_run(double avn_0, bool random_init, double dn,
         if (alpha_inverse){
             cerr << "The program will read the input graph assuming that the interactions are given in the inverse order" << endl;
         }
+    }
+    if (pairwise_dist){
+        cerr << "The program will write the pairwise distances between fixed points to a file" << endl;
+    }
+    if (no_checkpoints){
+        cerr << "The program will not write intermediate checkpoint summary files" << endl;
     }
 }
 
