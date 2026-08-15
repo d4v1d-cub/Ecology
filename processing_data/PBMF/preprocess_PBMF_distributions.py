@@ -20,9 +20,12 @@ errors, and (b) computing the species-averaged distribution first and fitting a 
 truncated Gaussian to that (columns prefixed with "avgdist_"). Summary output is one row per
 input file, written as a single fixed-name CSV inside --output-dir.
 
-For each input file, a companion "<file>_avg_dist_fit.txt" file is also written (unless
---skip-avg-dist-files is given), containing the grid, the (species-)averaged normalized P(n),
-the (species-)averaged Phat(n), and their pointwise median/std across species.
+For each input file, two companion files are also written (unless --skip-avg-dist-files is
+given): a "<file>_avg_dist_fit.txt" file containing the grid, the (species-)averaged normalized
+P(n), the (species-)averaged Phat(n), and their pointwise median/std across species; and a
+"<file>_top_nongaussian_species.txt" file containing P(n) and Phat(n) for the --top-nongaussian-n
+(default 3) individual species with the largest per-species L1 fit error (i.e. the least
+Gaussian-looking single-species distributions).
 """
 
 import argparse
@@ -94,6 +97,11 @@ def _truncnorm_std_bounds(lower, upper, mu, sigma):
 def fit_species(n, phat, lower=0.0, upper=np.inf):
     """Fit A * TruncNorm(n; mu, sigma, lower, upper) to phat(n) and compute diagnostics.
 
+    mu is constrained to mu >= lower: abundances (and their average) are non-negative,
+    so a fitted mean below the physical truncation point is not a meaningful result --
+    without this bound a handful of poorly-conditioned species (e.g. flat/noisy phat)
+    can pull curve_fit into a run-away negative-mu, huge-sigma degenerate solution.
+
     Returns a dict of results, or None if the fit could not be performed.
     """
     phat = np.clip(phat, 0.0, None)
@@ -121,7 +129,7 @@ def fit_species(n, phat, lower=0.0, upper=np.inf):
             popt, _ = curve_fit(
                 model, n, phat,
                 p0=[A0, mean0, sigma0],
-                bounds=([0.0, -np.inf, 1e-8], [np.inf, np.inf, np.inf]),
+                bounds=([0.0, lower, 1e-8], [np.inf, np.inf, np.inf]),
                 maxfev=5000,
             )
     except (RuntimeError, ValueError):
@@ -220,7 +228,38 @@ def write_average_distribution_file(path, output_dir, n, avgP, avgPhat,
     return out_path
 
 
-def process_file(path, upper_truncation="inf", avg_dist_dir=None, write_avg_dist_files=True):
+TOP_NONGAUSSIAN_SUFFIX = "_top_nongaussian_species.txt"
+
+
+def write_top_nongaussian_file(path, output_dir, n, P, Phat, per_species_df, n_top=3):
+    """Write P(n) and Phat(n) for the n_top species with the largest per-species L1 fit
+    error (error_fit), i.e. the individual species whose modified distribution looks
+    least like a truncated Gaussian. One header comment line per selected species (rank,
+    species number, and all its fit diagnostics) precedes the column-name header line."""
+    out_name = os.path.basename(path)[:-len(".txt")] + TOP_NONGAUSSIAN_SUFFIX
+    out_path = os.path.join(output_dir, out_name)
+
+    ranked = per_species_df.sort_values("error_fit", ascending=False).head(n_top)
+
+    header_lines = []
+    columns = ["n"]
+    data_cols = [n]
+    for rank, (_, row) in enumerate(ranked.iterrows(), start=1):
+        species_num = int(row["species_index"]) + 1
+        metrics = " ".join(f"{key}={row[key]:.6e}" for key in METRIC_KEYS)
+        header_lines.append(f"rank={rank} species={species_num} {metrics}")
+        columns += [f"P_species{species_num}", f"Phat_species{species_num}"]
+        data_cols += [P[:, species_num - 1], Phat[:, species_num - 1]]
+
+    header = "\n".join(header_lines) + "\n" + "\t".join(columns)
+    data = np.column_stack(data_cols)
+    fmt = ["%.6f"] + ["%.6e"] * (len(data_cols) - 1)
+    np.savetxt(out_path, data, fmt=fmt, delimiter="\t", header=header, comments="#")
+    return out_path
+
+
+def process_file(path, upper_truncation="inf", avg_dist_dir=None, write_avg_dist_files=True,
+                  top_nongaussian_n=3):
     params = parse_filename(path)
     if params is None:
         print(f"  [skip] filename does not match expected pattern: {path}", file=sys.stderr)
@@ -277,6 +316,9 @@ def process_file(path, upper_truncation="inf", avg_dist_dir=None, write_avg_dist
         write_average_distribution_file(
             path, avg_dist_dir, n, avgP, avgPhat, medianP, medianPhat, stdP, stdPhat
         )
+        write_top_nongaussian_file(
+            path, avg_dist_dir, n, P, Phat, per_species_df, n_top=top_nongaussian_n
+        )
 
     return summary_row, per_species_df
 
@@ -309,8 +351,14 @@ def main():
     )
     parser.add_argument(
         "--skip-avg-dist-files", action="store_true",
-        help="Do not write the per-file average-distribution .txt files. The summary CSV "
-             "is produced as usual (including the avgdist_* columns).",
+        help="Do not write the per-file average-distribution and top-nongaussian-species "
+             ".txt files. The summary CSV is produced as usual (including the avgdist_* "
+             "columns).",
+    )
+    parser.add_argument(
+        "--top-nongaussian-n", type=int, default=3,
+        help="Number of individual species (largest per-species L1 fit error) to include "
+             "in the per-file top-nongaussian-species .txt output (default: %(default)s).",
     )
     args = parser.parse_args()
 
@@ -331,6 +379,7 @@ def main():
         summary_row, per_species_df = process_file(
             path, upper_truncation=args.upper_truncation, avg_dist_dir=avg_dist_dir,
             write_avg_dist_files=not args.skip_avg_dist_files,
+            top_nongaussian_n=args.top_nongaussian_n,
         )
         if summary_row is None:
             continue
