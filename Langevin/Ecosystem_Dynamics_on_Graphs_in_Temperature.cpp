@@ -127,7 +127,7 @@ int main(int argc, char **argv){
         if(print_graph){
             snprintf(name_buffer, CHAR_LENGHT, "%s/Extractions/Extraction_%d_Interaction_Matrix_Sparse_mu_%s_sigma_%s_T_%s.txt", dir_name, n, mu_label, sigma_label, T_label);
             fp = my_open_writing_file(name_buffer);
-            save_matrix_to_file_sparse_ijaij(interaction_matrix, N, fp);
+            save_matrix_to_file_sparse_ijaijaji(interaction_matrix, N, fp);
             fclose(fp);
         }
         // CREATE ECOSYSTEM
