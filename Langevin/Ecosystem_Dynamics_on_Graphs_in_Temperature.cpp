@@ -49,15 +49,20 @@ int main(int argc, char **argv){
     bool print_avgs = false;
     bool print_graph = false;
     bool print_init = false;
+    bool gr_inside = true;
+    char *input_graph_name = my_char_malloc(CHAR_LENGHT);
+    snprintf(input_graph_name, CHAR_LENGHT, "%s", "");
+    bool aji_aij = false;
 
     parse_arguments(argc, argv, N, c, c_label, mu, mu_label, sigma, sigma_label,
                      epsilon, epsilon_label, T, T_label, N_ext, N_previous_ext, N_meas,
                      lambda, t_max, deltat_save, print_hist, print_avgs, print_graph,
-                     print_init, print_parameters);
+                     print_init, print_parameters, gr_inside, input_graph_name, aji_aij);
     if(print_parameters){
         print_params(N, c, c_label, mu, mu_label, sigma, sigma_label, epsilon, epsilon_label,
                      T, T_label, N_ext, N_previous_ext, N_meas, lambda, t_max, deltat_save,
-                     print_hist, print_avgs, print_graph, print_init);
+                     print_hist, print_avgs, print_graph, print_init,
+                     gr_inside, input_graph_name, aji_aij);
     }
 
     char ia_label[] = "Partially_AsymGauss";
@@ -109,20 +114,31 @@ int main(int argc, char **argv){
     for(n=(N_previous_ext+1); n<=(N_previous_ext+N_ext); n++){
         seeds_from_dev_random_and_time(&my_seed); // Generate Random Seed
         srand48(my_seed); // The random seed is given
-        // Generate the sequence
-        graphical = MY_FALSE;
-        while(not graphical){
-            fill_array(rds, (int) c, N);
-            qsort(rds, N, sizeof(int), compare_desc);
-            fhs = rds[0]; // First Hub Size
-            if(N > fhs){
-                crossindex = my_int_realloc(crossindex, fhs+1);
-                kstar = build_crossing_index_table_remove_zeros(crossindex, rds, fhs, N);
-                graphical = erdos_gallai_test(rds, N, crossindex, kstar);
+        if(gr_inside){
+            // Generate the sequence
+            graphical = MY_FALSE;
+            while(not graphical){
+                fill_array(rds, (int) c, N);
+                qsort(rds, N, sizeof(int), compare_desc);
+                fhs = rds[0]; // First Hub Size
+                if(N > fhs){
+                    crossindex = my_int_realloc(crossindex, fhs+1);
+                    kstar = build_crossing_index_table_remove_zeros(crossindex, rds, fhs, N);
+                    graphical = erdos_gallai_test(rds, N, crossindex, kstar);
+                }
+            }   // We get a graphical degree sequence
+            // GENERATE INTERACTION MATRIX
+            graph_from_degree_sequence(interaction_matrix, N, rds, rdsp, fingerprint, crossindex, kstar, ia_generator, mu, sigma, epsilon);
+        }else{
+            // READ INTERACTION MATRIX FROM FILE
+            fp = my_open_reading_file(input_graph_name);
+            if(aji_aij){
+                load_matrix_from_file_sparse_ij_ajiaij(interaction_matrix, N, fp);
+            }else{
+                load_matrix_from_file_sparse_ij_aijaji(interaction_matrix, N, fp);
             }
-        }   // We get a graphical degree sequence
-        // GENERATE INTERACTION MATRIX
-        graph_from_degree_sequence(interaction_matrix, N, rds, rdsp, fingerprint, crossindex, kstar, ia_generator, mu, sigma, epsilon);
+            fclose(fp);
+        }
         // Optionally keep a copy of the interaction graph on disk, for inspection only: the ecosystem is loaded directly from interaction_matrix below
         if(print_graph){
             snprintf(name_buffer, CHAR_LENGHT, "%s/Extractions/Extraction_%d_Interaction_Matrix_Sparse_mu_%s_sigma_%s_T_%s.txt", dir_name, n, mu_label, sigma_label, T_label);
@@ -154,16 +170,29 @@ int main(int argc, char **argv){
             }else{
                 extract_random_initial_conditions(ecosystem, population_factor);
             }
-            snprintf(name_buffer, CHAR_LENGHT, "%s/Evolutions/Lotka-Volterra_Extraction_%d_Measure_%d_mu_%s_sigma_%s_T_%s.txt", dir_name, n, j, mu_label, sigma_label, T_label);
-            fp_RK = my_open_writing_file(name_buffer);
-            snprintf(name_buffer, CHAR_LENGHT, "%s/Equilibrium_Points/Lotka-Volterra_mu_%s_sigma_%s_T_%s_Extraction_%d_Measure_%d_Equilibrium_Points.txt", dir_name, mu_label, sigma_label, T_label, n, j);
-            fp_eq = my_open_writing_file(name_buffer);
+            // Only create the trajectories/equilibrium files if they will actually be filled
+            if(print_hist){
+                snprintf(name_buffer, CHAR_LENGHT, "%s/Evolutions/Lotka-Volterra_Extraction_%d_Measure_%d_mu_%s_sigma_%s_T_%s.txt", dir_name, n, j, mu_label, sigma_label, T_label);
+                fp_RK = my_open_writing_file(name_buffer);
+            }else{
+                fp_RK = NULL;
+            }
+            if(print_avgs){
+                snprintf(name_buffer, CHAR_LENGHT, "%s/Equilibrium_Points/Lotka-Volterra_mu_%s_sigma_%s_T_%s_Extraction_%d_Measure_%d_Equilibrium_Points.txt", dir_name, mu_label, sigma_label, T_label, n, j);
+                fp_eq = my_open_writing_file(name_buffer);
+            }else{
+                fp_eq = NULL;
+            }
             // NUMERICAL INTEGRAION
             Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summary(ecosystem, t_max, h, log_factor, j, &divergence, T, lambda, deltat_save, save_lv_function, fp_summary, fp_RK, fp_eq, my_seed, n, print_hist, print_avgs);
-            fflush(fp_RK);
-            fclose(fp_RK);
-            fflush(fp_eq);
-            fclose(fp_eq);
+            if(print_hist){
+                fflush(fp_RK);
+                fclose(fp_RK);
+            }
+            if(print_avgs){
+                fflush(fp_eq);
+                fclose(fp_eq);
+            }
             fflush(fp_summary);
             printf("Extraction %d Measure %d \n", n, j);
             if(divergence == MY_TRUE){
@@ -186,6 +215,7 @@ int main(int argc, char **argv){
     free(sigma_label);
     free(epsilon_label);
     free(T_label);
+    free(input_graph_name);
     clock_t end = clock();
     time_spent = ((float)(end - begin)) / CLOCKS_PER_SEC;
     printf("\n # Il programma ha impiegato %f secondi.\n # A breve dovrebbe arrivare la mail (se opportunamente richiesto presso i nostri uffici).\n \n", time_spent);

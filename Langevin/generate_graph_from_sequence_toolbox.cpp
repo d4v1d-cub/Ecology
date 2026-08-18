@@ -32,6 +32,30 @@ void load_matrix_to_file_sparse_ijaij(RealMatrix& graph, int N, FILE *fp_matrix)
     return;
 }
 
+// Matches save_matrix_to_file_sparse_ijaijaji's format: reads i, j, then graph(i,j), then graph(j,i)
+void load_matrix_from_file_sparse_ij_aijaji(RealMatrix& graph, int N, FILE *fp_matrix){
+    int i, j;
+    double aij, aji;
+    graph.setZero();
+    while(fscanf(fp_matrix, "%d\t%d\t%lf\t%lf", &i, &j, &aij, &aji) > 0){
+        graph(i, j) = aij;
+        graph(j, i) = aji;
+    }
+    return;
+}
+
+// Same format as load_matrix_from_file_sparse_ij_aijaji, but the two values are swapped: reads i, j, then graph(j,i), then graph(i,j)
+void load_matrix_from_file_sparse_ij_ajiaij(RealMatrix& graph, int N, FILE *fp_matrix){
+    int i, j;
+    double aji, aij;
+    graph.setZero();
+    while(fscanf(fp_matrix, "%d\t%d\t%lf\t%lf", &i, &j, &aji, &aij) > 0){
+        graph(j, i) = aji;
+        graph(i, j) = aij;
+    }
+    return;
+}
+
 int build_crossing_index_table(int *crossindex, int *deg_seq, int fhs, int N){
     int i, k, kp1, kstar;
     bool kstar_notfound = MY_TRUE;

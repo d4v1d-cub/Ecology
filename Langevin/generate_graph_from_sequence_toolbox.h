@@ -23,6 +23,8 @@
     void save_matrix_to_file_sparse_ijaij(RealMatrix& graph, int N, FILE *fp_matrix);
     void save_matrix_to_file_sparse_ijaijaji(RealMatrix& graph, int N, FILE *fp_matrix);
     void load_matrix_to_file_sparse_ijaij(RealMatrix& graph, int N, FILE *fp_matrix);
+    void load_matrix_from_file_sparse_ij_aijaji(RealMatrix& graph, int N, FILE *fp_matrix); // Matches save_matrix_to_file_sparse_ijaijaji's format: reads i, j, then graph(i,j), then graph(j,i)
+    void load_matrix_from_file_sparse_ij_ajiaij(RealMatrix& graph, int N, FILE *fp_matrix); // Same format, but the two values are swapped: reads i, j, then graph(j,i), then graph(i,j)
 
     int build_crossing_index_table(int *crossindex, int *deg_seq, int fhs, int N);
     int build_crossing_index_table_remove_zeros(int *crossindex, int *deg_seq, int fhs, int N);

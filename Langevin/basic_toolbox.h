@@ -126,11 +126,13 @@
                           double &epsilon, char *epsilon_label, double &T, char *T_label,
                           int &N_ext, int &N_previous_ext, int &N_meas, double &lambda,
                           double &t_max, double &deltat_save, bool &print_hist, bool &print_avgs,
-                          bool &print_graph, bool &print_init, bool &print_parameters);
+                          bool &print_graph, bool &print_init, bool &print_parameters,
+                          bool &gr_inside, char *input_graph_name, bool &aji_aij);
     void print_params(int N, double c, char *c_label, double mu, char *mu_label,
                        double sigma, char *sigma_label, double epsilon, char *epsilon_label,
                        double T, char *T_label, int N_ext, int N_previous_ext, int N_meas,
                        double lambda, double t_max, double deltat_save, bool print_hist,
-                       bool print_avgs, bool print_graph, bool print_init);
+                       bool print_avgs, bool print_graph, bool print_init,
+                       bool gr_inside, char *input_graph_name, bool aji_aij);
 
 #endif // _GRAPH_LV_TOOLBOX_H_
