@@ -121,4 +121,16 @@
     int count_pattern_in_dir(const char* file_pattern, const char* directory);
     void my_create_directory(const char* dir_name, int lenght);
 
+    void parse_arguments(int argc, char *argv[], int &N, double &c, char *c_label,
+                          double &mu, char *mu_label, double &sigma, char *sigma_label,
+                          double &epsilon, char *epsilon_label, double &T, char *T_label,
+                          int &N_ext, int &N_previous_ext, int &N_meas, double &lambda,
+                          double &t_max, double &deltat_save, bool &print_hist, bool &print_avgs,
+                          bool &print_graph, bool &print_init, bool &print_parameters);
+    void print_params(int N, double c, char *c_label, double mu, char *mu_label,
+                       double sigma, char *sigma_label, double epsilon, char *epsilon_label,
+                       double T, char *T_label, int N_ext, int N_previous_ext, int N_meas,
+                       double lambda, double t_max, double deltat_save, bool print_hist,
+                       bool print_avgs, bool print_graph, bool print_init);
+
 #endif // _GRAPH_LV_TOOLBOX_H_

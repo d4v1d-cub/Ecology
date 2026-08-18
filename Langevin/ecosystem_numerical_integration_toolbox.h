@@ -4,6 +4,7 @@
 
     /* PREPROCESSOR INCLUSION */
     #include "basic_toolbox.h"
+    #include "generate_graph_from_sequence_toolbox.h"
     #include <chrono>
 
     /* PREPROCESSOR DEFINITION */
@@ -52,7 +53,8 @@
     void load_matrix_from_file(graph *ecosystem, int S, FILE *fp_matrix_file);
     void load_sparse_matrix_from_file(graph *ecosystem, FILE *fp_matrix_file);
     void load_ecosystem_from_file(graph *ecosystem, bool sparsity_flag, FILE *fp_r, FILE *fp_K, FILE *fp_matrix);
-    
+    void load_ecosystem_from_matrix(graph *ecosystem, FILE *fp_r, FILE *fp_K, RealMatrix &interaction_matrix); // Same as load_ecosystem_from_file, but reads the interaction graph directly from memory instead of round-tripping it through a file
+
     void swap_vertex(graph *ecosystem, int i, int j);
     void vertex_realloc(graph *ecosystem, int vertex_index);
     void vertex_rearrangement(graph *ecosystem, int vertex_index);
@@ -61,6 +63,7 @@
 
     void status_set_up_new_measure(graph *ecosystem);
     void extract_and_save_random_initial_conditions(graph *ecosystem, double population_factor, FILE *fp_initial_conditions);
+    void extract_random_initial_conditions(graph *ecosystem, double population_factor); // Same as extract_and_save_random_initial_conditions, but does not write the initial conditions to file
     void extract_and_save_delta_initial_conditions(graph *ecosystem, double population_factor, FILE *fp_initial_conditions);
     void load_initial_conditions(graph *ecosystem, FILE *fp_initial_conditions);
     void load_initial_conditions_from_equilibrium_point(graph *ecosystem, FILE *fp_initial_conditions);
@@ -85,7 +88,7 @@
 
     void Milstein_onestep_GLV_demographic_noise(graph* ecosystem, double *k, double *t_adr, double h, double T, double lambda);
     void Milstein_driver_GLV_demographic_noise_with_single_species_measure(graph* ecosystem, double t_max, double h, double log_factor, int measure_num, bool *divergence_adr, double T, double lambda, double deltat_save, void (*save_lv_function)(graph*, double, FILE*), FILE* fp_RK, FILE* fp_eq);
-    void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summary(graph* ecosystem, double t_max, double h, double log_factor, int measure_num, bool *divergence_adr, double T, double lambda, double deltat_save, void (*save_lv_function)(graph*, double, FILE*), FILE* fp_summary, FILE* fp_RK, FILE* fp_eq, time_t my_seed, int ext_num);
+    void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summary(graph* ecosystem, double t_max, double h, double log_factor, int measure_num, bool *divergence_adr, double T, double lambda, double deltat_save, void (*save_lv_function)(graph*, double, FILE*), FILE* fp_summary, FILE* fp_RK, FILE* fp_eq, time_t my_seed, int ext_num, bool print_hist, bool print_avgs);
     void Milstein_driver_GLV_demographic_noise_only_with_final_summary(graph* ecosystem, double t_max, double h, double log_factor, int measure_num, bool *divergence_adr, double T, double lambda, double deltat_divergence, FILE *fp_summary, time_t my_seed, int ext_num);
     
     void check_ecosystem_divergence(graph* ecosystem, bool *divergence_adr);

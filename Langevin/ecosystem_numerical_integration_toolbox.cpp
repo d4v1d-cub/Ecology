@@ -252,6 +252,44 @@ void load_ecosystem_from_file(graph *ecosystem, bool sparsity_flag, FILE *fp_r, 
     return;
 }
 
+// Same as load_ecosystem_from_file, but reads the interaction graph directly from the in-memory matrix instead of round-tripping it through a file
+void load_ecosystem_from_matrix(graph *ecosystem, FILE *fp_r, FILE *fp_K, RealMatrix &interaction_matrix){
+    int i, j;
+    ecosystem->isolated = 0;
+    ecosystem->extincted = 0;
+    ecosystem->isolated_from_evolution = 0;
+    ecosystem->survived = ecosystem->size;
+    for(i=0; i<ecosystem->size; i++){
+        (*(ecosystem->vtx+i))->degree = 0;
+        (*(ecosystem->vtx+i))->status = 'S';
+        fscanf(fp_r, "%lf", &((*(ecosystem->vtx+i))->r));
+        fscanf(fp_K, "%lf", &((*(ecosystem->vtx+i))->K));
+        (*(ecosystem->vtx+i))->connection = (vertex**) malloc(ecosystem->size * sizeof(vertex*));
+        if ((*(ecosystem->vtx+i))->connection == NULL){
+            printf("\n ERROR: ECOSYSTEM CONNECTION POINTERS MALLOC HAS FAILED \n");
+            exit(MY_MEMORY_FAIL);
+        }
+        (*(ecosystem->vtx+i))->strength = (double*) malloc(ecosystem->size * sizeof(double));
+        if ((*(ecosystem->vtx+i))->strength == NULL){
+            printf("\n ERROR: ECOSYSTEM STRENGTH POINTERS MALLOC HAS FAILED \n");
+            exit(MY_MEMORY_FAIL);
+        }
+    }
+    for(i=0; i<ecosystem->size; i++){
+        for(j=0; j<ecosystem->size; j++){
+            if(interaction_matrix(i, j) != 0){
+                *( ( *(ecosystem->vtx+i) )->connection + ( *(ecosystem->vtx+i) )->degree ) = ( *(ecosystem->vtx+j) );
+                *( ( *(ecosystem->vtx+i) )->strength + ( *(ecosystem->vtx+i) )->degree ) = interaction_matrix(i, j);
+                ( *(ecosystem->vtx+i) )->degree += 1;
+            }
+        }
+    }
+    for(i=ecosystem->size-1; i>=0; i--){
+        vertex_rearrangement(ecosystem, i);
+    }
+    return;
+}
+
 void swap_vertex(graph *ecosystem, int i, int j){
     vertex* tmp_vtx_ptr;
     tmp_vtx_ptr = *(ecosystem->vtx + i);
@@ -367,6 +405,17 @@ void extract_and_save_random_initial_conditions(graph *ecosystem, double populat
         (*(ecosystem->vtx+i))->x = RNG() * population_factor;
         (*(ecosystem->vtx+i))->logN = log( (*(ecosystem->vtx+i))->x );
         fprintf(fp_initial_conditions, "%.17f\n", (*(ecosystem->vtx+i))->logN); 
+    }
+    return;
+}
+
+// Same as extract_and_save_random_initial_conditions, but does not write the initial conditions to file
+void extract_random_initial_conditions(graph *ecosystem, double population_factor){
+    int i;
+    status_set_up_new_measure(ecosystem);
+    for(i=0; i<ecosystem->size; i++){
+        (*(ecosystem->vtx+i))->x = RNG() * population_factor;
+        (*(ecosystem->vtx+i))->logN = log( (*(ecosystem->vtx+i))->x );
     }
     return;
 }
@@ -861,121 +910,11 @@ void Milstein_onestep_GLV_demographic_noise(graph* ecosystem, double *k, double 
     return;
 }
 
-void Milstein_driver_GLV_demographic_noise_with_single_species_measure(graph* ecosystem, double t_max, double h, double log_factor, int measure_num, bool *divergence_adr, double T, double lambda, double deltat_save, void (*save_lv_function)(graph*, double, FILE*), FILE* fp_RK, FILE* fp_eq){
-    int i, j1, j2, effective_steps;
-    int initial_steps = ceil(10/h);
-    int max_steps = ceil(t_max/h)-initial_steps;
-    int eqmeas_steps;
-    double t = 0;
-    double t_save = -2 * deltat_save; // Assures storage of initial values
-    double t_eqcheck; // = 0;
-    double eq_check = 5;
-    double *k;
-    double *eq_pt, *eq_pt_previous, *eq_pt_std, *eq_pt_std_previous;
-    char *species_convergence;
-    int equilibrium_counter = 0;
-
-    k = my_double_malloc(ecosystem->size);
-    eq_pt = my_double_calloc(ecosystem->size);
-    eq_pt_previous = my_double_calloc(ecosystem->size);
-    eq_pt_std = my_double_calloc(ecosystem->size);
-    eq_pt_std_previous = my_double_calloc(ecosystem->size);
-    species_convergence = my_char_malloc(ecosystem->size);
-    *(divergence_adr) = MY_FALSE; // 
-    
-    j2=1; // We initialise here j2 so that we can change it in the following loop
-    // Let's start with the initial transient steps (no check on equilibrium)
-    for(j1=1; j1<=initial_steps; j1++){
-        // Save intermediate abundances into file with the argument function save_lv_function and check divergence
-        if(t-t_save > deltat_save){
-            save_lv_function(ecosystem, t, fp_RK);
-            check_ecosystem_divergence(ecosystem, divergence_adr);
-            if(*(divergence_adr) == MY_TRUE){
-                printf("# Divergence on milstein at %lf, measure %d \n", t, measure_num);
-                effective_steps = j1;
-                j1 = max_steps+2; // We get out of the first loop
-                j2 = max_steps+2; // We get out of the second loop
-            }
-            t_save = t;
-        }
-        Milstein_onestep_GLV_demographic_noise(ecosystem, k, &t, h, T, lambda);
-    }
-    // Reset check equilibrium counters
-    t_eqcheck = t;
-    eqmeas_steps = 0;
-    // Let's start with the steps in which we check equilibrium
-    // We have initialise j2 before, j2=j2
-    for(; j2<=max_steps; j2++){ // Take at most max_steps adaptive steps.
-        // Save intermediate abundances into file with the argument function save_lv_function.
-        if(t-t_save > deltat_save){
-            save_lv_function(ecosystem, t, fp_RK);
-            t_save = t;
-        }
-        Milstein_onestep_GLV_demographic_noise(ecosystem, k, &t, h, T, lambda);
-        // Compute average
-        eqmeas_steps++;
-        for(i=0; i<ecosystem->size; i++){
-            eq_pt[i] += (ecosystem->vtx[i])->x;
-            eq_pt_std[i] += (ecosystem->vtx[i])->x * (ecosystem->vtx[i])->x;
-        }
-        if(t-t_eqcheck > eq_check){ // Each logarithmic interval we check for divergence or equilibrium
-            // Divergence Check
-            check_ecosystem_divergence(ecosystem, divergence_adr);
-            if(*(divergence_adr) == MY_TRUE){
-                printf("# Divergence on milstein at %lf, measure %d \n", t, measure_num);
-                effective_steps = j2+initial_steps;
-                j2 = max_steps+2; // We get out of the loop
-            }
-            else{ // Equilibrium Check
-                // Compute average and check species equilibrium
-                for(i=0; i<ecosystem->size; i++){
-                    eq_pt[i] /= eqmeas_steps;
-                    eq_pt_std[i] /= eqmeas_steps;
-                    eq_pt_std[i] = sqrt(fabs(eq_pt_std[i]-eq_pt[i]*eq_pt[i]));
-                    if(fabs(eq_pt[i]-eq_pt_previous[i]) < eq_pt_std[i]+eq_pt_std_previous[i])
-                        species_convergence[i] = 'T';
-                    else
-                        species_convergence[i] = 'F';
-                }
-                // Check if the equilibrium has been reached for each species
-                check_ecosystem_thermal_equilibrium(ecosystem, &equilibrium_counter, species_convergence);
-                if(equilibrium_counter == NUM_THERM_EQ_INTERVALS){
-                    printf("# Equilibrium reached on measure %d \n", measure_num);
-                    effective_steps = j2+initial_steps;
-                    j2 = max_steps+2; // We get out of the loop at the end of this iteration.
-                }
-                // Reset averages
-                for(i=0; i<ecosystem->size; i++){
-                    eq_pt_previous[i] = eq_pt[i];
-                    eq_pt_std_previous[i] = eq_pt_std[i];
-                    eq_pt[i] = 0;
-                    eq_pt_std[i] = 0;
-                }
-                eqmeas_steps = 0;
-                t_eqcheck = t;
-                eq_check = eq_check * log_factor;
-            }
-        }
-    } // End of the loop on the steps.
-    // Save final results (abundances and speed) into file with the argument function save_lv_function.
-    save_lv_function(ecosystem, t, fp_RK);
-    t_save = t;
-    // Save final data in David format
-    for(i=0; i<ecosystem->size; i++){
-        fprintf(fp_eq, "%d\t%c\t%.17f\t%.17f\n", i, species_convergence[i], eq_pt_previous[i], eq_pt_std_previous[i]);
-    }
-    free(k);
-    free(eq_pt);
-    free(eq_pt_previous);
-    free(eq_pt_std);
-    free(eq_pt_std_previous);
-    free(species_convergence);
-    return;
-}
 
 void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summary(graph* ecosystem, double t_max, double h, double log_factor, int measure_num, 
         bool *divergence_adr, double T, double lambda, double deltat_save, void (*save_lv_function)(graph*, double, FILE*), 
-        FILE *fp_summary, FILE* fp_RK, FILE* fp_eq, time_t my_seed, int ext_num){
+        FILE *fp_summary, FILE* fp_RK, FILE* fp_eq, time_t my_seed, int ext_num, 
+        bool print_hist, bool print_avgs){
     
     int i, j1, j2, effective_steps;
     int initial_steps = ceil(10/h);
@@ -1006,7 +945,9 @@ void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summa
     for(j1=1; j1<=initial_steps; j1++){
         // Save intermediate abundances into file with the argument function save_lv_function and check divergence
         if(t-t_save > deltat_save){
-            save_lv_function(ecosystem, t, fp_RK);
+            if(print_hist){
+                save_lv_function(ecosystem, t, fp_RK);
+            }
             check_ecosystem_divergence(ecosystem, divergence_adr);
             if(*(divergence_adr) == MY_TRUE){
                 printf("# Divergence on milstein at %lf, measure %d \n", t, measure_num);
@@ -1026,7 +967,9 @@ void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summa
     for(; j2<=max_steps; j2++){ // Take at most max_steps adaptive steps.
         // Save intermediate abundances into file with the argument function save_lv_function.
         if(t-t_save > deltat_save){
-            save_lv_function(ecosystem, t, fp_RK);
+            if(print_hist){
+                save_lv_function(ecosystem, t, fp_RK);
+            }
             t_save = t;
         }
         Milstein_onestep_GLV_demographic_noise(ecosystem, k, &t, h, T, lambda);
@@ -1083,12 +1026,15 @@ void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summa
         }
     } // End of the loop on the steps.
     // Save final results (abundances and speed) into file with the argument function save_lv_function.
-    
-    save_lv_function(ecosystem, t, fp_RK);
+    if(print_hist){
+        save_lv_function(ecosystem, t, fp_RK);
+    }
     t_save = t;
     // Save final data in David format
-    for(i=0; i<ecosystem->size; i++){
-        fprintf(fp_eq, "%d\t%c\t%.17f\t%.17f\n", i, species_convergence[i], eq_pt_previous[i], eq_pt_std_previous[i]);
+    if(print_avgs){
+        for(i=0; i<ecosystem->size; i++){
+            fprintf(fp_eq, "%d\t%c\t%.17f\t%.17f\n", i, species_convergence[i], eq_pt_previous[i], eq_pt_std_previous[i]);
+        }
     }
 
     // SUMMARY
@@ -1132,146 +1078,7 @@ void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summa
     return;
 }
 
-void Milstein_driver_GLV_demographic_noise_only_with_final_summary(graph* ecosystem, double t_max, double h, double log_factor, int measure_num, 
-        bool *divergence_adr, double T, double lambda, double deltat_divergence, FILE *fp_summary, time_t my_seed, int ext_num){
-    
-    int i, j1, j2, effective_steps;
-    int initial_steps = ceil(10/h);
-    int max_steps = ceil(t_max/h)-initial_steps;
-    int eqmeas_steps;
-    double t = 0;
-    double t_divcheck = 0;
-    double t_eqcheck; // = 0;
-    double eq_check = 5;
-    double *k;
-    double *eq_pt, *eq_pt_previous, *eq_pt_std, *eq_pt_std_previous;
-    char *species_convergence;
-    int *extinction_counter_circular, circular_idx=0;
-    int equilibrium_counter = 0;
 
-    k = my_double_malloc(ecosystem->size);
-    eq_pt = my_double_calloc(ecosystem->size);
-    eq_pt_previous = my_double_calloc(ecosystem->size);
-    eq_pt_std = my_double_calloc(ecosystem->size);
-    eq_pt_std_previous = my_double_calloc(ecosystem->size);
-    species_convergence = my_char_malloc(ecosystem->size);
-    extinction_counter_circular = my_int_calloc(NUM_THERM_EQ_INTERVALS);
-    *(divergence_adr) = MY_FALSE; // 
-    
-    j2=1; // We initialise here j2 so that we can change it in the following loop
-    // Let's start with the initial transient steps (no check on equilibrium)
-    for(j1=1; j1<=initial_steps; j1++){
-        // Check divergence
-        if(t-t_divcheck > deltat_divergence){
-            check_ecosystem_divergence(ecosystem, divergence_adr);
-            if(*(divergence_adr) == MY_TRUE){
-                printf("# Divergence on milstein at %lf, measure %d \n", t, measure_num);
-                effective_steps = j1;
-                j1 = max_steps+2; // We get out of the first loop
-                j2 = max_steps+2; // We get out of the second loop
-            }
-            t_divcheck = t;
-        }
-        Milstein_onestep_GLV_demographic_noise(ecosystem, k, &t, h, T, lambda);
-    }
-    // Reset check equilibrium counters
-    t_eqcheck = t;
-    eqmeas_steps = 0;
-    // Let's start with the steps in which we check equilibrium
-    // We have initialise j2 before, j2=j2
-    for(; j2<=max_steps; j2++){ // Take at most max_steps adaptive steps.
-        Milstein_onestep_GLV_demographic_noise(ecosystem, k, &t, h, T, lambda);
-        // Compute average
-        eqmeas_steps++;
-        for(i=0; i<ecosystem->size; i++){
-            eq_pt[i] += (ecosystem->vtx[i])->x;
-            eq_pt_std[i] += (ecosystem->vtx[i])->x * (ecosystem->vtx[i])->x;
-        }
-        if(t-t_eqcheck > eq_check){ // Each logarithmic interval we check for divergence or equilibrium
-            // Divergence Check
-            check_ecosystem_divergence(ecosystem, divergence_adr);
-            if(*(divergence_adr) == MY_TRUE){
-                printf("# Divergence on milstein at %lf, measure %d \n", t, measure_num);
-                effective_steps = j2+initial_steps;
-                j2 = max_steps+2; // We get out of the loop
-            }
-            else{ // Equilibrium Check
-                // Compute average and check species equilibrium
-                for(i=0; i<ecosystem->size; i++){
-                    eq_pt[i] /= eqmeas_steps;
-                    eq_pt_std[i] /= eqmeas_steps;
-                    eq_pt_std[i] = sqrt(fabs(eq_pt_std[i]-eq_pt[i]*eq_pt[i]));
-                    if(fabs(eq_pt[i]-eq_pt_previous[i]) < eq_pt_std[i]+eq_pt_std_previous[i])
-                        species_convergence[i] = 'T';
-                    else
-                        species_convergence[i] = 'F';
-                }
-                // Check extinctions
-                extinction_counter_circular[circular_idx] = 0;
-                for(i=0; i<ecosystem->size; i++){
-                    if((ecosystem->vtx[i])->x < lambda)
-                        extinction_counter_circular[circular_idx]++;
-                }
-                circular_idx = (circular_idx + 1) % NUM_THERM_EQ_INTERVALS;
-                // Check if the equilibrium has been reached for each species
-                check_ecosystem_thermal_equilibrium(ecosystem, &equilibrium_counter, species_convergence);
-                if(equilibrium_counter == NUM_THERM_EQ_INTERVALS){
-                    printf("# Equilibrium reached on measure %d \n", measure_num);
-                    effective_steps = j2+initial_steps;
-                    j2 = max_steps+2; // We get out of the loop at the end of this iteration.
-                }
-                // Reset averages
-                for(i=0; i<ecosystem->size; i++){
-                    eq_pt_previous[i] = eq_pt[i];
-                    eq_pt_std_previous[i] = eq_pt_std[i];
-                    eq_pt[i] = 0;
-                    eq_pt_std[i] = 0;
-                }
-                eqmeas_steps = 0;
-                t_eqcheck = t;
-                eq_check = eq_check * log_factor;
-            }
-        }
-    } // End of the loop on the steps.
-
-    // SUMMARY
-    double av_abundance = 0, av_abundance_sqr = 0, av_abundance_std = 0, 
-           av_abundance_std_sqr = 0;
-    double av_extinction = 0;
-    int num_noneq = 0;
-    // Compute averages
-    for(i=0; i<ecosystem->size; i++){
-        av_abundance += eq_pt_previous[i];
-        av_abundance_sqr += eq_pt_previous[i] * eq_pt_previous[i];
-        av_abundance_std += eq_pt_std_previous[i];
-        av_abundance_std_sqr += eq_pt_std_previous[i] * eq_pt_std_previous[i];
-        if (species_convergence[i] == 'F'){
-            num_noneq++;
-        }
-    }
-    av_abundance /= ecosystem->size;
-    av_abundance_sqr /= ecosystem->size;
-    av_abundance_std /= ecosystem->size;
-    av_abundance_std_sqr /= ecosystem->size;
-    for(i=0; i<NUM_THERM_EQ_INTERVALS; i++){
-        av_extinction += extinction_counter_circular[i];
-    }
-    av_extinction /= NUM_THERM_EQ_INTERVALS;
-    // Compute errors
-    double av_abundance_error = sqrt(av_abundance_sqr - av_abundance * av_abundance);
-    double av_abundance_std_error = sqrt(av_abundance_std_sqr - av_abundance_std * av_abundance_std);
-    // Print summary
-    fprintf(fp_summary, "%d\t%d\t%ld\t%.17lf\t%d\t%.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", ext_num, measure_num, my_seed, t, 
-                                                                num_noneq, av_extinction, av_abundance, av_abundance_error, av_abundance_std, av_abundance_std_error);
-    free(k);
-    free(eq_pt);
-    free(eq_pt_previous);
-    free(eq_pt_std);
-    free(eq_pt_std_previous);
-    free(species_convergence);
-    free(extinction_counter_circular);
-    return;
-}
 
 void check_ecosystem_divergence(graph* ecosystem, bool *divergence_adr){
     for(int i=0; i<ecosystem->size; i++){

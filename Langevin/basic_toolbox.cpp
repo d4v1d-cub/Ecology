@@ -813,3 +813,203 @@ void my_create_directory(const char* dir_name, int lenght){
     system(buffer);
     return;
 }
+
+/**
+ * @brief Parses the command line arguments of Ecosystem_Dynamics_on_Graphs_in_Temperature.cpp.
+ *
+ * Every parameter must already hold its default value when this function is called (the caller
+ * sets the defaults, this function only overwrites the ones for which a flag is found in argv).
+ * For the non-integer (double) parameters, both the numeric value AND its exact command-line
+ * string ("label") are kept: the label is reused verbatim to build output file names, so that
+ * file names reflect exactly what the user typed instead of a value reformatted by printf
+ * (which could otherwise silently change file names when re-running with the same arguments).
+ * The label buffers (c_label, mu_label, sigma_label, epsilon_label, T_label) must be pre-allocated
+ * by the caller (e.g. with my_char_malloc(CHAR_LENGHT)) before calling this function, since it
+ * writes into them with snprintf.
+ *
+ * @param argc                number of command line arguments, as received by main
+ * @param argv                command line arguments, as received by main
+ * @param N              [in/out] number of species in the ecosystem
+ * @param c              [in/out] average connectivity of the interaction graph
+ * @param c_label        [out]    string representation of c, exactly as passed on the command line
+ * @param mu             [in/out] average strength of the interactions
+ * @param mu_label       [out]    string representation of mu, exactly as passed on the command line
+ * @param sigma          [in/out] standard deviation of the interactions
+ * @param sigma_label    [out]    string representation of sigma, exactly as passed on the command line
+ * @param epsilon        [in/out] level of asymmetry of the interactions
+ * @param epsilon_label  [out]    string representation of epsilon, exactly as passed on the command line
+ * @param T              [in/out] temperature of the dynamics
+ * @param T_label        [out]    string representation of T, exactly as passed on the command line
+ * @param N_ext          [in/out] number of graph extractions to perform
+ * @param N_previous_ext [in/out] number of extractions already performed in a previous run (offset used for numbering output files)
+ * @param N_meas         [in/out] number of measures (independent initial conditions) per extraction
+ * @param lambda         [in/out] immigration rate / extinction threshold of the demographic noise dynamics
+ * @param t_max          [in/out] maximum simulated time for each measure
+ * @param deltat_save    [in/out] simulated time between two consecutive trajectory samples
+ * @param print_hist     [out]    set to true if --print_hist is found; if true, species trajectories are written to file
+ * @param print_avgs     [out]    set to true if --print_avgs is found; if true, final average abundances are written to file
+ * @param print_graph    [out]    set to true if --print_graph is found; if true, the extracted interaction graph is additionally written to file for inspection (the ecosystem itself is always loaded directly from memory)
+ * @param print_init     [out]    set to true if --print_init is found; if true, the initial conditions are additionally written to a log file for inspection (the ecosystem state is always set directly in memory)
+ * @param print_parameters [out]  set to true if --print_parameters is found; the caller should then call print_params()
+ */
+void parse_arguments(int argc, char *argv[], int &N, double &c, char *c_label,
+                      double &mu, char *mu_label, double &sigma, char *sigma_label,
+                      double &epsilon, char *epsilon_label, double &T, char *T_label,
+                      int &N_ext, int &N_previous_ext, int &N_meas, double &lambda,
+                      double &t_max, double &deltat_save, bool &print_hist, bool &print_avgs,
+                      bool &print_graph, bool &print_init, bool &print_parameters){
+    int arg_index = 1;
+    while(arg_index < argc){
+        if(strcmp(argv[arg_index], "-h") == 0 || strcmp(argv[arg_index], "--help") == 0){
+            fprintf(stderr, "Usage: %s [options]\n", argv[0]);
+            fprintf(stderr, "The following list describes the command line arguments\n");
+            fprintf(stderr, "the structure is --arg_name  [data_type: default]  ::  description\n");
+            fprintf(stderr, "-N or --size  [int: 256]  ::  number of species in the ecosystem\n");
+            fprintf(stderr, "-c or --connect  [double: 3.000]  ::  average connectivity of the interaction graph\n");
+            fprintf(stderr, "--mu  [double: 0.100]  ::  average strength of the interactions\n");
+            fprintf(stderr, "--sigma  [double: 0.000]  ::  standard deviation of the interactions\n");
+            fprintf(stderr, "--epsilon  [double: 1.000]  ::  level of asymmetry of the interactions\n");
+            fprintf(stderr, "-T or --temp  [double: 0.010]  ::  temperature of the dynamics\n");
+            fprintf(stderr, "--N_ext  [int: 1]  ::  number of graph extractions to perform\n");
+            fprintf(stderr, "--N_prev_ext  [int: 0]  ::  number of extractions already performed in a previous run (offset used for numbering output files)\n");
+            fprintf(stderr, "--N_meas  [int: 1]  ::  number of measures (independent initial conditions) per extraction\n");
+            fprintf(stderr, "--lambda  [double: 1e-06]  ::  immigration rate / extinction threshold of the demographic noise dynamics\n");
+            fprintf(stderr, "--t_max  [double: 4000]  ::  maximum simulated time for each measure\n");
+            fprintf(stderr, "--deltat_save  [double: 2.0]  ::  simulated time between two consecutive trajectory samples\n");
+            fprintf(stderr, "--print_hist  ::  if this flag is added to the arguments, the program will print the species trajectories to file\n");
+            fprintf(stderr, "--print_avgs  ::  if this flag is added to the arguments, the program will print the final average abundances to file\n");
+            fprintf(stderr, "--print_graph  ::  if this flag is added to the arguments, the extracted interaction graph is additionally written to file for inspection\n");
+            fprintf(stderr, "--print_init  ::  if this flag is added to the arguments, the initial conditions are additionally written to a log file for inspection\n");
+            fprintf(stderr, "--print_parameters  ::  if this flag is added to the arguments, the program will print the parameters used for the run\n");
+            exit(MY_SUCCESS);
+        }else if(strcmp(argv[arg_index], "-N") == 0 || strcmp(argv[arg_index], "--size") == 0){
+            arg_index++;
+            N = atoi(argv[arg_index]);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "-c") == 0 || strcmp(argv[arg_index], "--connect") == 0){
+            arg_index++;
+            snprintf(c_label, CHAR_LENGHT, "%s", argv[arg_index]);
+            c = atof(c_label);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--mu") == 0){
+            arg_index++;
+            snprintf(mu_label, CHAR_LENGHT, "%s", argv[arg_index]);
+            mu = atof(mu_label);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--sigma") == 0){
+            arg_index++;
+            snprintf(sigma_label, CHAR_LENGHT, "%s", argv[arg_index]);
+            sigma = atof(sigma_label);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--epsilon") == 0){
+            arg_index++;
+            snprintf(epsilon_label, CHAR_LENGHT, "%s", argv[arg_index]);
+            epsilon = atof(epsilon_label);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "-T") == 0 || strcmp(argv[arg_index], "--temp") == 0){
+            arg_index++;
+            snprintf(T_label, CHAR_LENGHT, "%s", argv[arg_index]);
+            T = atof(T_label);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--N_ext") == 0){
+            arg_index++;
+            N_ext = atoi(argv[arg_index]);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--N_prev_ext") == 0){
+            arg_index++;
+            N_previous_ext = atoi(argv[arg_index]);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--N_meas") == 0){
+            arg_index++;
+            N_meas = atoi(argv[arg_index]);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--lambda") == 0){
+            arg_index++;
+            lambda = atof(argv[arg_index]);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--t_max") == 0){
+            arg_index++;
+            t_max = atof(argv[arg_index]);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--deltat_save") == 0){
+            arg_index++;
+            deltat_save = atof(argv[arg_index]);
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--print_hist") == 0){
+            print_hist = true;
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--print_avgs") == 0){
+            print_avgs = true;
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--print_graph") == 0){
+            print_graph = true;
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--print_init") == 0){
+            print_init = true;
+            arg_index++;
+        }else if(strcmp(argv[arg_index], "--print_parameters") == 0){
+            print_parameters = true;
+            arg_index++;
+        }else{
+            fprintf(stderr, "\n ERROR: Unknown argument: %s\n", argv[arg_index]);
+            exit(MY_VALUE_ERROR);
+        }
+    }
+    return;
+}
+
+/**
+ * @brief Prints to stderr the parameters that will be used for the run.
+ *
+ * Meant to be called right after parse_arguments(), and only when the user requested it
+ * via the --print_parameters flag, so that a run's parameters can be logged/checked without
+ * having to grep them back out of the output file names.
+ *
+ * @param N              number of species in the ecosystem
+ * @param c              average connectivity of the interaction graph
+ * @param c_label        string representation of c, as used to build output file names
+ * @param mu             average strength of the interactions
+ * @param mu_label       string representation of mu, as used to build output file names
+ * @param sigma          standard deviation of the interactions
+ * @param sigma_label    string representation of sigma, as used to build output file names
+ * @param epsilon        level of asymmetry of the interactions
+ * @param epsilon_label  string representation of epsilon, as used to build output file names
+ * @param T              temperature of the dynamics
+ * @param T_label        string representation of T, as used to build output file names
+ * @param N_ext          number of graph extractions to perform
+ * @param N_previous_ext number of extractions already performed in a previous run
+ * @param N_meas         number of measures (independent initial conditions) per extraction
+ * @param lambda         immigration rate / extinction threshold of the demographic noise dynamics
+ * @param t_max          maximum simulated time for each measure
+ * @param deltat_save    simulated time between two consecutive trajectory samples
+ * @param print_hist     whether species trajectories are written to file
+ * @param print_avgs     whether final average abundances are written to file
+ * @param print_graph    whether the extracted interaction graph is additionally written to file for inspection
+ * @param print_init     whether the initial conditions are additionally written to a log file for inspection
+ */
+void print_params(int N, double c, char *c_label, double mu, char *mu_label,
+                   double sigma, char *sigma_label, double epsilon, char *epsilon_label,
+                   double T, char *T_label, int N_ext, int N_previous_ext, int N_meas,
+                   double lambda, double t_max, double deltat_save, bool print_hist,
+                   bool print_avgs, bool print_graph, bool print_init){
+    fprintf(stderr, "\n ### RUN PARAMETERS ###\n");
+    fprintf(stderr, "Number of species (N): %d\n", N);
+    fprintf(stderr, "Average connectivity (c): %s (%g)\n", c_label, c);
+    fprintf(stderr, "Average interaction strength (mu): %s (%g)\n", mu_label, mu);
+    fprintf(stderr, "Interaction standard deviation (sigma): %s (%g)\n", sigma_label, sigma);
+    fprintf(stderr, "Interaction asymmetry (epsilon): %s (%g)\n", epsilon_label, epsilon);
+    fprintf(stderr, "Temperature (T): %s (%g)\n", T_label, T);
+    fprintf(stderr, "Number of graph extractions (N_ext): %d\n", N_ext);
+    fprintf(stderr, "Number of extractions already performed (N_prev_ext): %d\n", N_previous_ext);
+    fprintf(stderr, "Number of measures per extraction (N_meas): %d\n", N_meas);
+    fprintf(stderr, "Immigration rate / extinction threshold (lambda): %g\n", lambda);
+    fprintf(stderr, "Maximum simulated time per measure (t_max): %g\n", t_max);
+    fprintf(stderr, "Time between trajectory samples (deltat_save): %g\n", deltat_save);
+    fprintf(stderr, "Print species trajectories (print_hist): %s\n", BOOL_STR(print_hist));
+    fprintf(stderr, "Print final average abundances (print_avgs): %s\n", BOOL_STR(print_avgs));
+    fprintf(stderr, "Write the interaction graph to file (print_graph): %s\n", BOOL_STR(print_graph));
+    fprintf(stderr, "Write the initial conditions to file (print_init): %s\n", BOOL_STR(print_init));
+    fprintf(stderr, " #######################\n\n");
+    return;
+}
+
