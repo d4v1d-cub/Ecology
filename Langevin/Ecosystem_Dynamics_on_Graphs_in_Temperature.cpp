@@ -49,7 +49,7 @@ int main(int argc, char **argv){
     bool print_avgs = false;
     bool print_graph = false;
     bool print_init = false;
-    bool gr_inside = true;
+    bool gr_inside = false;
     char *input_graph_name = my_char_malloc(CHAR_LENGHT);
     snprintf(input_graph_name, CHAR_LENGHT, "%s", "");
     bool aji_aij = false;
