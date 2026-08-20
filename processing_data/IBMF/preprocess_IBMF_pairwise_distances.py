@@ -24,6 +24,14 @@ with the number or size of the input files.
 One output file per (eps, sigma, mu, N) group is written to --output-dir, with columns:
     bin_left  bin_right  bin_center  count  density
 where density is normalized so that sum(density * bin_width) = 1.
+
+For each input file, the matching "<fileout_base>_summary.txt" file (written by the same
+C++ run, in the same folder) is used to check that the data is complete: its "count/attempts"
+column is summed and printed (a value below 1 means some attempts diverged or failed to
+converge -- see check_summary_and_pairs). That sum, combined with attempts = --num-seq *
+ninitcond, gives back the number of converged attempts, from which the expected number of
+pairs C(converged,2) is computed and compared against the total multiplicity actually found
+in the input file.
 """
 
 import argparse
@@ -76,6 +84,58 @@ def group_files(paths):
         key = tuple(params[k] for k in GROUP_KEYS)
         groups[key].append((path, params))
     return groups
+
+
+def find_summary_path(path):
+    suffix = "_pairwise_dist.txt"
+    if not path.endswith(suffix):
+        return None
+    return path[: -len(suffix)] + "_summary.txt"
+
+
+def read_summary_ratio_sum(summary_path):
+    df = pd.read_csv(summary_path, sep=r"\s+", comment="#", header=None,
+                      names=["fp_idx", "ratio", "n_ave", "n_sq", "n0", "n1"])
+    return float(df["ratio"].sum())
+
+
+def count_input_pairs(path):
+    df = pd.read_csv(path, sep=r"\s+", comment="#", header=None,
+                      names=["distance", "multiplicity"])
+    return int(df["multiplicity"].sum())
+
+
+def check_summary_and_pairs(path, params, num_seq):
+    label = (f"eps={params['eps']} sigma={params['sigma']} mu={params['mu']} "
+             f"N={params['N']} seedgraph={params['seedgraph']}")
+
+    summary_path = find_summary_path(path)
+    if summary_path is None or not os.path.isfile(summary_path):
+        print(f"  [warn] {label}: no matching summary file found; skipping convergence check",
+              file=sys.stderr)
+        return
+
+    ratio_sum = read_summary_ratio_sum(summary_path)
+    print(f"  {label}: sum(count/attempts) = {ratio_sum:.6f}")
+    if ratio_sum < 1.0 - 1e-6:
+        print(f"  [warn] {label}: sum(count/attempts) = {ratio_sum:.6f} < 1 "
+              f"-> some attempts diverged or failed to converge", file=sys.stderr)
+
+    attempts = num_seq * int(params["ninitcond"])
+    total_converged = int(round(ratio_sum * attempts))
+    expected_pairs = total_converged * (total_converged - 1) // 2
+    actual_pairs = count_input_pairs(path)
+
+    print(f"  {label}: total pairs in input file = {actual_pairs}, "
+          f"expected C({total_converged},2) = {expected_pairs}")
+    # total_converged is reconstructed from a sum of %g-truncated ratios in the summary
+    # file, so it can be off by a unit or two; that shifts C(K,2) by about K, hence the
+    # tolerance below rather than an exact match.
+    tol = max(1, total_converged)
+    if abs(actual_pairs - expected_pairs) > tol:
+        print(f"  [warn] {label}: total pairs ({actual_pairs}) and expected pairs "
+              f"({expected_pairs}) differ by more than expected from rounding "
+              f"(tolerance={tol})", file=sys.stderr)
 
 
 def check_consistency(key, entries):
@@ -185,6 +245,11 @@ def main():
                          help="Upper edge of the histogram range. If omitted, it is "
                               "determined automatically per group from the pooled data "
                               "(requires an extra pass over the group's files).")
+    parser.add_argument("--num-seq", type=int, default=1,
+                         help="Number of update sequences tried per initial condition "
+                              "(the --num_seq argument the C++ solver was run with). Used "
+                              "to reconstruct attempts = num_seq * ninitcond for the "
+                              "summary-file convergence/pair-count check (default: %(default)s).")
     args = parser.parse_args()
 
     if not os.path.isdir(args.input_dir):
@@ -209,6 +274,8 @@ def main():
     for key, entries in sorted(groups.items()):
         eps, sigma, mu, N = key
         check_consistency(key, entries)
+        for path, params in entries:
+            check_summary_and_pairs(path, params, args.num_seq)
         paths = [path for path, _ in entries]
 
         if args.min_dist is not None and args.max_dist is not None:
