@@ -30,6 +30,10 @@ def parse_summary_file(path, ninitcond, num_seq):
         if not line or line.startswith('#'):
             continue
         nfp += 1
+        if len(line) < 2:
+            print(f"The fix point No. {nfp} in file {path} does not have a second column")
+            print(f"Line is: {line}")
+            continue
         ratio_sum += float(line.split()[1])
     attempts = num_seq * ninitcond
     n_converged = int(round(ratio_sum * attempts))
