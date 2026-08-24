@@ -172,7 +172,7 @@ def parse_args():
                               "a list of paths before this script sees them.")
     parser.add_argument('--output-dir', required=True,
                          help="Directory where the aggregated PDF files are written (created if missing).")
-    parser.add_argument('--bins', type=int, default=50,
+    parser.add_argument('--bins', type=int, default=1000,
                          help="Number of histogram bins per species (default: 50).")
     parser.add_argument('--only-converged', action='store_true',
                          help="Only pool rows whose convergence flag is 'T' (species that reached equilibrium "
