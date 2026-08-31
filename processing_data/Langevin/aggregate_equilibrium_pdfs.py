@@ -13,6 +13,11 @@ Every file matching a given (epsilon, ia_label, lambda, h, tmax, deltatsave, N, 
 combination is pooled together, across all Extractions and Measures (and across all --input-dirs),
 and one output file per combination is written to --output-dir.
 
+Every species, in every output file, is histogrammed on the SAME shared abundance grid (given
+by --nmin/--nmax/--dn), rather than each species picking its own range -- this is what lets a
+later averaging/comparison step (preprocess_Langevin_distributions.py) stack per-species and
+per-file histograms directly, with no interpolation.
+
 Pass shell globs directly to --input-dirs (e.g. "genericname_*"): the shell expands them into a
 list of paths before this script ever sees them, so no special handling is needed here.
 """
@@ -140,23 +145,51 @@ def build_output_name(labels):
     )
 
 
-def write_group_pdf(out_path, labels, species_data, n_files, n_bins):
+def write_group_pdf(out_path, labels, species_data, n_files, bin_edges, verbose=False):
+    """bin_edges is the SAME shared grid used for every species (see build_bin_edges): this
+    is what lets a later averaging step stack per-species histograms directly, with no
+    interpolation. Samples falling outside [bin_edges[0], bin_edges[-1]] are silently dropped
+    by np.histogram; n_samples still reports the species' true total pooled sample count (not
+    just the in-range ones), so a frequency column (count / n_samples) built downstream
+    correctly reflects any such missing mass instead of being invisibly rescaled to sum to 1."""
+    dn = bin_edges[1] - bin_edges[0]
     with open(out_path, 'w') as fout:
         fout.write("# Empirical probability density of equilibrium abundances, pooled over all extractions and measures\n")
         fout.write("# " + " ".join(f"{key}={labels[key]}" for key in GROUP_KEY_ORDER) + "\n")
-        fout.write(f"# n_files_pooled={n_files} bins={n_bins}\n")
+        fout.write(f"# n_files_pooled={n_files} nmin={bin_edges[0]:.17g} nmax={bin_edges[-1]:.17g} "
+                    f"dn={dn:.17g} bins={len(bin_edges) - 1}\n")
         fout.write("# species_index\tbin_left\tbin_right\tbin_center\tdensity\tcount\tn_samples\n")
         for idx in sorted(species_data.keys()):
             values = np.asarray(species_data[idx], dtype=float)
             if values.size == 0:
                 continue
-            counts, edges = np.histogram(values, bins=n_bins, density=False)
-            bin_widths = np.diff(edges)
-            density = counts / (values.size * bin_widths)
+            counts, edges = np.histogram(values, bins=bin_edges)
+            n_out_of_range = values.size - int(counts.sum())
+            if verbose and n_out_of_range > 0:
+                print(f"WARNING: species {idx} in {out_path}: {n_out_of_range} of {values.size} "
+                      f"samples fall outside [{bin_edges[0]}, {bin_edges[-1]}] and were dropped",
+                      file=sys.stderr)
+            density = counts / (values.size * dn)
             centers = 0.5 * (edges[:-1] + edges[1:])
             for count, left, right, center, dens in zip(counts, edges[:-1], edges[1:], centers, density):
                 fout.write(f"{idx}\t{left:.17g}\t{right:.17g}\t{center:.17g}\t{dens:.17g}\t{int(count)}\t{values.size}\n")
     return
+
+
+def build_bin_edges(nmin, nmax, dn):
+    """Build the shared grid edges from nmin/nmax/dn, snapping the bin count to the nearest
+    integer (nmax-nmin should be an integer multiple of dn, up to floating point rounding)."""
+    n_bins = int(round((nmax - nmin) / dn))
+    if n_bins < 1:
+        print(f"ERROR: --nmax ({nmax}) must be greater than --nmin ({nmin}) by at least one --dn ({dn})",
+              file=sys.stderr)
+        sys.exit(1)
+    actual_span = n_bins * dn
+    requested_span = nmax - nmin
+    if abs(actual_span - requested_span) > 1e-6 * dn:
+        print(f"WARNING: (nmax - nmin) = {requested_span:.6g} is not an integer multiple of dn = {dn:.6g}; "
+              f"using {n_bins} bins (span {actual_span:.6g}) instead", file=sys.stderr)
+    return np.linspace(nmin, nmin + n_bins * dn, n_bins + 1)
 
 
 def parse_args():
@@ -172,8 +205,16 @@ def parse_args():
                               "a list of paths before this script sees them.")
     parser.add_argument('--output-dir', required=True,
                          help="Directory where the aggregated PDF files are written (created if missing).")
-    parser.add_argument('--bins', type=int, default=1000,
-                         help="Number of histogram bins per species (default: 50).")
+    parser.add_argument('--nmin', type=float, required=True,
+                         help="Lower edge of the abundance grid, shared by every species and every "
+                              "parameter combination (this is what makes later cross-species/cross-file "
+                              "averaging exact, with no interpolation needed).")
+    parser.add_argument('--nmax', type=float, required=True,
+                         help="Upper edge of the shared abundance grid.")
+    parser.add_argument('--dn', type=float, required=True,
+                         help="Bin width of the shared abundance grid. (nmax - nmin) should be an integer "
+                              "multiple of dn (up to floating point rounding); otherwise the bin count is "
+                              "rounded and a warning is printed.")
     parser.add_argument('--only-converged', action='store_true',
                          help="Only pool rows whose convergence flag is 'T' (species that reached equilibrium "
                               "in that measure). By default all rows are pooled regardless of convergence flag.")
@@ -188,6 +229,8 @@ def main():
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    bin_edges = build_bin_edges(args.nmin, args.nmax, args.dn)
+
     groups, group_labels_by_key, n_files_by_key = aggregate(args.input_dirs, args.only_converged, args.verbose)
 
     if not groups:
@@ -197,7 +240,7 @@ def main():
     for group_key, species_data in groups.items():
         labels = group_labels_by_key[group_key]
         out_path = out_dir / build_output_name(labels)
-        write_group_pdf(out_path, labels, species_data, n_files_by_key[group_key], args.bins)
+        write_group_pdf(out_path, labels, species_data, n_files_by_key[group_key], bin_edges, args.verbose)
         n_species = len(species_data)
         n_samples = sum(len(v) for v in species_data.values())
         print(f"Wrote {out_path} ({n_species} species, {n_samples} pooled samples, "
