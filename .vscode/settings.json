@@ -76,5 +76,6 @@
         "variant": "cpp"
     },
     "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "cmake.sourceDirectory": "/home/david/VSCProjects/Ecology/Langevin/eigen-3.4.0"
 }

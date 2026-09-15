@@ -1033,7 +1033,7 @@ void Milstein_driver_GLV_demographic_noise_with_single_species_measure_and_summa
     // Save final data in David format
     if(print_avgs){
         for(i=0; i<ecosystem->size; i++){
-            fprintf(fp_eq, "%d\t%c\t%.17f\t%.17f\n", i, species_convergence[i], eq_pt_previous[i], eq_pt_std_previous[i]);
+            fprintf(fp_eq, "%d\t%c\t%.17f\t%.17f\t%.17lf\n", i, species_convergence[i], eq_pt_previous[i], eq_pt_std_previous[i], (ecosystem->vtx[i])->x);
         }
     }
 
