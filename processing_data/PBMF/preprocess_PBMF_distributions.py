@@ -31,10 +31,13 @@ Two more companion files (also gated by --skip-avg-dist-files) give the *predict
 histogram* a finite numerical simulation with S samples of the final abundances would produce
 (--S, default 10000): each species' density is converted to a per-bin frequency (density * dn)
 and truncated by zeroing out bins whose frequency falls below the 1/S resolution limit, since
-those bins would not be reliably observed in S draws. A "<file>_avg_freq_hist_S<S>.txt" file
-contains the grid and the species-averaged truncated frequency (from P and from Phat); a
-"<file>_top_nongaussian_freq_hist_S<S>.txt" file contains the truncated frequency histograms
-(from P and from Phat) for the same --top-nongaussian-n species selected above.
+those bins would not be reliably observed in S draws. A "<file>_favg_S<S>.txt" file contains
+the grid and the species-averaged truncated frequency (from P and from Phat); a
+"<file>_ftop_S<S>.txt" file contains the truncated frequency histograms (from P and from Phat)
+for the same --top-nongaussian-n species selected above. These two suffixes are kept short
+(unlike "_avg_dist_fit.txt" / "_top_nongaussian_species.txt") because the input filenames
+already encode every run parameter and can be 200+ characters long on their own, leaving
+little headroom before hitting a filesystem's filename length limit (e.g. 255 bytes on ext4).
 """
 
 import argparse
@@ -281,11 +284,15 @@ def truncate_frequency(freq, S):
 
 
 def _freq_hist_suffix(prefix, S):
-    return f"_{prefix}_freq_hist_S{S}.txt"
+    # Kept deliberately short (unlike the more descriptive AVG_DIST_SUFFIX /
+    # TOP_NONGAUSSIAN_SUFFIX): the input filenames this is appended to already encode every
+    # run parameter and can be close to 200+ characters long, so a verbose suffix here risks
+    # exceeding the filesystem's filename length limit (e.g. ext4's 255-byte limit).
+    return f"_{prefix}_S{S}.txt"
 
 
 def write_average_frequency_file(path, output_dir, n, freqP_avg, freqPhat_avg, S):
-    out_name = os.path.basename(path)[:-len(".txt")] + _freq_hist_suffix("avg", S)
+    out_name = os.path.basename(path)[:-len(".txt")] + _freq_hist_suffix("favg", S)
     out_path = os.path.join(output_dir, out_name)
 
     header = (
@@ -304,7 +311,7 @@ def write_top_nongaussian_frequency_file(path, output_dir, n, freqP, freqPhat,
     """Write the truncated (1/S-resolution) frequency histograms, from P and from Phat, for
     the n_top species with the largest per-species L1 fit error -- the same species selected
     by write_top_nongaussian_file."""
-    out_name = os.path.basename(path)[:-len(".txt")] + _freq_hist_suffix("top_nongaussian", S)
+    out_name = os.path.basename(path)[:-len(".txt")] + _freq_hist_suffix("ftop", S)
     out_path = os.path.join(output_dir, out_name)
 
     ranked = per_species_df.sort_values("error_fit", ascending=False).head(n_top)
