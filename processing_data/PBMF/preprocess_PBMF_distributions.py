@@ -26,6 +26,15 @@ P(n), the (species-)averaged Phat(n), and their pointwise median/std across spec
 "<file>_top_nongaussian_species.txt" file containing P(n) and Phat(n) for the --top-nongaussian-n
 (default 3) individual species with the largest per-species L1 fit error (i.e. the least
 Gaussian-looking single-species distributions).
+
+Two more companion files (also gated by --skip-avg-dist-files) give the *predicted frequency
+histogram* a finite numerical simulation with S samples of the final abundances would produce
+(--S, default 10000): each species' density is converted to a per-bin frequency (density * dn)
+and truncated by zeroing out bins whose frequency falls below the 1/S resolution limit, since
+those bins would not be reliably observed in S draws. A "<file>_avg_freq_hist_S<S>.txt" file
+contains the grid and the species-averaged truncated frequency (from P and from Phat); a
+"<file>_top_nongaussian_freq_hist_S<S>.txt" file contains the truncated frequency histograms
+(from P and from Phat) for the same --top-nongaussian-n species selected above.
 """
 
 import argparse
@@ -258,8 +267,67 @@ def write_top_nongaussian_file(path, output_dir, n, P, Phat, per_species_df, n_t
     return out_path
 
 
+def density_to_frequency(n, density):
+    """Convert a probability density over the grid n into per-bin frequency (probability
+    mass), assuming n is an equally spaced grid: freq(n) = density(n) * dn."""
+    dn = n[1] - n[0]
+    return density * dn
+
+
+def truncate_frequency(freq, S):
+    """Zero out frequency bins below the 1/S resolution limit of an S-sample simulation."""
+    threshold = 1.0 / S
+    return np.where(freq >= threshold, freq, 0.0)
+
+
+def _freq_hist_suffix(prefix, S):
+    return f"_{prefix}_freq_hist_S{S}.txt"
+
+
+def write_average_frequency_file(path, output_dir, n, freqP_avg, freqPhat_avg, S):
+    out_name = os.path.basename(path)[:-len(".txt")] + _freq_hist_suffix("avg", S)
+    out_path = os.path.join(output_dir, out_name)
+
+    header = (
+        f"S={S} threshold=1/S={1.0 / S:.6e}\n" +
+        "\t".join(["n", "freqP_avg", "freqPhat_avg"])
+    )
+
+    data = np.column_stack([n, freqP_avg, freqPhat_avg])
+    np.savetxt(out_path, data, fmt=["%.6f", "%.6e", "%.6e"],
+               delimiter="\t", header=header, comments="#")
+    return out_path
+
+
+def write_top_nongaussian_frequency_file(path, output_dir, n, freqP, freqPhat,
+                                          per_species_df, S, n_top=3):
+    """Write the truncated (1/S-resolution) frequency histograms, from P and from Phat, for
+    the n_top species with the largest per-species L1 fit error -- the same species selected
+    by write_top_nongaussian_file."""
+    out_name = os.path.basename(path)[:-len(".txt")] + _freq_hist_suffix("top_nongaussian", S)
+    out_path = os.path.join(output_dir, out_name)
+
+    ranked = per_species_df.sort_values("error_fit", ascending=False).head(n_top)
+
+    header_lines = [f"S={S} threshold=1/S={1.0 / S:.6e}"]
+    columns = ["n"]
+    data_cols = [n]
+    for rank, (_, row) in enumerate(ranked.iterrows(), start=1):
+        species_num = int(row["species_index"]) + 1
+        metrics = " ".join(f"{key}={row[key]:.6e}" for key in METRIC_KEYS)
+        header_lines.append(f"rank={rank} species={species_num} {metrics}")
+        columns += [f"freqP_species{species_num}", f"freqPhat_species{species_num}"]
+        data_cols += [freqP[:, species_num - 1], freqPhat[:, species_num - 1]]
+
+    header = "\n".join(header_lines) + "\n" + "\t".join(columns)
+    data = np.column_stack(data_cols)
+    fmt = ["%.6f"] + ["%.6e"] * (len(data_cols) - 1)
+    np.savetxt(out_path, data, fmt=fmt, delimiter="\t", header=header, comments="#")
+    return out_path
+
+
 def process_file(path, upper_truncation="inf", avg_dist_dir=None, write_avg_dist_files=True,
-                  top_nongaussian_n=3):
+                  top_nongaussian_n=3, S=10000):
     params = parse_filename(path)
     if params is None:
         print(f"  [skip] filename does not match expected pattern: {path}", file=sys.stderr)
@@ -320,6 +388,15 @@ def process_file(path, upper_truncation="inf", avg_dist_dir=None, write_avg_dist
             path, avg_dist_dir, n, P, Phat, per_species_df, n_top=top_nongaussian_n
         )
 
+        freqP = truncate_frequency(density_to_frequency(n, P), S)
+        freqPhat = truncate_frequency(density_to_frequency(n, Phat), S)
+        write_average_frequency_file(
+            path, avg_dist_dir, n, freqP.mean(axis=1), freqPhat.mean(axis=1), S
+        )
+        write_top_nongaussian_frequency_file(
+            path, avg_dist_dir, n, freqP, freqPhat, per_species_df, S, n_top=top_nongaussian_n
+        )
+
     return summary_row, per_species_df
 
 
@@ -360,6 +437,13 @@ def main():
         help="Number of individual species (largest per-species L1 fit error) to include "
              "in the per-file top-nongaussian-species .txt output (default: %(default)s).",
     )
+    parser.add_argument(
+        "--S", type=int, default=10000,
+        help="Number of measurements (samples) assumed for the numerical simulation the "
+             "predicted frequency histograms are compared against. Frequencies below 1/S "
+             "are not resolvable at that sample size and are truncated (zeroed) in the "
+             "output frequency-histogram files (default: %(default)s).",
+    )
     args = parser.parse_args()
 
     files = sorted(glob.glob(os.path.join(args.input_dir, args.pattern)))
@@ -379,7 +463,7 @@ def main():
         summary_row, per_species_df = process_file(
             path, upper_truncation=args.upper_truncation, avg_dist_dir=avg_dist_dir,
             write_avg_dist_files=not args.skip_avg_dist_files,
-            top_nongaussian_n=args.top_nongaussian_n,
+            top_nongaussian_n=args.top_nongaussian_n, S=args.S,
         )
         if summary_row is None:
             continue
