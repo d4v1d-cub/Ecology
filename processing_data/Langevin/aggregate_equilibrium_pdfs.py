@@ -95,13 +95,13 @@ def read_equilibrium_file(fpath, only_converged, verbose):
             if not line:
                 continue
             parts = line.split('\t')
-            if len(parts) != 4:
+            if len(parts) != 5:
                 parts = line.split()
-            if len(parts) != 4:
+            if len(parts) != 5:
                 if verbose:
                     print(f"WARNING: skipping malformed line {lineno} in '{fpath}'", file=sys.stderr)
                 continue
-            idx_str, conv_flag, abundance_str, _std_str = parts
+            idx_str, conv_flag, av_abundance_str, _std_str, abundance_str = parts
             try:
                 idx = int(idx_str)
                 abundance = float(abundance_str)
