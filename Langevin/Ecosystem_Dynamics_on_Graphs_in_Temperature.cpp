@@ -52,17 +52,19 @@ int main(int argc, char **argv){
     bool gr_inside = false;
     char *input_graph_name = my_char_malloc(CHAR_LENGHT);
     snprintf(input_graph_name, CHAR_LENGHT, "%s", "");
+    char *graph_id = my_char_malloc(CHAR_LENGHT);
+    snprintf(graph_id, CHAR_LENGHT, "%s", "");
     bool aji_aij = false;
 
     parse_arguments(argc, argv, N, c, c_label, mu, mu_label, sigma, sigma_label,
                      epsilon, epsilon_label, T, T_label, N_ext, N_previous_ext, N_meas,
                      lambda, t_max, deltat_save, print_hist, print_avgs, print_graph,
-                     print_init, print_parameters, gr_inside, input_graph_name, aji_aij);
+                     print_init, print_parameters, gr_inside, input_graph_name, graph_id, aji_aij);
     if(print_parameters){
         print_params(N, c, c_label, mu, mu_label, sigma, sigma_label, epsilon, epsilon_label,
                      T, T_label, N_ext, N_previous_ext, N_meas, lambda, t_max, deltat_save,
                      print_hist, print_avgs, print_graph, print_init,
-                     gr_inside, input_graph_name, aji_aij);
+                     gr_inside, input_graph_name, graph_id, aji_aij);
     }
 
     char ia_label[] = "Partially_AsymGauss";
@@ -178,7 +180,7 @@ int main(int argc, char **argv){
                 fp_RK = NULL;
             }
             if(print_avgs){
-                snprintf(name_buffer, CHAR_LENGHT, "%s/Equilibrium_Points/Lotka-Volterra_mu_%s_sigma_%s_T_%s_Extraction_%d_Measure_%d_Equilibrium_Points.txt", dir_name, mu_label, sigma_label, T_label, n, j);
+                snprintf(name_buffer, CHAR_LENGHT, "%s/Equilibrium_Points/Lotka-Volterra_mu_%s_sigma_%s_T_%s_Extraction_%d_Measure_%d_%s_Equilibrium_Points.txt", dir_name, mu_label, sigma_label, T_label, n, j, graph_id);
                 fp_eq = my_open_writing_file(name_buffer);
             }else{
                 fp_eq = NULL;
@@ -216,6 +218,7 @@ int main(int argc, char **argv){
     free(epsilon_label);
     free(T_label);
     free(input_graph_name);
+    free(graph_id);
     clock_t end = clock();
     time_spent = ((float)(end - begin)) / CLOCKS_PER_SEC;
     printf("\n # Il programma ha impiegato %f secondi.\n # A breve dovrebbe arrivare la mail (se opportunamente richiesto presso i nostri uffici).\n \n", time_spent);
