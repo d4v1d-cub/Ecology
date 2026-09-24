@@ -7,11 +7,19 @@ Expected input layout, rooted at each of --input-dirs:
     <root>/epsilon_<eps>_<ia_label>_lambda_<lambda>_h_<h>_tmax_<tmax>_deltatsave_<deltatsave>/
         N_<N>_c_<c>/
             Equilibrium_Points/
-                Lotka-Volterra_mu_<mu>_sigma_<sigma>_T_<T>_Extraction_<n>_Measure_<j>_Equilibrium_Points.txt
+                Lotka-Volterra_mu_<mu>_sigma_<sigma>_T_<T>_Extraction_<n>_Measure_<j>_<graph_id>_Equilibrium_Points.txt
 
-Every file matching a given (epsilon, ia_label, lambda, h, tmax, deltatsave, N, c, mu, sigma, T)
-combination is pooled together, across all Extractions and Measures (and across all --input-dirs),
-and one output file per combination is written to --output-dir.
+<graph_id> identifies which interaction graph the run used (the --graph_id command-line argument
+of Ecosystem_Dynamics_on_Graphs_in_Temperature.cpp), and is expected to follow the convention
+"RRG_sgraph_<sgraph>" (sgraph being an integer graph-realization index, matching the --sgraph
+convention already used by the PBMF side of this pipeline). Files are grouped -- and one output
+file per group is written -- by (epsilon, ia_label, lambda, h, tmax, deltatsave, N, c, sgraph, mu,
+sigma, T): every Extraction/Measure sharing that combination (and across all --input-dirs) is
+pooled together, but different sgraph values are kept in separate output files, since they come
+from physically different interaction graphs and mixing them together would average over
+unrelated ecosystems. (Pooling across sgraph, when desired, is instead done downstream, by
+whichever script/notebook reads these per-sgraph files -- the same way the PBMF side already
+pools its own per-sgraph files.)
 
 Every species, in every output file, is histogrammed on the SAME shared abundance grid (given
 by --nmin/--nmax/--dn), rather than each species picking its own range -- this is what lets a
@@ -37,11 +45,15 @@ LEVEL1_RE = re.compile(
 LEVEL2_RE = re.compile(r'^N_(?P<N>\d+)_c_(?P<c>[^_]+)$')
 FILE_RE = re.compile(
     r'^Lotka-Volterra_mu_(?P<mu>[^_]+)_sigma_(?P<sigma>[^_]+)_T_(?P<T>[^_]+)'
-    r'_Extraction_(?P<extraction>\d+)_Measure_(?P<measure>\d+)_Equilibrium_Points\.txt$'
+    r'_Extraction_(?P<extraction>\d+)_Measure_(?P<measure>\d+)_(?P<graph_id>.+)_Equilibrium_Points\.txt$'
 )
+# The graph_id captured by FILE_RE is expected to itself follow this convention (see module
+# docstring); sgraph is pulled out of it separately so it can be used as its own grouping key,
+# matching the integer --sgraph convention already used by the PBMF side of this pipeline.
+GRAPH_ID_RE = re.compile(r'^RRG_sgraph_(?P<sgraph>\d+)$')
 
 GROUP_KEY_ORDER = ['epsilon', 'ia_label', 'lambda', 'h', 'tmax', 'deltatsave',
-                    'N', 'c', 'mu', 'sigma', 'T']
+                    'N', 'c', 'sgraph', 'mu', 'sigma', 'T']
 
 
 def discover_equilibrium_files(input_dirs, verbose=False):
@@ -76,10 +88,15 @@ def discover_equilibrium_files(input_dirs, verbose=False):
                         if verbose:
                             print(f"WARNING: skipping '{fpath}': name does not match the expected pattern", file=sys.stderr)
                         continue
+                    m_graph = GRAPH_ID_RE.match(m3['graph_id'])
+                    if not m_graph:
+                        print(f"WARNING: skipping '{fpath}': graph_id '{m3['graph_id']}' does not match "
+                              f"the expected 'RRG_sgraph_<int>' convention", file=sys.stderr)
+                        continue
                     group_labels = {
                         'epsilon': m1['epsilon'], 'ia_label': m1['ia_label'], 'lambda': m1['lambda_'],
                         'h': m1['h'], 'tmax': m1['tmax'], 'deltatsave': m1['deltatsave'],
-                        'N': m2['N'], 'c': m2['c'],
+                        'N': m2['N'], 'c': m2['c'], 'sgraph': m_graph['sgraph'],
                         'mu': m3['mu'], 'sigma': m3['sigma'], 'T': m3['T'],
                     }
                     group_key = tuple(group_labels[k] for k in GROUP_KEY_ORDER)
@@ -135,13 +152,15 @@ def aggregate(input_dirs, only_converged, verbose):
 
 
 def build_output_name(labels):
-    # "Extraction_.../Measure_..." is replaced by "AllExtractions_AllMeasures" since the data is pooled,
-    # and "_PDF" is appended to distinguish this from a raw per-measure Equilibrium_Points file.
+    # "Extraction_.../Measure_..." is dropped since the data is pooled across all of them (for
+    # this sgraph); "sgraph" is kept (unlike Extraction/Measure) since different sgraph values
+    # come from different interaction graphs and are never pooled together by this script; "_PDF"
+    # is appended to distinguish this from a raw per-measure Equilibrium_Points file.
     return (
         f"Lotka-Volterra_epsilon_{labels['epsilon']}_{labels['ia_label']}_lambda_{labels['lambda']}"
         f"_h_{labels['h']}_tmax_{labels['tmax']}_deltatsave_{labels['deltatsave']}"
         f"_N_{labels['N']}_c_{labels['c']}_mu_{labels['mu']}_sigma_{labels['sigma']}_T_{labels['T']}"
-        f"_PDF.txt"
+        f"_sgraph_{labels['sgraph']}_PDF.txt"
     )
 
 
@@ -154,7 +173,7 @@ def write_group_pdf(out_path, labels, species_data, n_files, bin_edges, verbose=
     correctly reflects any such missing mass instead of being invisibly rescaled to sum to 1."""
     dn = bin_edges[1] - bin_edges[0]
     with open(out_path, 'w') as fout:
-        fout.write("# Empirical probability density of equilibrium abundances, pooled over all extractions and measures\n")
+        fout.write("# Empirical probability density of equilibrium abundances, pooled over all extractions and measures for this sgraph\n")
         fout.write("# " + " ".join(f"{key}={labels[key]}" for key in GROUP_KEY_ORDER) + "\n")
         fout.write(f"# n_files_pooled={n_files} nmin={bin_edges[0]:.17g} nmax={bin_edges[-1]:.17g} "
                     f"dn={dn:.17g} bins={len(bin_edges) - 1}\n")

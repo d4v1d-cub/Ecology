@@ -8,7 +8,14 @@ that the same downstream plotting logic can eventually be reused/adapted for bot
 Input files are expected to follow the naming convention produced by aggregate_equilibrium_pdfs.py:
 
     Lotka-Volterra_epsilon_<eps>_<ia_label>_lambda_<lambda>_h_<h>_tmax_<tmax>_deltatsave_<deltatsave>
-    _N_<N>_c_<c>_mu_<mu>_sigma_<sigma>_T_<T>_PDF.txt
+    _N_<N>_c_<c>_mu_<mu>_sigma_<sigma>_T_<T>_sgraph_<sgraph>_PDF.txt
+
+sgraph identifies which interaction graph (of possibly several realizations) the pooled data came
+from; aggregate_equilibrium_pdfs.py writes one such file per sgraph rather than pooling different
+graphs together, since they come from physically different ecosystems. This script processes each
+sgraph's file independently (one row in the summary CSV, one "<file>_avg_dist_fit.txt" companion
+file, per sgraph); pooling across sgraph, when desired, is left to whatever reads these outputs
+downstream (e.g. plot_PBMF_vs_Langevin_gaussianity.ipynb).
 
 and contain, after a few "#"-prefixed header lines, one row per (species_index, histogram bin):
     species_index, bin_left, bin_right, bin_center, density, count, n_samples
@@ -54,11 +61,14 @@ useful later.
 
 If --pbmf-dir is given, an additional "<file>_PBMF_top_nongaussian_species.txt" companion file
 is written: it pools every PBMF *_top_nongaussian_species.txt file (see
-preprocess_PBMF_distributions.py) in that directory matching this file's (epsilon, sigma) --
-across every sgraph (graph realization) and seedinit (initial condition) PBMF was run with -- to
-find the set of species PBMF identified as top non-Gaussian in any of those runs, and writes
-each such species' own count/frequency/density (from the Langevin data, on the shared grid) to
-that file.
+preprocess_PBMF_distributions.py) in that directory matching this file's (epsilon, sigma, sgraph)
+-- across every seedinit (initial condition) PBMF was run with, for that same sgraph -- to find
+the set of species PBMF identified as top non-Gaussian in any of those runs, and writes each such
+species' own count/frequency/density (from the Langevin data, on the shared grid) to that file.
+Matching on sgraph (rather than pooling across every sgraph PBMF was run with, as this used to do
+before both sides had per-sgraph output files) keeps the comparison meaningful: species indices,
+and hence which ones look non-Gaussian, are specific to one interaction graph, not comparable
+across different graph realizations.
 """
 
 import argparse
@@ -78,7 +88,7 @@ FILENAME_RE = re.compile(
     r"^Lotka-Volterra_epsilon_(?P<epsilon>[^_]+)_(?P<ia_label>.+)_lambda_(?P<lambda_>[^_]+)"
     r"_h_(?P<h>[^_]+)_tmax_(?P<tmax>[^_]+)_deltatsave_(?P<deltatsave>[^_]+)"
     r"_N_(?P<N>\d+)_c_(?P<c>[^_]+)_mu_(?P<mu>[^_]+)_sigma_(?P<sigma>[^_]+)_T_(?P<T>[^_]+)"
-    r"_PDF\.txt$"
+    r"_sgraph_(?P<sgraph>\d+)_PDF\.txt$"
 )
 
 DEFAULT_PATTERN = "Lotka-Volterra_*_PDF.txt"
@@ -111,6 +121,7 @@ def parse_filename(path):
     for key in ("epsilon", "lambda", "h", "tmax", "deltatsave", "c", "mu", "sigma", "T"):
         d[key] = float(d[key])
     d["N"] = int(d["N"])
+    d["sgraph"] = int(d["sgraph"])
     return d
 
 
@@ -323,17 +334,20 @@ PBMF_TOP_NONGAUSSIAN_RE = re.compile(
 PBMF_TOP_NONGAUSSIAN_SPECIES_LINE_RE = re.compile(r"species=(\d+)")
 
 
-def find_pbmf_top_nongaussian_files(pbmf_dir, eps, sigma, tol=1e-6):
-    """Find every PBMF *_top_nongaussian_species.txt file in pbmf_dir matching (eps, sigma),
-    pooling over every sgraph (graph realization) and seedinit (initial condition) PBMF was
-    run with."""
+def find_pbmf_top_nongaussian_files(pbmf_dir, eps, sigma, sgraph, tol=1e-6):
+    """Find every PBMF *_top_nongaussian_species.txt file in pbmf_dir matching (eps, sigma,
+    sgraph), pooling over every seedinit (initial condition) PBMF was run with for that sgraph.
+    sgraph is required (not pooled over): species indices, and hence which ones PBMF flags as
+    non-Gaussian, are specific to one interaction graph and are not comparable across different
+    graph realizations."""
     pattern = os.path.join(pbmf_dir, "PBMF_gr_in_RRG_*_top_nongaussian_species.txt")
     matches = []
     for path in sorted(glob.glob(pattern)):
         m = PBMF_TOP_NONGAUSSIAN_RE.match(os.path.basename(path))
         if m is None:
             continue
-        if np.isclose(float(m["eps"]), eps, atol=tol) and np.isclose(float(m["sigma"]), sigma, atol=tol):
+        if (np.isclose(float(m["eps"]), eps, atol=tol) and np.isclose(float(m["sigma"]), sigma, atol=tol)
+                and int(m["sgraph"]) == sgraph):
             matches.append(path)
     return matches
 
@@ -494,10 +508,12 @@ def process_file(path, upper_truncation="inf", avg_dist_dir=None, write_avg_dist
         )
 
         if pbmf_dir is not None:
-            pbmf_paths = find_pbmf_top_nongaussian_files(pbmf_dir, params["epsilon"], params["sigma"], tol=pbmf_tol)
+            pbmf_paths = find_pbmf_top_nongaussian_files(
+                pbmf_dir, params["epsilon"], params["sigma"], params["sgraph"], tol=pbmf_tol
+            )
             if not pbmf_paths:
                 print(f"  [warn] no PBMF top-nongaussian files found for epsilon={params['epsilon']}, "
-                      f"sigma={params['sigma']} in {pbmf_dir}", file=sys.stderr)
+                      f"sigma={params['sigma']}, sgraph={params['sgraph']} in {pbmf_dir}", file=sys.stderr)
             else:
                 pbmf_species = extract_pbmf_top_nongaussian_species(pbmf_paths)
                 valid_species = [idx for idx in pbmf_species if idx in species_data]
@@ -550,9 +566,9 @@ def main():
         "--pbmf-dir", default=None,
         help="Directory containing PBMF's *_top_nongaussian_species.txt files (see "
              "preprocess_PBMF_distributions.py). When given, for each input file this pools "
-             "every PBMF file matching that file's (epsilon, sigma) -- across every sgraph "
-             "(graph realization) and seedinit (initial condition) -- to find the species PBMF "
-             "identified as top non-Gaussian in any of those runs, and writes a "
+             "every PBMF file matching that file's (epsilon, sigma, sgraph) -- across every "
+             "seedinit (initial condition) PBMF was run with, for that same sgraph -- to find "
+             "the species PBMF identified as top non-Gaussian in any of those runs, and writes a "
              "'<file>_PBMF_top_nongaussian_species.txt' companion file with each such species' "
              "own count/frequency/density (from the Langevin data). Omit to skip this entirely.",
     )
