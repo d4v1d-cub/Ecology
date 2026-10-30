@@ -51,6 +51,7 @@ int main(int argc, char *argv[]) {
     bool alpha_inverse = false;
     bool pairwise_dist = false;
     bool no_checkpoints = false;
+    bool print_fp_bin = false;
 
     cout << fixed;
 
@@ -58,13 +59,13 @@ int main(int argc, char *argv[]) {
                     seed_seq, num_seq, tol_fixed_point, damping,
                     print_avgs, gr_inside, eps, mu,
                     sigma, seed_graph, N, graph_type, c_arg, gr_str, print_params, alpha_inverse,
-                    pairwise_dist, no_checkpoints);
+                    pairwise_dist, no_checkpoints, print_fp_bin);
     if (print_params) {
         print_params_run(avn_0, random_init, dn, id_0, num_init_conds, T, lambda, tol, max_iter,
                          seed_seq, num_seq, tol_fixed_point, damping,
                          print_avgs, gr_inside, eps, mu,
                          sigma, seed_graph, N, graph_type, c_arg, gr_str, alpha_inverse, pairwise_dist,
-                         no_checkpoints);
+                         no_checkpoints, print_fp_bin);
     }
 
     gsl_set_error_handler_off();
@@ -82,7 +83,7 @@ int main(int argc, char *argv[]) {
                             max_iter, num_seq, tol_fixed_point,
                             avn_0, damping, print_avgs,
                             fileout_base, random_init, dn, id_0, num_init_conds,
-                            pairwise_dist, no_checkpoints);
+                            pairwise_dist, no_checkpoints, print_fp_bin);
     }else{
         cout << "This program only accepts a temperature T=0" << endl;
         exit(1);

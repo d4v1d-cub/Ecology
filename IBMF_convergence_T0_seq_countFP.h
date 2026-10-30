@@ -225,6 +225,41 @@ void build_checkpoint_fileout_base(const char *fileout_base, int num_init_conds,
     snprintf(out_buffer, out_size, "%.*s%s%s", prefix_len, fileout_base, replace_str, pos + strlen(search_str));
 }
 
+/**
+ * @brief Write all distinct fixed points found, with their multiplicities, to a single binary file
+ *
+ * File "<fileout_base>_fixedpoints.bin", little-endian:
+ *   8 bytes  : magic string "IBMFFP01"
+ *   3 x int64: N, number of distinct fixed points nfp, number of attempts (initial conditions tried)
+ *   nfp x int32: number of converged runs that reached each fixed point
+ *   nfp x N x float32: abundances, fixed point by fixed point
+ */
+void print_fixed_points_binary(Tnode *nodes, long N, char *fileout_base, int attempts,
+                               const vector<int> &fixed_point_counts) {
+    int64_t nfp = nodes[0].fixed_points.size();
+    char filename[400];
+    snprintf(filename, sizeof(filename), "%s_fixedpoints.bin", fileout_base);
+    FILE *fb = fopen(filename, "wb");
+    if (!fb) {
+        cerr << "Error: cannot open " << filename << endl;
+        return;
+    }
+    const char magic[8] = {'I', 'B', 'M', 'F', 'F', 'P', '0', '1'};
+    int64_t header[3] = {(int64_t) N, nfp, (int64_t) attempts};
+    fwrite(magic, 1, 8, fb);
+    fwrite(header, sizeof(int64_t), 3, fb);
+    vector<int32_t> counts(fixed_point_counts.begin(), fixed_point_counts.end());
+    fwrite(counts.data(), sizeof(int32_t), nfp, fb);
+    vector<float> buffer(N);
+    for (int64_t k = 0; k < nfp; k++) {
+        for (long i = 0; i < N; i++) {
+            buffer[i] = (float) nodes[i].fixed_points[k];
+        }
+        fwrite(buffer.data(), sizeof(float), N, fb);
+    }
+    fclose(fb);
+}
+
 bool is_power_of_two(long n) {
     return n > 0 && (n & (n - 1)) == 0;
 }
@@ -236,7 +271,7 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
                          bool print_avgs,
                          char * fileout_base, bool random_init, double dn,
                          unsigned long id_0, int num_init_conds, bool pairwise_dist,
-                         bool no_checkpoints) {
+                         bool no_checkpoints, bool print_fp_bin) {
 
     long *sequence;
     sequence = new long[N];
@@ -313,6 +348,10 @@ void several_seq_IBMF_T0(unsigned long seed_graph, unsigned long seed_seq_init,
 
     if (pairwise_dist) {
         print_pairwise_distances(nodes, N, fileout_base, fixed_point_counts);
+    }
+
+    if (print_fp_bin) {
+        print_fixed_points_binary(nodes, N, fileout_base, attempts, fixed_point_counts);
     }
 
     delete [] sequence;
