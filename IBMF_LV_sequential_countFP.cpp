@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     char graph_type[10];
     sprintf(graph_type, "RRG");
     char gr_str[100];
-    sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, int(round(c_arg)), seed_graph);
+    sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, int(round(c_arg)), seed_graph);   // set again in create_graph
 
     bool print_params = false;
     bool alpha_inverse = false;

@@ -439,6 +439,20 @@ void print_avgs_to_file(Tnode *nodes, long N, char *fileavgs){
 }
 
 
+/**
+ * @brief Write x with the smallest number of decimals (at least 3, at most 6) that represents it exactly,
+ * so that parameters such as mu = 0.3531 are not rounded in the file names, while mu = 0.370 keeps the format 0.370
+ */
+void format_param(char *out, size_t size, double x) {
+    int digits = 3;
+    double scale = 1000.0;
+    while (digits < 6 && fabs(x * scale - round(x * scale)) > 1e-6) {
+        digits++;
+        scale *= 10.0;
+    }
+    snprintf(out, size, "%.*lf", digits, x);
+}
+
 void create_graph(bool gr_inside, unsigned long seed_graph, long N, Tnode *&nodes, 
                   double eps, double mu, double sigma, char * gr_str, char * graph_type, 
                   double c_arg, bool alpha_inverse){
@@ -448,12 +462,18 @@ void create_graph(bool gr_inside, unsigned long seed_graph, long N, Tnode *&node
         if (graph_type == string("RRG")) {
             int c = (int) round(c_arg);
             init_graph_inside_RRG(nodes, N, c, eps, mu, sigma, r);
-            sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%d_seedgraph_%li", eps, mu, sigma, N, c, seed_graph);
+            char mu_str[20], sigma_str[20];
+            format_param(mu_str, sizeof(mu_str), mu);
+            format_param(sigma_str, sizeof(sigma_str), sigma);
+            sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%s_sigma_%s_N_%li_c_%d_seedgraph_%li", eps, mu_str, sigma_str, N, c, seed_graph);
             gsl_rng_free(r);
         }else if (graph_type == string("ER")){
             double c = c_arg;
             init_graph_inside_RGER_full_asym(nodes, N, c, mu, sigma, r);
-            sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%.3lf_sigma_%.3lf_N_%li_c_%.3lf_seedgraph_%li", eps, mu, sigma, N, c, seed_graph);
+            char mu_str[20], sigma_str[20];
+            format_param(mu_str, sizeof(mu_str), mu);
+            format_param(sigma_str, sizeof(sigma_str), sigma);
+            sprintf(gr_str, "gr_inside_RRG_eps_%.3lf_mu_%s_sigma_%s_N_%li_c_%.3lf_seedgraph_%li", eps, mu_str, sigma_str, N, c, seed_graph);
             gsl_rng_free(r);
         }else{
             cerr << "graph_type must be RRG or ER" << endl;

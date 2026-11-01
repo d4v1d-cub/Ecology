@@ -113,7 +113,15 @@ void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsign
     sprintf(filesummary, "%s_summary.txt", fileout_base);
     
     FILE *fsummary = fopen(filesummary, "w");
-    fprintf(fsummary,"# number count n_ave n_sq n[0] n[1]\n");   
+    // n_ext: number of extinct species (abundance exactly 0); n_one: number of species with abundance exactly 1;
+    // d_ref: distance d = sqrt(sum_i (m_i - m_i^ref)^2 / N) to the most frequent fixed point (ref);
+    // h_ref: number of species that are extinct in one of the two fixed points and not in the other
+    fprintf(fsummary,"# number count n_ave n_sq n[0] n[1] n_ext n_one d_ref h_ref\n");
+
+    int ref = 0;
+    for (int fp_idx = 1; fp_idx < num_fixed_points; fp_idx++) {
+        if (fixed_point_counts[fp_idx] > fixed_point_counts[ref]) ref = fp_idx;
+    }
     
     printf("\n========================================\n");
     printf("RIEPILOGO PUNTI FISSI TROVATI:\n");
@@ -131,7 +139,16 @@ void print_fixed_points_summary(Tnode *nodes, long N, char *fileout_base, unsign
         if (N > 5) printf("...");
         printf("\n");
 
-	fprintf(fsummary,"%d %g %g %g %g %g\n",fp_idx+1,count/(double)attempts,average_FP(N,nodes,fp_idx),average_sqr_FP(N,nodes,fp_idx),nodes[0].fixed_points[fp_idx],nodes[1].fixed_points[fp_idx]);   
+	long n_ext = 0, n_one = 0, h_ref = 0;
+	double d2_ref = 0.0;
+	for (long i = 0; i < N; i++) {
+	    double m = nodes[i].fixed_points[fp_idx], m_ref = nodes[i].fixed_points[ref];
+	    if (m == 0.0) n_ext++;
+	    if (m == 1.0) n_one++;
+	    if ((m == 0.0) != (m_ref == 0.0)) h_ref++;
+	    d2_ref += (m - m_ref) * (m - m_ref);
+	}
+	fprintf(fsummary,"%d %g %g %g %g %g %ld %ld %g %ld\n",fp_idx+1,count/(double)attempts,average_FP(N,nodes,fp_idx),average_sqr_FP(N,nodes,fp_idx),nodes[0].fixed_points[fp_idx],nodes[1].fixed_points[fp_idx],n_ext,n_one,sqrt(d2_ref/N),h_ref);
 	
     if (print_avgs){
         // Salva su file
