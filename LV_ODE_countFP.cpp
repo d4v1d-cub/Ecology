@@ -15,21 +15,25 @@
  * With --method ibmf the program runs the IBMF iteration instead (IBMF_single_try), with the same output,
  * so that both methods also write the per-run log described below.
  *
- * Integration: adaptive Runge-Kutta (Dormand-Prince 5(4)) in the variables x_i = ln n_i, with the error
- * controlled on x (i.e. relative error on n). The immigration rate lambda keeps the abundances of extinct
- * species at n_i ~ lambda / |field_i| instead of decaying without bound.
+ * Integration: adaptive Runge-Kutta of orders 5(4) in the variables x_i = ln n_i, Cash-Karp (as in the
+ * integrator of Langevin/ecosystem_numerical_integration_toolbox.cpp) or Dormand-Prince (--integrator), with the
+ * largest error on the x_i per step divided by tol_rk as error measure. The immigration rate lambda keeps the
+ * abundances of extinct species at n_i ~ lambda / |f_i|, with f_i = 1 - sum_j a_ij n_j the field.
  *
- * Convergence: every dt_check time units the state is projected, m_i = n_i if n_i >= n_ext and m_i = 0
- * otherwise, and the residual of the IBMF fixed-point equation is computed,
- *     R = max_i | m_i - max(0, 1 - sum_j a_ij m_j) |.
- * R small requires the surviving species to be stationary and the extinct species to have a non-positive
- * field (non-invadability). The run has converged when R < tol_conv at all the checks during t_persist time
- * units. The fixed point stored is the projected vector m (extinct species exactly at 0). A run that has not
- * converged at t_max does not converge; a run whose abundances exceed 1e6 diverges.
+ * Convergence: every dt_check time units the largest relative rate max_i |d ln n_i / dt| is computed; the run
+ * has converged when it stays below tol_conv during t_persist time units. A species that could invade has
+ * d ln n_i/dt ~ f_i > 0, so the test also requires non-invadability. A run that has not converged at t_max does
+ * not converge; a run whose abundances exceed 1e6 diverges.
  *
- * Per-run log "<base>_runs.txt": seed_init converged diverged t_end(or iterations) steps residual
- * n_surviving fp_index (fp_index = -1 if the run did not converge; indices start at 0, in the order of the
- * binary file).
+ * Extinct species: at a fixed point with lambda > 0, n_i^2 - f_i n_i - lambda = 0, so that n_i ~ f_i if f_i > 0
+ * and n_i ~ lambda/|f_i| < sqrt(lambda) if f_i < 0. A species is extinct if its field is negative, with no
+ * threshold on the abundances. The fixed point stored has the extinct species at exactly 0 and the other species
+ * at their abundances.
+ *
+ * Per-run log "<base>_runs.txt": seed_init converged diverged t_end(or iterations) steps max_rate n_surviving
+ * fp_index, where max_rate is the final value of max_i |d ln n_i/dt| and fp_index = -1 if the run did not
+ * converge (indices start at 0, in the order of the binary file). For --method ibmf the third and fourth
+ * columns are the number of iterations and 0.
  */
 #include "IBMF_common_countFP.h"
 #include "IBMF_convergence_T0_seq_countFP.h"
@@ -71,26 +75,28 @@ void rhs(const Graph_flat &g, const vector<double> &x, vector<double> &n, vector
     for (long i = 0; i < g.N; i++) dx[i] = field(g, n.data(), i) - n[i] + lambda / n[i];
 }
 
-// residual of the IBMF fixed-point equation for the projected state; fills m
-double projected_residual(const Graph_flat &g, const vector<double> &x, vector<double> &m, double n_ext,
-                          long &n_surv) {
+// fixed point stored: extinct species (negative field) at 0, the others at their abundances
+void project_by_field(const Graph_flat &g, const vector<double> &x, vector<double> &n, vector<double> &m, long &n_surv) {
+    for (long i = 0; i < g.N; i++) n[i] = exp(x[i]);
     n_surv = 0;
     for (long i = 0; i < g.N; i++) {
-        double ni = exp(x[i]);
-        m[i] = ni >= n_ext ? ni : 0.0;
-        if (ni >= n_ext) n_surv++;
+        bool surv = field(g, n.data(), i) > 0.0;
+        m[i] = surv ? n[i] : 0.0;
+        n_surv += surv;
     }
-    double R = 0.0;
-    for (long i = 0; i < g.N; i++) {
-        double r = fabs(m[i] - max(0.0, field(g, m.data(), i)));
-        if (r > R) R = r;
-    }
-    return R;
+}
+
+// largest relative rate max_i |d ln n_i/dt|
+inline double max_rate(const vector<double> &dx) {
+    double r = 0.0;
+    for (double v : dx) r = max(r, fabs(v));
+    return r;
 }
 
 struct ODE_params {
-    double lambda = 1e-8, tol_rk = 1e-8, t_max = 4000.0, tol_conv = 1e-6, t_persist = 20.0, dt_check = 1.0;
-    double n_ext = 1e-4, h_first = 1e-2, h_min = 1e-10, n_div = 1e6;
+    double lambda = 1e-6, tol_rk = 1e-8, t_max = 200000.0, tol_conv = 1e-6, t_persist = 20.0, dt_check = 1.0;
+    double h_first = 1e-2, h_min = 1e-10, n_div = 1e6;
+    string integrator = "ck";
 };
 
 /**
@@ -98,9 +104,8 @@ struct ODE_params {
  * Returns true if converged.
  */
 bool integrate_LV(const Graph_flat &g, Tnode *nodes, const ODE_params &p, bool &diverged, double &t_end,
-                  long &steps, double &R_end, long &n_surv) {
-    // Dormand-Prince 5(4) coefficients
-    static const double c2 = 1. / 5, c3 = 3. / 10, c4 = 4. / 5, c5 = 8. / 9;
+                  long &steps, double &rate_end, long &n_surv) {
+    // Dormand-Prince 5(4)
     static const double a21 = 1. / 5;
     static const double a31 = 3. / 40, a32 = 9. / 40;
     static const double a41 = 44. / 45, a42 = -56. / 15, a43 = 32. / 9;
@@ -110,7 +115,15 @@ bool integrate_LV(const Graph_flat &g, Tnode *nodes, const ODE_params &p, bool &
     static const double b1 = 35. / 384, b3 = 500. / 1113, b4 = 125. / 192, b5 = -2187. / 6784, b6 = 11. / 84;
     static const double e1 = 71. / 57600, e3 = -71. / 16695, e4 = 71. / 1920, e5 = -17253. / 339200,
                         e6 = 22. / 525, e7 = -1. / 40;
-    (void) c2; (void) c3; (void) c4; (void) c5;
+    // Cash-Karp 5(4) (same coefficients as rkck_algorithm in the Langevin toolbox)
+    static const double c10 = 0.2, c20 = 3.0 / 40.0, c21 = 9.0 / 40.0, c30 = 0.3, c31 = -0.9, c32 = 1.2,
+                        c40 = -11.0 / 54.0, c41 = 2.5, c42 = -70.0 / 27.0, c43 = 35.0 / 27.0,
+                        c50 = 1631.0 / 55296.0, c51 = 175.0 / 512.0, c52 = 575.0 / 13824.0, c53 = 44275.0 / 110592.0,
+                        c54 = 253.0 / 4096.0;
+    static const double d0 = 37.0 / 378.0, d2 = 250.0 / 621.0, d3 = 125.0 / 594.0, d5 = 512.0 / 1771.0;
+    static const double f0 = 37.0 / 378.0 - 2825.0 / 27648.0, f2 = 250.0 / 621.0 - 18575.0 / 48384.0,
+                        f3 = 125.0 / 594.0 - 13525.0 / 55296.0, f4 = -277.0 / 14336.0, f5 = 512.0 / 1771.0 - 0.25;
+    const bool dp = p.integrator == "dp";
     long N = g.N;
     vector<double> x(N), xt(N), xn(N), n(N), m(N), k1(N), k2(N), k3(N), k4(N), k5(N), k6(N), k7(N);
     double n_floor = p.lambda > 0 ? p.lambda : 1e-12;
@@ -120,34 +133,50 @@ bool integrate_LV(const Graph_flat &g, Tnode *nodes, const ODE_params &p, bool &
     bool converged = false;
     diverged = false;
     steps = 0;
-    R_end = -1;
-    n_surv = 0;
     rhs(g, x, n, k1, p.lambda);
+    rate_end = max_rate(k1);
     while (t < p.t_max) {
         if (t + h > p.t_max) h = p.t_max - t;
-        for (long i = 0; i < N; i++) xt[i] = x[i] + h * a21 * k1[i];
-        rhs(g, xt, n, k2, p.lambda);
-        for (long i = 0; i < N; i++) xt[i] = x[i] + h * (a31 * k1[i] + a32 * k2[i]);
-        rhs(g, xt, n, k3, p.lambda);
-        for (long i = 0; i < N; i++) xt[i] = x[i] + h * (a41 * k1[i] + a42 * k2[i] + a43 * k3[i]);
-        rhs(g, xt, n, k4, p.lambda);
-        for (long i = 0; i < N; i++) xt[i] = x[i] + h * (a51 * k1[i] + a52 * k2[i] + a53 * k3[i] + a54 * k4[i]);
-        rhs(g, xt, n, k5, p.lambda);
-        for (long i = 0; i < N; i++)
-            xt[i] = x[i] + h * (a61 * k1[i] + a62 * k2[i] + a63 * k3[i] + a64 * k4[i] + a65 * k5[i]);
-        rhs(g, xt, n, k6, p.lambda);
-        for (long i = 0; i < N; i++) xn[i] = x[i] + h * (b1 * k1[i] + b3 * k3[i] + b4 * k4[i] + b5 * k5[i] + b6 * k6[i]);
-        rhs(g, xn, n, k7, p.lambda);
         double err = 0.0;
-        for (long i = 0; i < N; i++) {
-            double ei = fabs(h * (e1 * k1[i] + e3 * k3[i] + e4 * k4[i] + e5 * k5[i] + e6 * k6[i] + e7 * k7[i]));
-            if (ei > err) err = ei;
+        if (dp) {
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * a21 * k1[i];
+            rhs(g, xt, n, k2, p.lambda);
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * (a31 * k1[i] + a32 * k2[i]);
+            rhs(g, xt, n, k3, p.lambda);
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * (a41 * k1[i] + a42 * k2[i] + a43 * k3[i]);
+            rhs(g, xt, n, k4, p.lambda);
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * (a51 * k1[i] + a52 * k2[i] + a53 * k3[i] + a54 * k4[i]);
+            rhs(g, xt, n, k5, p.lambda);
+            for (long i = 0; i < N; i++)
+                xt[i] = x[i] + h * (a61 * k1[i] + a62 * k2[i] + a63 * k3[i] + a64 * k4[i] + a65 * k5[i]);
+            rhs(g, xt, n, k6, p.lambda);
+            for (long i = 0; i < N; i++) xn[i] = x[i] + h * (b1 * k1[i] + b3 * k3[i] + b4 * k4[i] + b5 * k5[i] + b6 * k6[i]);
+            rhs(g, xn, n, k7, p.lambda);
+            for (long i = 0; i < N; i++)
+                err = max(err, fabs(h * (e1 * k1[i] + e3 * k3[i] + e4 * k4[i] + e5 * k5[i] + e6 * k6[i] + e7 * k7[i])));
+        } else {
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * c10 * k1[i];
+            rhs(g, xt, n, k2, p.lambda);
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * (c20 * k1[i] + c21 * k2[i]);
+            rhs(g, xt, n, k3, p.lambda);
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * (c30 * k1[i] + c31 * k2[i] + c32 * k3[i]);
+            rhs(g, xt, n, k4, p.lambda);
+            for (long i = 0; i < N; i++) xt[i] = x[i] + h * (c40 * k1[i] + c41 * k2[i] + c42 * k3[i] + c43 * k4[i]);
+            rhs(g, xt, n, k5, p.lambda);
+            for (long i = 0; i < N; i++)
+                xt[i] = x[i] + h * (c50 * k1[i] + c51 * k2[i] + c52 * k3[i] + c53 * k4[i] + c54 * k5[i]);
+            rhs(g, xt, n, k6, p.lambda);
+            for (long i = 0; i < N; i++) {
+                xn[i] = x[i] + h * (d0 * k1[i] + d2 * k3[i] + d3 * k4[i] + d5 * k6[i]);
+                err = max(err, fabs(h * (f0 * k1[i] + f2 * k3[i] + f3 * k4[i] + f4 * k5[i] + f5 * k6[i])));
+            }
         }
         err /= p.tol_rk;
-        if (err <= 1.0 || h <= p.h_min) {             // accept the step (FSAL: k7 is the next k1)
+        if (err <= 1.0 || h <= p.h_min) {             // accept the step
             t += h;
             x.swap(xn);
-            k1.swap(k7);
+            if (dp) k1.swap(k7);                       // FSAL: derivative at the new point
+            else rhs(g, x, n, k1, p.lambda);           // Cash-Karp: new derivative evaluation
             steps++;
             for (long i = 0; i < N; i++) {
                 if (x[i] > x_div || !std::isfinite(x[i])) { diverged = true; break; }
@@ -155,8 +184,8 @@ bool integrate_LV(const Graph_flat &g, Tnode *nodes, const ODE_params &p, bool &
             if (diverged) break;
             if (t >= t_next_check) {
                 t_next_check = t + p.dt_check;
-                R_end = projected_residual(g, x, m, p.n_ext, n_surv);
-                if (R_end < p.tol_conv) {
+                rate_end = max_rate(k1);
+                if (rate_end < p.tol_conv) {
                     if (t_ok < 0) t_ok = t;
                     if (t - t_ok >= p.t_persist) { converged = true; break; }
                 } else {
@@ -169,7 +198,8 @@ bool integrate_LV(const Graph_flat &g, Tnode *nodes, const ODE_params &p, bool &
         if (h < p.h_min) h = p.h_min;
     }
     t_end = t;
-    if (R_end < 0 || !converged) R_end = projected_residual(g, x, m, p.n_ext, n_surv);
+    rate_end = max_rate(k1);
+    project_by_field(g, x, n, m, n_surv);
     for (long i = 0; i < N; i++) nodes[i].av = m[i];
     return converged && !diverged;
 }
@@ -182,13 +212,13 @@ void print_usage(const char *prog) {
          << "  --avn_0 <n0> --random_init <dn> <id_0> <num_init_conds> --tol_fp <tol> --print_fp_bin --no_checkpoints\n"
          << "Dynamics:\n"
          << "  --method <ode|ibmf>   [ode]    numerical integration of the LV equations, or IBMF iteration\n"
-         << "  --lambda <l>          [1e-8]   immigration rate\n"
+         << "  --integrator <ck|dp>  [ck]     Cash-Karp or Dormand-Prince adaptive Runge-Kutta 5(4)\n"
+         << "  --lambda <l>          [1e-6]   immigration rate\n"
          << "  --tol_rk <t>          [1e-8]   tolerance of the adaptive Runge-Kutta step (on ln n)\n"
-         << "  --t_max <t>           [4000]   maximum integration time\n"
-         << "  --tol_conv <t>        [1e-6]   tolerance on the residual of the projected fixed-point equation\n"
-         << "  --t_persist <t>       [20]     time during which the residual must stay below tol_conv\n"
+         << "  --t_max <t>           [2e5]    maximum integration time\n"
+         << "  --tol_conv <t>        [1e-6]   tolerance on max_i |d ln n_i/dt|\n"
+         << "  --t_persist <t>       [20]     time during which max_i |d ln n_i/dt| must stay below tol_conv\n"
          << "  --dt_check <t>        [1]      interval between convergence checks\n"
-         << "  --n_ext <n>           [1e-4]   abundance below which a species is extinct in the projected state\n"
          << "IBMF (--method ibmf): --tol <1e-6> --max_iter <10000> --seed_seq <1> --damping <1.0>\n";
 }
 
@@ -230,7 +260,7 @@ int main(int argc, char *argv[]) {
         else if (a == "--tol_conv") p.tol_conv = atof(next());
         else if (a == "--t_persist") p.t_persist = atof(next());
         else if (a == "--dt_check") p.dt_check = atof(next());
-        else if (a == "--n_ext") p.n_ext = atof(next());
+        else if (a == "--integrator") p.integrator = next();
         else if (a == "--tol") tol_ibmf = atof(next());
         else if (a == "--max_iter") max_iter = atoi(next());
         else if (a == "--seed_seq") seed_seq = atol(next());
@@ -239,6 +269,7 @@ int main(int argc, char *argv[]) {
     }
     if (!gr_inside) { cerr << "Only --gr_inside is supported" << endl; return 1; }
     if (method != "ode" && method != "ibmf") { cerr << "--method must be ode or ibmf" << endl; return 1; }
+    if (p.integrator != "ck" && p.integrator != "dp") { cerr << "--integrator must be ck or dp" << endl; return 1; }
 
     gsl_set_error_handler_off();
     Tnode *nodes;
@@ -249,8 +280,8 @@ int main(int argc, char *argv[]) {
     char fileout_base[400];
     if (method == "ode") {
         snprintf(fileout_base, sizeof(fileout_base),
-                 "LV_ODE_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_ninitcond_%d_lambda_%.1e_tolrk_%.1e_tolconv_%.1e_tmax_%g",
-                 gr_str, avn_0, dn, num_init_conds, p.lambda, p.tol_rk, p.tol_conv, p.t_max);
+                 "LV_ODE_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_ninitcond_%d_lambda_%.1e_%s_tolrk_%.1e_tolconv_%.1e_tmax_%g",
+                 gr_str, avn_0, dn, num_init_conds, p.lambda, p.integrator.c_str(), p.tol_rk, p.tol_conv, p.t_max);
     } else {
         snprintf(fileout_base, sizeof(fileout_base),
                  "LV_IBMF_%s_Lotka_Volterra_final_av0_%.3lf_dn_%.3lf_ninitcond_%d_tol_%.1e_maxiter_%d_damping_%.2lf",
@@ -261,7 +292,7 @@ int main(int argc, char *argv[]) {
     FILE *flog = fopen(filelog, "w");
     fprintf(flog, "# method %s  N %ld  mu %g  sigma %g  eps %g  seed_graph %lu\n", method.c_str(), N, mu, sigma, eps, seed_graph);
     if (method == "ode")
-        fprintf(flog, "# seed_init converged diverged t_end steps residual n_surviving fp_index\n");
+        fprintf(flog, "# seed_init converged diverged t_end steps max_rate n_surviving fp_index\n");
     else
         fprintf(flog, "# seed_init converged diverged iterations 0 0 n_surviving fp_index\n");
 
@@ -275,7 +306,7 @@ int main(int argc, char *argv[]) {
 
     for (unsigned long seed_init = id_0; seed_init < id_0 + num_init_conds; seed_init++) {
         bool converged, diverged = false;
-        double t_end = 0, R_end = 0;
+        double t_end = 0, R_end = 0;   // R_end: final max_i |d ln n_i/dt| (ode)
         long steps = 0, n_surv = 0;
         if (method == "ode") {
             init_avgs(N, nodes, avn_0, random_init, dn, seed_init, r_condinit);
