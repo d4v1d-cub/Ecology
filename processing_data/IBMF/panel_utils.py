@@ -124,3 +124,13 @@ def save_panels(fig, path, names, **savefig_kw):
     with open(f"{stem}_panels.json", 'w') as fh:
         json.dump(info, fh, indent=1)
     return info
+
+
+# Colours for the number of initial conditions n_init, the same in every figure: matplotlib's default colour cycle
+# (C0 blue for 256, C1 orange for 512, ..., C7 grey for 32768).
+NINIT_ALL = (256, 512, 1024, 2048, 4096, 8192, 16384, 32768)
+
+
+def ninit_color(n):
+    k = NINIT_ALL.index(int(n))
+    return f"C{k}"
