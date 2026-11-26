@@ -31,14 +31,48 @@
  * at their abundances.
  *
  * Per-run log "<base>_runs.txt": seed_init converged diverged t_end(or iterations) steps max_rate n_surviving
- * fp_index, where max_rate is the final value of max_i |d ln n_i/dt| and fp_index = -1 if the run did not
- * converge (indices start at 0, in the order of the binary file). For --method ibmf the third and fourth
- * columns are the number of iterations and 0.
+ * fp_index cpu_run wall_run cpu_fp, where max_rate is the final value of max_i |d ln n_i/dt| and fp_index = -1 if
+ * the run did not converge (indices start at 0, in the order of the binary file). For --method ibmf the fourth and
+ * fifth columns are the number of iterations (sweeps) and 0. cpu_run and wall_run are the CPU time
+ * (CLOCK_PROCESS_CPUTIME_ID, user + system) and the wall-clock time of the dynamics of the run, in seconds; cpu_fp
+ * is the CPU time spent comparing the result with the fixed points already stored. The header also gives the host
+ * and the CPU model. The first eight columns are unchanged with respect to earlier versions.
+ *
+ * --time_budget <s>: no new run is started if the wall-clock time since the start of the program plus the longest
+ * run so far exceeds s seconds. The outputs are then written for the runs done (the file names keep the requested
+ * number of initial conditions) and the log ends with a comment line "# stopped by the time budget after k runs".
  */
 #include "IBMF_common_countFP.h"
 #include "IBMF_convergence_T0_seq_countFP.h"
+#include <chrono>
+#include <string>
+#include <time.h>
+#include <unistd.h>
 
 using namespace std;
+
+// CPU time of the process (user + system), in seconds
+static double cpu_seconds() {
+    timespec ts;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
+    return ts.tv_sec + 1e-9 * ts.tv_nsec;
+}
+
+static double wall_seconds() {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+static string cpu_model() {
+    ifstream f("/proc/cpuinfo");
+    string line;
+    while (getline(f, line)) {
+        if (line.rfind("model name", 0) == 0) {
+            size_t p = line.find(':');
+            if (p != string::npos) return line.substr(line.find_first_not_of(" \t", p + 1));
+        }
+    }
+    return "unknown";
+}
 
 struct Graph_flat {
     long N;
@@ -219,6 +253,7 @@ void print_usage(const char *prog) {
          << "  --tol_conv <t>        [1e-6]   tolerance on max_i |d ln n_i/dt|\n"
          << "  --t_persist <t>       [20]     time during which max_i |d ln n_i/dt| must stay below tol_conv\n"
          << "  --dt_check <t>        [1]      interval between convergence checks\n"
+         << "  --time_budget <s>     [0]      wall-clock budget in seconds (0: none); see the header of the source\n"
          << "IBMF (--method ibmf): --tol <1e-6> --max_iter <10000> --seed_seq <1> --damping <1.0>\n";
 }
 
@@ -235,6 +270,8 @@ int main(int argc, char *argv[]) {
     sprintf(graph_type, "RRG");
     string method = "ode";
     ODE_params p;
+    double time_budget = 0.0;
+    const double wall_start = wall_seconds();
 
     for (int k = 1; k < argc; k++) {
         string a = argv[k];
@@ -261,6 +298,7 @@ int main(int argc, char *argv[]) {
         else if (a == "--t_persist") p.t_persist = atof(next());
         else if (a == "--dt_check") p.dt_check = atof(next());
         else if (a == "--integrator") p.integrator = next();
+        else if (a == "--time_budget") time_budget = atof(next());
         else if (a == "--tol") tol_ibmf = atof(next());
         else if (a == "--max_iter") max_iter = atoi(next());
         else if (a == "--seed_seq") seed_seq = atol(next());
@@ -291,10 +329,14 @@ int main(int argc, char *argv[]) {
     snprintf(filelog, sizeof(filelog), "%s_runs.txt", fileout_base);
     FILE *flog = fopen(filelog, "w");
     fprintf(flog, "# method %s  N %ld  mu %g  sigma %g  eps %g  seed_graph %lu\n", method.c_str(), N, mu, sigma, eps, seed_graph);
+    char host[256] = "unknown";
+    gethostname(host, sizeof(host) - 1);
+    fprintf(flog, "# host %s  cpu %s  time_budget %g\n", host, cpu_model().c_str(), time_budget);
     if (method == "ode")
-        fprintf(flog, "# seed_init converged diverged t_end steps max_rate n_surviving fp_index\n");
+        fprintf(flog, "# seed_init converged diverged t_end steps max_rate n_surviving fp_index cpu_run wall_run cpu_fp\n");
     else
-        fprintf(flog, "# seed_init converged diverged iterations 0 0 n_surviving fp_index\n");
+        fprintf(flog, "# seed_init converged diverged iterations 0 0 n_surviving fp_index cpu_run wall_run cpu_fp\n");
+    fflush(flog);
 
     gsl_rng *r_condinit, *r_seq;
     init_ran(r_condinit, id_0);
@@ -303,11 +345,18 @@ int main(int argc, char *argv[]) {
     vector<int> fixed_point_counts;
     init_fixed_points_storage(nodes, N, fixed_point_counts);
     int attempts = 0;
+    double longest_run = 0.0;          // longest wall-clock time of a run so far (time budget)
+    bool stopped = false;
 
     for (unsigned long seed_init = id_0; seed_init < id_0 + num_init_conds; seed_init++) {
+        if (time_budget > 0 && attempts > 0 && wall_seconds() - wall_start + longest_run > time_budget) {
+            stopped = true;
+            break;
+        }
         bool converged, diverged = false;
         double t_end = 0, R_end = 0;   // R_end: final max_i |d ln n_i/dt| (ode)
         long steps = 0, n_surv = 0;
+        const double w0 = wall_seconds(), c0 = cpu_seconds();
         if (method == "ode") {
             init_avgs(N, nodes, avn_0, random_init, dn, seed_init, r_condinit);
             converged = integrate_LV(g, nodes, p, diverged, t_end, steps, R_end, n_surv);
@@ -319,6 +368,7 @@ int main(int argc, char *argv[]) {
             t_end = iter;
             for (long i = 0; i < N; i++) if (nodes[i].av > 0) n_surv++;
         }
+        const double c1 = cpu_seconds(), w1 = wall_seconds();
         attempts++;
         int fp_index = -1;
         if (converged) {
@@ -330,8 +380,10 @@ int main(int argc, char *argv[]) {
                 fp_index = (int) fixed_point_counts.size() - 1;
             }
         }
-        fprintf(flog, "%lu %d %d %.6g %ld %.3e %ld %d\n", seed_init, (int) converged, (int) diverged, t_end, steps,
-                R_end, n_surv, fp_index);
+        const double c2 = cpu_seconds();
+        longest_run = max(longest_run, wall_seconds() - w0);
+        fprintf(flog, "%lu %d %d %.6g %ld %.3e %ld %d %.4e %.4e %.4e\n", seed_init, (int) converged, (int) diverged,
+                t_end, steps, R_end, n_surv, fp_index, c1 - c0, w1 - w0, c2 - c1);
         fflush(flog);
 
         long ninitcond_done = seed_init - id_0 + 1;
@@ -344,6 +396,7 @@ int main(int argc, char *argv[]) {
     }
     print_fixed_points_summary(nodes, N, fileout_base, seed_graph, attempts, false, fixed_point_counts);
     if (print_fp_bin) print_fixed_points_binary(nodes, N, fileout_base, attempts, fixed_point_counts);
+    if (stopped) fprintf(flog, "# stopped by the time budget after %d runs\n", attempts);
     fclose(flog);
     delete[] sequence;
     gsl_rng_free(r_condinit);

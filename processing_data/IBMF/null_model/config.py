@@ -15,5 +15,5 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 BLUE, ORANGE, AQUA, INK, MUTED = "#2a78d6", "#eb6834", "#1baf7a", "#222222", "#8a8a85"
 def style():
     import matplotlib.pyplot as plt
-    plt.rcParams.update({"font.size": 9, "axes.spines.top": False, "axes.spines.right": False,
+    plt.rcParams.update({"font.size": 13, "axes.spines.top": False, "axes.spines.right": False,
                          "axes.edgecolor": MUTED})
